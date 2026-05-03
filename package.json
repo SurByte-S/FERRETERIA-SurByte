@@ -1,0 +1,17 @@
+{
+  "name": "ferreteria-surbyte",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "excel:analyze": "node scripts/analyze_excel.js",
+    "import:hardware-excel": "node scripts/import_hardware_excel.js",
+    "test": "node --test",
+    "build": "echo 'No build configurado todavía (fase 1).'"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "pg": "^8.13.1",
+    "xlsx": "^0.18.5"
+  }
+}

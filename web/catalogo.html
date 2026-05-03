@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Catálogo Ferretería</title>
+  <style>
+    body{font-family:Arial,sans-serif;background:#f5f7fb;margin:0}
+    .wrap{max-width:1100px;margin:0 auto;padding:20px}
+    input{width:100%;font-size:22px;padding:16px;border-radius:12px;border:1px solid #cdd5df}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-top:16px}
+    .card{background:#fff;padding:16px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+    .price{font-size:30px;font-weight:700;color:#0b7a37}
+    .code{color:#777;font-size:14px}
+    .stock{font-size:18px;margin:8px 0}
+    .btns button{font-size:18px;padding:10px 14px;margin-right:8px;border:0;border-radius:10px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>🔧 Catálogo</h1>
+    <input id="q" placeholder="Buscar producto por código o descripción" />
+    <div class="grid" id="grid"></div>
+  </div>
+<script>
+const data=[
+  {code:'TOR001',description:'Tornillo autoperforante',public_price:1250,stock_qty:42},
+  {code:'MAR010',description:'Martillo mango fibra 16oz',public_price:18900,stock_qty:6},
+  {code:'PIN200',description:'Pintura látex interior 20L',public_price:78500,stock_qty:3}
+];
+function render(items){
+  grid.innerHTML=items.map(p=>`<div class='card'><div class='price'>$ ${p.public_price}</div><div>${p.description}</div><div class='code'>Código: ${p.code}</div><div class='stock'>Stock: ${p.stock_qty}</div><div class='btns'><button>Ver producto</button><button>Agregar</button></div></div>`).join('');
+}
+q.addEventListener('input',()=>{const t=q.value.toLowerCase().trim();render(data.filter(p=>p.code.toLowerCase().includes(t)||p.description.toLowerCase().includes(t)));});
+render(data);
+</script>
+</body>
+</html>
