@@ -9,6 +9,8 @@ export default function ClientesPage() {
       <PageHeader
         title="Clientes"
         description="Guarda datos utiles de compradores frecuentes sin pedir informacion innecesaria."
+        backHref="/inicio"
+        backLabel="Volver al inicio"
       />
       <EmptyState
         icon={Users}

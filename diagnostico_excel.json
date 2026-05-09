@@ -1,0 +1,70 @@
+{
+  "source_file": "LISTA DE PRECIOS FERRETERIAS 17-04-2026.xlsm",
+  "sheet_catalog": "CATALOGO",
+  "catalog_range": "B12:Z10697",
+  "products_total": 10673,
+  "unique_skus": 10673,
+  "duplicate_skus": 0,
+  "missing_price_or_cost": 235,
+  "price_min_ars": 7.3344000000000005,
+  "price_median_ars": 13550.808,
+  "price_max_ars": 19863671.8944,
+  "iva_ratio_median": 1.21,
+  "all_desc_total_values": {
+    "0.04": 10673
+  },
+  "category_suggested_counts": [
+    [
+      "Plomería agua",
+      3784
+    ],
+    [
+      "Ferretería general",
+      2794
+    ],
+    [
+      "Sanitarios y baño",
+      817
+    ],
+    [
+      "Gas",
+      674
+    ],
+    [
+      "Grifería",
+      523
+    ],
+    [
+      "Electricidad",
+      441
+    ],
+    [
+      "Pintura y adhesivos",
+      351
+    ],
+    [
+      "Cocina y bachas",
+      335
+    ],
+    [
+      "Construcción",
+      247
+    ],
+    [
+      "Herramientas",
+      237
+    ],
+    [
+      "Iluminación",
+      180
+    ],
+    [
+      "Riego",
+      164
+    ],
+    [
+      "Climatización",
+      126
+    ]
+  ]
+}

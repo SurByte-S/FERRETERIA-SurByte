@@ -9,6 +9,8 @@ export default function VentasPage() {
       <PageHeader
         title="Ventas"
         description="Registra operaciones del mostrador con pasos simples y visibles."
+        backHref="/inicio"
+        backLabel="Volver al inicio"
       />
       <EmptyState
         icon={ShoppingCart}

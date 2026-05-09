@@ -9,6 +9,8 @@ export default function ConfiguracionPage() {
       <PageHeader
         title="Configuracion"
         description="Define datos de la ferreteria, sucursales y preferencias de uso."
+        backHref="/inicio"
+        backLabel="Volver al inicio"
       />
       <EmptyState
         icon={Settings}
