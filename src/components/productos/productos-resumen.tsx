@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 const demoRows = [
   { name: "Tornillos", detail: "Preparado para codigos y medidas" },
   { name: "Pinturas", detail: "Preparado para colores y presentaciones" },
-  { name: "Herramientas", detail: "Preparado para marcas y stock" },
+  { name: "Herramientas", detail: "Preparado para marcas y precios" },
 ];
 
 export function ProductosResumen() {

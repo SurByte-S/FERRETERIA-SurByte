@@ -15,7 +15,7 @@ export default function VentasPage() {
       <EmptyState
         icon={ShoppingCart}
         title="Ventas preparadas"
-        text="Aca se conectaran los comprobantes, formas de pago y stock descontado por tenant."
+        text="Aca se conectara el registro simple de ventas cuando el modulo este listo."
         actionHref="/clientes"
         actionLabel="Ver clientes"
       />

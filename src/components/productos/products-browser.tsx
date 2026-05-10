@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ClipboardList, Edit3, PackageSearch, Search } from "lucide-react";
+import { Box, ClipboardList, Edit3, ImageIcon, PackageSearch, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -14,7 +14,7 @@ import type { ProductCatalogOption, ProductListItem } from "./product-types";
 
 function formatMoney(value: number | null) {
   if (value === null) {
-    return "Revisar";
+    return "Sin precio";
   }
 
   return new Intl.NumberFormat("es-AR", {
@@ -24,99 +24,95 @@ function formatMoney(value: number | null) {
   }).format(value);
 }
 
-function stockState(product: ProductListItem) {
-  if (!product.active) {
-    return {
-      label: "Inactivo",
-      className: "border-zinc-300 bg-zinc-100 text-zinc-800",
-    };
-  }
+function buildMoreHref({
+  code,
+  name,
+  categoryId,
+  page,
+}: {
+  code: string;
+  name: string;
+  categoryId: string;
+  page: number;
+}) {
+  const params = new URLSearchParams();
 
-  if (product.stock <= 0) {
-    return {
-      label: "Sin stock",
-      className: "border-red-300 bg-red-50 text-red-900",
-    };
-  }
+  if (code) params.set("codigo", code);
+  if (name) params.set("nombre", name);
+  if (categoryId) params.set("categoria", categoryId);
+  params.set("page", String(page + 1));
 
-  if (product.stock <= product.minStock) {
-    return {
-      label: "Bajo",
-      className: "border-yellow-300 bg-yellow-50 text-yellow-950",
-    };
-  }
-
-  return {
-    label: "Disponible",
-    className: "border-green-300 bg-green-50 text-green-900",
-  };
+  return `/productos?${params.toString()}`;
 }
 
 export function ProductsBrowser({
   products,
   categories,
-  brands,
-  query,
-  category,
-  brand,
+  code,
+  name,
+  categoryId,
+  page,
+  total,
+  showing,
 }: {
   products: ProductListItem[];
   categories: ProductCatalogOption[];
-  brands: ProductCatalogOption[];
-  query: string;
-  category: string;
-  brand: string;
+  code: string;
+  name: string;
+  categoryId: string;
+  page: number;
+  total: number;
+  showing: number;
 }) {
+  const canShowMore = showing < total;
+
   return (
     <div className="grid gap-6">
       <Card>
         <CardHeader>
           <CardTitle>Buscar productos</CardTitle>
           <CardDescription>
-            Busca por codigo, SKU o descripcion. Usa filtros para encontrar mas rapido.
+            Usá un campo a la vez o combinalos para encontrar más rápido.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form className="grid gap-4 xl:grid-cols-[1fr_260px_260px_auto]" action="/productos">
+          <form className="grid gap-4 xl:grid-cols-[260px_1fr_300px_auto]" action="/productos">
             <label className="grid gap-2 text-base font-semibold">
-              <span>Codigo o descripcion</span>
+              <span>Buscar por código</span>
+              <input
+                name="codigo"
+                defaultValue={code}
+                placeholder="Ej: 12345 o código de barra"
+                className="h-14 rounded-lg border border-input bg-background px-4 text-lg"
+              />
+            </label>
+
+            <label className="grid gap-2 text-base font-semibold">
+              <span>Buscar por nombre</span>
               <div className="relative">
                 <Search className="pointer-events-none absolute left-4 top-1/2 size-6 -translate-y-1/2 text-muted-foreground" />
                 <input
-                  name="q"
-                  defaultValue={query}
-                  placeholder="Ejemplo: codo, 3757, pintura"
+                  name="nombre"
+                  defaultValue={name}
+                  placeholder="Ej: tornillo, pintura, llave"
                   className="h-14 w-full rounded-lg border border-input bg-background pl-12 pr-4 text-lg"
                 />
               </div>
+              <span className="text-sm font-normal text-muted-foreground">
+                Escribí al menos 2 letras para buscar por nombre.
+              </span>
             </label>
 
             <label className="grid gap-2 text-base font-semibold">
-              <span>Categoria</span>
+              <span>Elegir categoría</span>
               <select
                 name="categoria"
-                defaultValue={category}
+                defaultValue={categoryId}
                 className="h-14 rounded-lg border border-input bg-background px-3 text-base"
               >
-                <option value="">Todas</option>
+                <option value="">Todas las categorías</option>
                 {categories.map((item) => (
-                  <option key={item.name} value={item.name}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="grid gap-2 text-base font-semibold">
-              <span>Marca</span>
-              <select
-                name="marca"
-                defaultValue={brand}
-                className="h-14 rounded-lg border border-input bg-background px-3 text-base"
-              >
-                <option value="">Todas</option>
-                {brands.map((item) => (
-                  <option key={item.name} value={item.name}>
+                  <option key={item.id} value={item.id}>
                     {item.name}
                   </option>
                 ))}
@@ -133,110 +129,109 @@ export function ProductsBrowser({
         </CardContent>
       </Card>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-lg font-semibold">
-          {products.length} productos encontrados
+          Mostrando {showing} de {total} productos
         </p>
-        <Button asChild variant="outline" className="h-12 gap-2 px-5 text-base">
-          <Link href="/productos/importar">
-            <PackageSearch className="size-5" aria-hidden="true" />
-            Importar productos
-          </Link>
-        </Button>
+        {name.length === 1 ? (
+          <p className="text-base font-semibold text-muted-foreground">
+            Escribí al menos 2 letras para buscar por nombre.
+          </p>
+        ) : null}
       </div>
 
       {products.length === 0 ? (
         <Card>
           <CardHeader>
+            <div className="mb-2 flex size-14 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <Box className="size-7" aria-hidden="true" />
+            </div>
             <CardTitle>No hay productos para mostrar</CardTitle>
             <CardDescription>
-              Cambia la busqueda o importa el CSV de productos.
+              Buscá un producto por código, escribí al menos 2 letras del nombre o elegí una categoría.
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <Button asChild className="h-12 gap-2 px-5 text-base">
-              <Link href="/productos/importar">
-                <PackageSearch className="size-5" aria-hidden="true" />
-                Importar productos
-              </Link>
-            </Button>
-          </CardContent>
         </Card>
       ) : (
         <div className="grid gap-4">
-          {products.map((product) => {
-            const stock = stockState(product);
-
-            return (
-              <Card key={product.sku}>
-                <CardHeader className="gap-4">
-                  <div className="grid gap-4 xl:grid-cols-[1fr_auto] xl:items-start">
-                    <div>
-                      <p className="mb-2 font-mono text-sm text-muted-foreground">
-                        Codigo: {product.code || product.sku}
-                      </p>
-                      <CardTitle className="text-2xl">
-                        {product.description}
-                      </CardTitle>
-                      <CardDescription className="mt-2">
-                        {product.category || "Sin categoria"} · {product.brand || "Sin marca"} · {product.unit}
-                      </CardDescription>
-                    </div>
-
-                    <div className="rounded-lg border border-border bg-background p-4 text-left xl:min-w-56">
-                      <p className="text-base text-muted-foreground">Precio publico</p>
-                      <p className="mt-1 text-3xl font-bold">
-                        {formatMoney(product.salePrice)}
-                      </p>
-                    </div>
+          {products.map((product) => (
+            <Card key={product.id}>
+              <CardHeader className="gap-4">
+                <div className="grid gap-4 lg:grid-cols-[96px_1fr_auto] lg:items-start">
+                  <ProductThumb product={product} />
+                  <div>
+                    <p className="mb-2 font-mono text-base text-muted-foreground">
+                      Código: {product.sku}
+                    </p>
+                    <CardTitle className="text-2xl">{product.name}</CardTitle>
+                    <CardDescription className="mt-2">
+                      {product.category || "Sin categoría"} - {product.brand || "Sin marca"}
+                    </CardDescription>
                   </div>
-                </CardHeader>
-                <CardContent className="grid gap-4">
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    <div className="rounded-lg border border-border bg-background p-4">
-                      <p className="text-base text-muted-foreground">Stock</p>
-                      <p className="mt-1 text-2xl font-bold">{product.stock}</p>
-                    </div>
-                    <div className="rounded-lg border border-border bg-background p-4">
-                      <p className="text-base text-muted-foreground">Stock minimo</p>
-                      <p className="mt-1 text-2xl font-bold">{product.minStock}</p>
-                    </div>
-                    <div className={`rounded-lg border p-4 ${stock.className}`}>
-                      <p className="text-base">Semaforo</p>
-                      <p className="mt-1 text-2xl font-bold">{stock.label}</p>
-                    </div>
+                  <div className="rounded-lg border border-border bg-background p-4 text-left lg:min-w-56">
+                    <p className="text-base text-muted-foreground">Precio de venta</p>
+                    <p className="mt-1 text-3xl font-bold">
+                      {formatMoney(product.salePrice)}
+                    </p>
                   </div>
+                </div>
+              </CardHeader>
+              <CardContent className="grid gap-4">
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <details className="group">
+                    <summary className="list-none">
+                      <Button asChild variant="outline" className="h-14 gap-2 px-6 text-lg">
+                        <span>
+                          <Edit3 className="size-6" aria-hidden="true" />
+                          Editar
+                        </span>
+                      </Button>
+                    </summary>
+                    <ProductEditForm product={product} categories={categories} />
+                  </details>
 
-                  <div className="flex flex-col gap-3 sm:flex-row">
-                    <details className="group">
-                      <summary className="list-none">
-                        <Button asChild variant="outline" className="h-12 gap-2 px-5 text-base">
-                          <span>
-                            <Edit3 className="size-5" aria-hidden="true" />
-                            Editar
-                          </span>
-                        </Button>
-                      </summary>
-                      <ProductEditForm
-                        product={product}
-                        categories={categories}
-                        brands={brands}
-                      />
-                    </details>
-
-                    <Button asChild className="h-12 gap-2 px-5 text-base">
-                      <Link href={`/presupuestos/nuevo?sku=${encodeURIComponent(product.sku)}`}>
-                        <ClipboardList className="size-5" aria-hidden="true" />
-                        Crear presupuesto con este producto
-                      </Link>
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+                  <Button asChild className="h-14 gap-2 px-6 text-lg">
+                    <Link href={`/presupuestos/nuevo?sku=${encodeURIComponent(product.sku)}`}>
+                      <ClipboardList className="size-6" aria-hidden="true" />
+                      Agregar al presupuesto
+                    </Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       )}
+
+      {canShowMore ? (
+        <div className="flex justify-center">
+          <Button asChild className="h-14 gap-2 px-8 text-lg">
+            <Link href={buildMoreHref({ code, name, categoryId, page })}>
+              <PackageSearch className="size-6" aria-hidden="true" />
+              Ver más productos
+            </Link>
+          </Button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ProductThumb({ product }: { product: ProductListItem }) {
+  if (product.imageUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={product.imageUrl}
+        alt={`Foto de ${product.name}`}
+        className="size-24 rounded-lg border border-border object-cover"
+      />
+    );
+  }
+
+  return (
+    <div className="flex size-24 items-center justify-center rounded-lg border border-border bg-muted text-muted-foreground">
+      <ImageIcon className="size-9" aria-hidden="true" />
     </div>
   );
 }

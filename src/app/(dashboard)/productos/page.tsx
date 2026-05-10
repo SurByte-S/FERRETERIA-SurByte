@@ -10,15 +10,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { getCurrentTenant } from "@/lib/tenant";
 
+const PAGE_SIZE = 100;
+
 type ProductsPageProps = {
   searchParams: Promise<{
-    q?: string;
+    codigo?: string;
+    nombre?: string;
     categoria?: string;
-    marca?: string;
+    page?: string;
   }>;
 };
 
-type ProductRow = {
+type ProductSearchRow = {
+  id: string;
   sku: string;
   barcode: string | null;
   name: string;
@@ -26,29 +30,52 @@ type ProductRow = {
   unit: string;
   cost_with_tax: number | null;
   sale_price: number | null;
-  stock_quantity: number | null;
   min_stock: number | null;
   active: boolean;
+  image_url: string | null;
+  category_id: string | null;
+  category_name: string | null;
+  brand_id: string | null;
+  brand_name: string | null;
+  total_count?: number;
+};
+
+type ProductFallbackRow = {
+  id: string;
+  sku: string;
+  barcode: string | null;
+  name: string;
+  description: string | null;
+  unit: string;
+  cost_with_tax: number | null;
+  sale_price: number | null;
+  min_stock: number | null;
+  active: boolean;
+  image_url: string | null;
+  category_id: string | null;
+  brand_id: string | null;
   categories: { name: string } | null;
   brands: { name: string } | null;
 };
 
 type CatalogRow = {
+  id: string;
   name: string;
 };
 
 export default async function ProductosPage({ searchParams }: ProductsPageProps) {
   const params = await searchParams;
-  const query = (params.q ?? "").trim();
-  const category = (params.categoria ?? "").trim();
-  const brand = (params.marca ?? "").trim();
-  const result = await loadProducts({ query, category, brand });
+  const code = (params.codigo ?? "").trim();
+  const name = (params.nombre ?? "").trim();
+  const categoryId = (params.categoria ?? "").trim();
+  const page = Math.max(Number(params.page ?? "1") || 1, 1);
+  const result = await loadProducts({ code, name, categoryId, page });
 
   return (
     <>
       <PageHeader
         title="Productos"
-        description="Busca por codigo o descripcion, revisa precios y controla el stock sin ver datos internos."
+        description="Busca por codigo, nombre o categoria. Edita precios y fotos sin ver datos internos."
         backHref="/inicio"
         backLabel="Volver al inicio"
       />
@@ -57,10 +84,12 @@ export default async function ProductosPage({ searchParams }: ProductsPageProps)
         <ProductsBrowser
           products={result.products}
           categories={result.categories}
-          brands={result.brands}
-          query={query}
-          category={category}
-          brand={brand}
+          code={code}
+          name={name}
+          categoryId={categoryId}
+          page={page}
+          total={result.total}
+          showing={result.showing}
         />
       ) : (
         <Card className="border-destructive/40">
@@ -81,67 +110,169 @@ export default async function ProductosPage({ searchParams }: ProductsPageProps)
   );
 }
 
+function mapRpcRow(row: ProductSearchRow): ProductListItem {
+  return {
+    id: row.id,
+    sku: row.sku,
+    code: row.barcode ?? row.sku,
+    barcode: row.barcode ?? "",
+    name: row.name,
+    description: row.description ?? row.name,
+    category: row.category_name ?? "",
+    categoryId: row.category_id ?? "",
+    brand: row.brand_name ?? "",
+    brandId: row.brand_id ?? "",
+    unit: row.unit,
+    cost: row.cost_with_tax,
+    salePrice: row.sale_price,
+    minStock: row.min_stock ?? 0,
+    active: row.active,
+    imageUrl: row.image_url ?? "",
+  };
+}
+
+function mapFallbackRow(row: ProductFallbackRow): ProductListItem {
+  return {
+    id: row.id,
+    sku: row.sku,
+    code: row.barcode ?? row.sku,
+    barcode: row.barcode ?? "",
+    name: row.name,
+    description: row.description ?? row.name,
+    category: row.categories?.name ?? "",
+    categoryId: row.category_id ?? "",
+    brand: row.brands?.name ?? "",
+    brandId: row.brand_id ?? "",
+    unit: row.unit,
+    cost: row.cost_with_tax,
+    salePrice: row.sale_price,
+    minStock: row.min_stock ?? 0,
+    active: row.active,
+    imageUrl: row.image_url ?? "",
+  };
+}
+
 async function loadProducts({
-  query,
-  category,
-  brand,
+  code,
+  name,
+  categoryId,
+  page,
 }: {
-  query: string;
-  category: string;
-  brand: string;
+  code: string;
+  name: string;
+  categoryId: string;
+  page: number;
 }): Promise<
   | {
       ok: true;
       products: ProductListItem[];
       categories: ProductCatalogOption[];
-      brands: ProductCatalogOption[];
+      total: number;
+      showing: number;
     }
   | { ok: false; message: string }
 > {
   try {
     const tenant = getCurrentTenant();
     const supabase = getSupabaseServerClient();
+    const from = 0;
+    const to = page * PAGE_SIZE - 1;
+    const categoriesResult = await supabase
+      .from("categories")
+      .select("id,name")
+      .eq("tenant_id", tenant.id)
+      .eq("active", true)
+      .order("name");
 
-    const [categoriesResult, brandsResult] = await Promise.all([
-      supabase
-        .from("categories")
-        .select("name")
-        .eq("tenant_id", tenant.id)
-        .eq("active", true)
-        .order("name"),
-      supabase
-        .from("brands")
-        .select("name")
-        .eq("tenant_id", tenant.id)
-        .eq("active", true)
-        .order("name"),
-    ]);
-
-    if (categoriesResult.error || brandsResult.error) {
+    if (categoriesResult.error) {
       return {
         ok: false,
-        message:
-          "No se pudieron cargar categorias o marcas. Revisa la conexion a Supabase.",
+        message: "No se pudieron cargar las categorias. Revisa la conexion a Supabase.",
       };
     }
 
-    let productsQuery = supabase
+    const categories = ((categoriesResult.data ?? []) as CatalogRow[]).map(
+      (item) => ({
+        id: item.id,
+        name: item.name,
+      })
+    );
+
+    if (name.length === 1 && !code && !categoryId) {
+      return {
+        ok: true,
+        products: [],
+        categories,
+        total: 0,
+        showing: 0,
+      };
+    }
+
+    const rpcResult = await supabase.rpc("search_products", {
+      search_tenant_id: tenant.id,
+      search_code: code,
+      search_name: name.length >= 2 ? name : "",
+      search_category_id: categoryId || null,
+      page_size: page * PAGE_SIZE,
+      page_offset: 0,
+    });
+
+    if (!rpcResult.error) {
+      const rows = (rpcResult.data ?? []) as ProductSearchRow[];
+      const total = Number(rows[0]?.total_count ?? 0);
+
+      return {
+        ok: true,
+        products: rows.map(mapRpcRow),
+        categories,
+        total,
+        showing: Math.min(from + rows.length, total),
+      };
+    }
+
+    let query = supabase
       .from("products")
       .select(
-        "sku,barcode,name,description,unit,cost_with_tax,sale_price,stock_quantity,min_stock,active,categories(name),brands(name)"
+        "id,sku,barcode,name,description,unit,cost_with_tax,sale_price,min_stock,active,image_url,category_id,brand_id,categories(name),brands(name)",
+        { count: "exact" }
       )
       .eq("tenant_id", tenant.id)
       .order("name")
-      .limit(150);
+      .range(from, to);
 
-    if (query) {
-      const safeQuery = query.replace(/[%_]/g, "");
-      productsQuery = productsQuery.or(
-        `sku.ilike.%${safeQuery}%,barcode.ilike.%${safeQuery}%,name.ilike.%${safeQuery}%,description.ilike.%${safeQuery}%`
-      );
+    if (categoryId) {
+      query = query.eq("category_id", categoryId);
     }
 
-    const { data, error } = await productsQuery;
+    if (code) {
+      const safeCode = code.replace(/[%_]/g, "");
+      query = query.or(`sku.ilike.%${safeCode}%,barcode.ilike.%${safeCode}%`);
+    }
+
+    if (name.length >= 2) {
+      const safeName = name.replace(/[%_]/g, "");
+      const matchingBrands = await supabase
+        .from("brands")
+        .select("id")
+        .eq("tenant_id", tenant.id)
+        .ilike("name", `%${safeName}%`);
+      const brandIds = ((matchingBrands.data ?? []) as { id: string }[]).map(
+        (item) => item.id
+      );
+      const nameParts = [
+        `name.ilike.%${safeName}%`,
+        `normalized_name.ilike.%${safeName}%`,
+        `description.ilike.%${safeName}%`,
+      ];
+
+      if (brandIds.length > 0) {
+        nameParts.push(`brand_id.in.(${brandIds.join(",")})`);
+      }
+
+      query = query.or(nameParts.join(","));
+    }
+
+    const { data, error, count } = await query;
 
     if (error) {
       return {
@@ -151,38 +282,22 @@ async function loadProducts({
       };
     }
 
-    const products = ((data ?? []) as unknown as ProductRow[])
-      .map<ProductListItem>((row) => ({
-        sku: row.sku,
-        code: row.barcode ?? row.sku,
-        description: row.description ?? row.name,
-        category: row.categories?.name ?? "",
-        brand: row.brands?.name ?? "",
-        unit: row.unit,
-        cost: row.cost_with_tax,
-        salePrice: row.sale_price,
-        stock: row.stock_quantity ?? 0,
-        minStock: row.min_stock ?? 0,
-        active: row.active,
-      }))
-      .filter((product) => !category || product.category === category)
-      .filter((product) => !brand || product.brand === brand);
+    const products = ((data ?? []) as unknown as ProductFallbackRow[]).map(
+      mapFallbackRow
+    );
+    const total = count ?? products.length;
 
     return {
       ok: true,
       products,
-      categories: ((categoriesResult.data ?? []) as CatalogRow[]).map((item) => ({
-        name: item.name,
-      })),
-      brands: ((brandsResult.data ?? []) as CatalogRow[]).map((item) => ({
-        name: item.name,
-      })),
+      categories,
+      total,
+      showing: Math.min(from + products.length, total),
     };
   } catch {
     return {
       ok: false,
-      message:
-        "Configura Supabase y el tenant antes de usar la pantalla de productos.",
+      message: "Configura Supabase y el tenant antes de usar la pantalla de productos.",
     };
   }
 }

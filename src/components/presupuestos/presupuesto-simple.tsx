@@ -1,10 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const steps = [
-  "Elegir cliente",
-  "Agregar productos",
+  "Buscar productos",
+  "Agregar cantidades",
   "Revisar total",
-  "Guardar presupuesto",
+  "Entregar presupuesto",
 ];
 
 export function PresupuestoSimple() {
