@@ -1,0 +1,160 @@
+create or replace function public.convert_quote_to_sale(
+  input_quote_id uuid,
+  input_tenant_id uuid,
+  input_customer_id uuid,
+  input_payment_method text,
+  input_paid_amount numeric
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  quote_row public.quotes%rowtype;
+  created_sale_id uuid;
+  clean_payment_method text;
+  clean_paid_amount numeric(14,2);
+  final_customer_id uuid;
+  pending_amount numeric(14,2);
+  item_count integer;
+begin
+  clean_payment_method := trim(coalesce(input_payment_method, ''));
+  clean_paid_amount := coalesce(input_paid_amount, 0);
+
+  if clean_payment_method not in ('Efectivo', 'Transferencia', 'Debito', 'Credito', 'Cuenta corriente') then
+    raise exception 'PAYMENT_METHOD_INVALID';
+  end if;
+
+  if clean_paid_amount < 0 then
+    raise exception 'PAID_AMOUNT_INVALID';
+  end if;
+
+  select *
+    into quote_row
+  from public.quotes
+  where id = input_quote_id
+    and tenant_id = input_tenant_id
+  for update;
+
+  if not found then
+    raise exception 'QUOTE_NOT_FOUND';
+  end if;
+
+  if quote_row.status = 'converted' then
+    raise exception 'QUOTE_ALREADY_CONVERTED';
+  end if;
+
+  select count(*)
+    into item_count
+  from public.quote_items
+  where tenant_id = input_tenant_id
+    and quote_id = input_quote_id;
+
+  if item_count = 0 then
+    raise exception 'QUOTE_WITHOUT_ITEMS';
+  end if;
+
+  final_customer_id := coalesce(input_customer_id, quote_row.customer_id);
+  pending_amount := greatest(quote_row.total - clean_paid_amount, 0);
+
+  if final_customer_id is not null and not exists (
+    select 1
+    from public.customers
+    where id = final_customer_id
+      and tenant_id = input_tenant_id
+  ) then
+    raise exception 'CUSTOMER_NOT_FOUND';
+  end if;
+
+  if clean_payment_method <> 'Cuenta corriente' and clean_paid_amount < quote_row.total then
+    raise exception 'PAID_AMOUNT_TOO_LOW';
+  end if;
+
+  if clean_payment_method = 'Cuenta corriente' and pending_amount > 0 and final_customer_id is null then
+    raise exception 'CUSTOMER_REQUIRED_FOR_CREDIT';
+  end if;
+
+  insert into public.sales (
+    tenant_id,
+    customer_id,
+    subtotal,
+    discount_amount,
+    tax_amount,
+    total,
+    paid_amount,
+    payment_method,
+    created_by
+  )
+  values (
+    input_tenant_id,
+    final_customer_id,
+    quote_row.subtotal,
+    quote_row.discount_amount,
+    quote_row.tax_amount,
+    quote_row.total,
+    clean_paid_amount,
+    clean_payment_method,
+    quote_row.created_by
+  )
+  returning id into created_sale_id;
+
+  insert into public.sale_items (
+    tenant_id,
+    sale_id,
+    product_id,
+    sku,
+    name,
+    quantity,
+    unit_price,
+    discount_amount,
+    total
+  )
+  select
+    tenant_id,
+    created_sale_id,
+    product_id,
+    sku,
+    name,
+    quantity,
+    unit_price,
+    discount_amount,
+    total
+  from public.quote_items
+  where tenant_id = input_tenant_id
+    and quote_id = input_quote_id;
+
+  if clean_payment_method = 'Cuenta corriente' and pending_amount > 0 then
+    insert into public.customer_account_movements (
+      tenant_id,
+      customer_id,
+      sale_id,
+      movement_type,
+      amount,
+      notes,
+      created_by
+    )
+    values (
+      input_tenant_id,
+      final_customer_id,
+      created_sale_id,
+      'debit',
+      pending_amount,
+      'Saldo pendiente de venta',
+      quote_row.created_by
+    );
+  end if;
+
+  update public.quotes
+  set status = 'converted'
+  where id = input_quote_id
+    and tenant_id = input_tenant_id;
+
+  return created_sale_id;
+end;
+$$;
+
+revoke execute on function public.convert_quote_to_sale(uuid, uuid, uuid, text, numeric) from public;
+revoke execute on function public.convert_quote_to_sale(uuid, uuid, uuid, text, numeric) from anon;
+revoke execute on function public.convert_quote_to_sale(uuid, uuid, uuid, text, numeric) from authenticated;
+grant execute on function public.convert_quote_to_sale(uuid, uuid, uuid, text, numeric) to service_role;
