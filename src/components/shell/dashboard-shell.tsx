@@ -7,7 +7,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="grid min-h-screen lg:grid-cols-[300px_1fr]">
-        <aside className="border-b border-border bg-card lg:border-b-0 lg:border-r">
+        <aside className="no-print border-b border-border bg-card lg:border-b-0 lg:border-r">
           <div className="flex h-full flex-col gap-6 p-4 sm:p-6">
             <Link
               href="/inicio"

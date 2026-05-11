@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { ClipboardList, Plus, Search, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ClipboardList, Plus, Save, Search, Trash2, UserRound } from "lucide-react";
 
 import {
   getQuoteProductBySkuAction,
+  saveQuoteAction,
   searchQuoteProductsAction,
 } from "@/app/(dashboard)/presupuestos/nuevo/actions";
 import { Button } from "@/components/ui/button";
@@ -15,7 +17,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import type { QuoteLine, QuoteProduct } from "./quote-types";
+import type {
+  QuoteCustomer,
+  QuoteCustomerOption,
+  QuoteLine,
+  QuoteProduct,
+} from "./quote-types";
 
 function formatMoney(value: number) {
   return new Intl.NumberFormat("es-AR", {
@@ -25,7 +32,21 @@ function formatMoney(value: number) {
   }).format(value);
 }
 
-export function NewQuoteForm({ initialSku }: { initialSku?: string }) {
+export function NewQuoteForm({
+  initialSku,
+  customers,
+}: {
+  initialSku?: string;
+  customers: QuoteCustomerOption[];
+}) {
+  const router = useRouter();
+  const [customer, setCustomer] = useState<QuoteCustomer>({
+    id: "",
+    name: "",
+    phone: "",
+    email: "",
+    address: "",
+  });
   const [search, setSearch] = useState(initialSku ?? "");
   const [quantity, setQuantity] = useState(1);
   const [results, setResults] = useState<QuoteProduct[]>([]);
@@ -54,6 +75,33 @@ export function NewQuoteForm({ initialSku }: { initialSku?: string }) {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialSku]);
+
+  function updateCustomer(key: keyof QuoteCustomer, value: string) {
+    setCustomer((current) => ({ ...current, [key]: value }));
+  }
+
+  function selectCustomer(customerId: string) {
+    const selected = customers.find((item) => item.id === customerId);
+
+    if (!selected) {
+      setCustomer({
+        id: "",
+        name: "",
+        phone: "",
+        email: "",
+        address: "",
+      });
+      return;
+    }
+
+    setCustomer({
+      id: selected.id,
+      name: selected.name,
+      phone: selected.phone ?? "",
+      email: selected.email ?? "",
+      address: selected.address ?? "",
+    });
+  }
 
   function addProduct(product: QuoteProduct, qty = quantity) {
     const safeQty = Number.isFinite(qty) && qty > 0 ? qty : 1;
@@ -114,7 +162,13 @@ export function NewQuoteForm({ initialSku }: { initialSku?: string }) {
     setLines((current) =>
       current.map((line) =>
         line.sku === sku
-          ? { ...line, quantity: Number.isFinite(nextQuantity) && nextQuantity > 0 ? nextQuantity : 1 }
+          ? {
+              ...line,
+              quantity:
+                Number.isFinite(nextQuantity) && nextQuantity > 0
+                  ? nextQuantity
+                  : 1,
+            }
           : line
       )
     );
@@ -122,7 +176,7 @@ export function NewQuoteForm({ initialSku }: { initialSku?: string }) {
 
   function removeLine(sku: string) {
     const confirmed = window.confirm(
-      "Vas a quitar este producto del presupuesto. Queres continuar?"
+      "Vas a quitar este producto del presupuesto. ¿Querés continuar?"
     );
 
     if (!confirmed) {
@@ -132,9 +186,84 @@ export function NewQuoteForm({ initialSku }: { initialSku?: string }) {
     setLines((current) => current.filter((line) => line.sku !== sku));
   }
 
+  function saveQuote() {
+    setMessage("");
+    startTransition(async () => {
+      const result = await saveQuoteAction({ customer, lines });
+
+      if (result.ok && result.quoteId) {
+        router.push(`/presupuestos/${result.quoteId}`);
+        return;
+      }
+
+      setMessage(result.message);
+    });
+  }
+
   return (
     <div className="grid gap-6 xl:grid-cols-[1fr_320px]">
       <div className="grid gap-6">
+        <Card>
+          <CardHeader>
+            <div className="mb-2 flex size-14 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <UserRound className="size-7" aria-hidden="true" />
+            </div>
+            <CardTitle>Datos del cliente</CardTitle>
+            <CardDescription>
+              Son opcionales. Sirven para encontrar el presupuesto después.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4 md:grid-cols-2">
+            <Field label="Cliente guardado">
+              <select
+                value={customer.id ?? ""}
+                onChange={(event) => selectCustomer(event.target.value)}
+                className="h-12 rounded-lg border border-input bg-background px-3 text-base"
+              >
+                <option value="">Sin cliente guardado</option>
+                {customers.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Nombre o razón social">
+              <input
+                value={customer.name}
+                onChange={(event) => updateCustomer("name", event.target.value)}
+                disabled={Boolean(customer.id)}
+                className="h-12 rounded-lg border border-input bg-background px-3 text-base"
+              />
+            </Field>
+            <Field label="Teléfono">
+              <input
+                value={customer.phone}
+                onChange={(event) => updateCustomer("phone", event.target.value)}
+                disabled={Boolean(customer.id)}
+                className="h-12 rounded-lg border border-input bg-background px-3 text-base"
+              />
+            </Field>
+            <Field label="Email">
+              <input
+                type="email"
+                value={customer.email}
+                onChange={(event) => updateCustomer("email", event.target.value)}
+                disabled={Boolean(customer.id)}
+                className="h-12 rounded-lg border border-input bg-background px-3 text-base"
+              />
+            </Field>
+            <Field label="Domicilio">
+              <input
+                value={customer.address}
+                onChange={(event) => updateCustomer("address", event.target.value)}
+                disabled={Boolean(customer.id)}
+                className="h-12 rounded-lg border border-input bg-background px-3 text-base"
+              />
+            </Field>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <div className="mb-2 flex size-14 items-center justify-center rounded-lg bg-primary text-primary-foreground">
@@ -204,7 +333,7 @@ export function NewQuoteForm({ initialSku }: { initialSku?: string }) {
                       {product.description}
                     </span>
                     <span className="mt-1 block text-base text-muted-foreground">
-                      Codigo {product.code} - {formatMoney(product.price)}
+                      Código {product.code} - {formatMoney(product.price)}
                     </span>
                   </button>
                 ))}
@@ -217,15 +346,15 @@ export function NewQuoteForm({ initialSku }: { initialSku?: string }) {
           <CardHeader>
             <CardTitle>Productos agregados</CardTitle>
             <CardDescription>
-              Cambiá la cantidad o quitá productos antes de entregar el presupuesto.
+              Cambiá la cantidad o quitá productos antes de guardar el presupuesto.
             </CardDescription>
           </CardHeader>
           <CardContent className="overflow-x-auto">
             <table className="w-full min-w-[720px] border-collapse text-left text-base">
               <thead>
                 <tr className="border-b border-border">
-                  <th className="p-3">Codigo</th>
-                  <th className="p-3">Descripcion</th>
+                  <th className="p-3">Código</th>
+                  <th className="p-3">Descripción</th>
                   <th className="p-3">Cantidad</th>
                   <th className="p-3">Precio</th>
                   <th className="p-3">Subtotal</th>
@@ -236,7 +365,7 @@ export function NewQuoteForm({ initialSku }: { initialSku?: string }) {
                 {lines.length === 0 ? (
                   <tr>
                     <td className="p-3 text-muted-foreground" colSpan={6}>
-                      Todavia no agregaste productos. Buscá uno por nombre o código.
+                      Todavía no agregaste productos. Buscá uno por nombre o código.
                     </td>
                   </tr>
                 ) : (
@@ -291,9 +420,33 @@ export function NewQuoteForm({ initialSku }: { initialSku?: string }) {
               <p className="text-lg">Total</p>
               <p className="mt-1 text-4xl font-bold">{formatMoney(total)}</p>
             </div>
+            <Button
+              type="button"
+              onClick={saveQuote}
+              disabled={isPending || lines.length === 0}
+              className="mt-4 h-14 w-full gap-2 text-lg"
+            >
+              <Save className="size-6" aria-hidden="true" />
+              {isPending ? "Guardando..." : "Guardar presupuesto"}
+            </Button>
           </CardContent>
         </Card>
       </aside>
     </div>
+  );
+}
+
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="grid gap-2 text-base font-semibold">
+      <span>{label}</span>
+      {children}
+    </label>
   );
 }
