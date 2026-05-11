@@ -67,6 +67,9 @@ export function ProductEditForm({
         <Field label="Stock mínimo">
           <input name="minStock" defaultValue={product.minStock} inputMode="decimal" className="h-12 rounded-lg border border-input bg-background px-3 text-base" />
         </Field>
+        <Field label="Stock actual">
+          <input value={product.stockQuantity} readOnly className="h-12 rounded-lg border border-input bg-muted px-3 text-base" />
+        </Field>
         <Field label="Activo/Inactivo">
           <select name="active" defaultValue={product.active ? "true" : "false"} className="h-12 rounded-lg border border-input bg-background px-3 text-base">
             <option value="true">Activo</option>

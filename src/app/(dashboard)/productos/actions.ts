@@ -20,6 +20,18 @@ function textValue(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
 }
 
+function stockErrorMessage(message?: string) {
+  if (message?.includes("STOCK_NOTE_REQUIRED")) {
+    return "Escribi un motivo para ajustar el stock.";
+  }
+
+  if (message?.includes("PRODUCT_NOT_FOUND")) {
+    return "No se encontro el producto.";
+  }
+
+  return "No se pudo ajustar el stock.";
+}
+
 function safePathPart(value: string) {
   return value.replace(/[^a-zA-Z0-9._-]/g, "-");
 }
@@ -170,6 +182,67 @@ export async function updateProductAction(
       ok: false,
       message:
         error instanceof Error ? `Necesitan revisión. ${error.message}` : errorState.message,
+    };
+  }
+}
+
+export async function adjustProductStockAction(
+  _previousState: ProductActionState,
+  formData: FormData
+): Promise<ProductActionState> {
+  const tenant = getCurrentTenant();
+  const productId = textValue(formData, "productId");
+  const newStock = Number(textValue(formData, "newStock"));
+  const notes = textValue(formData, "notes");
+
+  if (!productId) {
+    return {
+      ok: false,
+      message: "No se encontro el producto.",
+    };
+  }
+
+  if (!Number.isFinite(newStock)) {
+    return {
+      ok: false,
+      message: "Ingresa un stock valido.",
+    };
+  }
+
+  if (!notes) {
+    return {
+      ok: false,
+      message: "Escribi un motivo para ajustar el stock.",
+    };
+  }
+
+  try {
+    const supabase = getSupabaseServerClient();
+    const { error } = await supabase.rpc("adjust_product_stock", {
+      input_product_id: productId,
+      input_tenant_id: tenant.id,
+      input_new_stock: newStock,
+      input_notes: notes,
+    });
+
+    if (error) {
+      return {
+        ok: false,
+        message: stockErrorMessage(error.message),
+      };
+    }
+
+    revalidatePath("/productos");
+    revalidatePath(`/productos/${productId}/stock`);
+
+    return {
+      ok: true,
+      message: "Stock actualizado. Se registro el movimiento.",
+    };
+  } catch {
+    return {
+      ok: false,
+      message: "No se pudo ajustar el stock.",
     };
   }
 }

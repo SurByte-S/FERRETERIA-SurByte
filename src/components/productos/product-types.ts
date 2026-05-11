@@ -12,6 +12,7 @@ export type ProductListItem = {
   unit: string;
   cost: number | null;
   salePrice: number | null;
+  stockQuantity: number;
   minStock: number;
   active: boolean;
   imageUrl: string;

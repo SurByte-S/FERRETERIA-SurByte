@@ -1,5 +1,14 @@
 import Link from "next/link";
-import { Box, ClipboardList, Edit3, ImageIcon, PackageSearch, Search } from "lucide-react";
+import {
+  Box,
+  ClipboardList,
+  Edit3,
+  History,
+  ImageIcon,
+  PackagePlus,
+  PackageSearch,
+  Search,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -11,6 +20,7 @@ import {
 } from "@/components/ui/card";
 import { ProductEditForm } from "./product-edit-form";
 import type { ProductCatalogOption, ProductListItem } from "./product-types";
+import { StockAdjustForm } from "./stock-adjust-form";
 
 function formatMoney(value: number | null) {
   if (value === null) {
@@ -45,6 +55,27 @@ function buildMoreHref({
   return `/productos?${params.toString()}`;
 }
 
+function stockStatus(product: ProductListItem) {
+  if (product.stockQuantity <= 0) {
+    return {
+      label: "Sin stock",
+      className: "border-destructive/40 bg-destructive/10 text-destructive",
+    };
+  }
+
+  if (product.stockQuantity <= product.minStock) {
+    return {
+      label: "Bajo stock",
+      className: "border-yellow-500/40 bg-yellow-50 text-yellow-800",
+    };
+  }
+
+  return {
+    label: "Stock OK",
+    className: "border-emerald-500/40 bg-emerald-50 text-emerald-800",
+  };
+}
+
 export function ProductsBrowser({
   products,
   categories,
@@ -54,6 +85,7 @@ export function ProductsBrowser({
   page,
   total,
   showing,
+  lowStockCount,
 }: {
   products: ProductListItem[];
   categories: ProductCatalogOption[];
@@ -63,6 +95,7 @@ export function ProductsBrowser({
   page: number;
   total: number;
   showing: number;
+  lowStockCount: number;
 }) {
   const canShowMore = showing < total;
 
@@ -140,6 +173,16 @@ export function ProductsBrowser({
         ) : null}
       </div>
 
+      {lowStockCount > 0 ? (
+        <Card className="border-yellow-500/40">
+          <CardContent className="p-4">
+            <p className="text-lg font-semibold">
+              Hay {lowStockCount} productos con bajo stock.
+            </p>
+          </CardContent>
+        </Card>
+      ) : null}
+
       {products.length === 0 ? (
         <Card>
           <CardHeader>
@@ -154,7 +197,10 @@ export function ProductsBrowser({
         </Card>
       ) : (
         <div className="grid gap-4">
-          {products.map((product) => (
+          {products.map((product) => {
+            const status = stockStatus(product);
+
+            return (
             <Card key={product.id}>
               <CardHeader className="gap-4">
                 <div className="grid gap-4 lg:grid-cols-[96px_1fr_auto] lg:items-start">
@@ -177,6 +223,21 @@ export function ProductsBrowser({
                 </div>
               </CardHeader>
               <CardContent className="grid gap-4">
+                <div className="grid gap-3 md:grid-cols-3">
+                  <div className="rounded-lg border border-border bg-background p-4">
+                    <p className="text-base text-muted-foreground">Stock actual</p>
+                    <p className="mt-1 text-2xl font-bold">{product.stockQuantity}</p>
+                  </div>
+                  <div className="rounded-lg border border-border bg-background p-4">
+                    <p className="text-base text-muted-foreground">Stock minimo</p>
+                    <p className="mt-1 text-2xl font-bold">{product.minStock}</p>
+                  </div>
+                  <div className={`rounded-lg border p-4 ${status.className}`}>
+                    <p className="text-base">Estado</p>
+                    <p className="mt-1 text-2xl font-bold">{status.label}</p>
+                  </div>
+                </div>
+
                 <div className="flex flex-col gap-3 sm:flex-row">
                   <details className="group">
                     <summary className="list-none">
@@ -190,16 +251,36 @@ export function ProductsBrowser({
                     <ProductEditForm product={product} categories={categories} />
                   </details>
 
+                  <details className="group">
+                    <summary className="list-none">
+                      <Button asChild variant="outline" className="h-14 gap-2 px-6 text-lg">
+                        <span>
+                          <PackagePlus className="size-6" aria-hidden="true" />
+                          Ajustar stock
+                        </span>
+                      </Button>
+                    </summary>
+                    <StockAdjustForm product={product} />
+                  </details>
+
                   <Button asChild className="h-14 gap-2 px-6 text-lg">
                     <Link href={`/presupuestos/nuevo?sku=${encodeURIComponent(product.sku)}`}>
                       <ClipboardList className="size-6" aria-hidden="true" />
                       Agregar al presupuesto
                     </Link>
                   </Button>
+
+                  <Button asChild variant="outline" className="h-14 gap-2 px-6 text-lg">
+                    <Link href={`/productos/${product.id}/stock`}>
+                      <History className="size-6" aria-hidden="true" />
+                      Ver historial
+                    </Link>
+                  </Button>
                 </div>
               </CardContent>
             </Card>
-          ))}
+            );
+          })}
         </div>
       )}
 

@@ -124,6 +124,48 @@ begin
   where tenant_id = input_tenant_id
     and quote_id = input_quote_id;
 
+  insert into public.inventory_movements (
+    tenant_id,
+    product_id,
+    movement_type,
+    quantity,
+    unit_cost,
+    notes,
+    created_by
+  )
+  select
+    qi.tenant_id,
+    qi.product_id,
+    'sale'::public.inventory_movement_type,
+    -qi.quantity,
+    p.cost_with_tax,
+    'Venta generada desde presupuesto',
+    quote_row.created_by
+  from public.quote_items qi
+  left join public.products p
+    on p.tenant_id = qi.tenant_id
+    and p.id = qi.product_id
+  where qi.tenant_id = input_tenant_id
+    and qi.quote_id = input_quote_id
+    and qi.product_id is not null;
+
+  update public.products p
+  set
+    stock_quantity = p.stock_quantity - sold.quantity,
+    updated_at = now()
+  from (
+    select
+      product_id,
+      sum(quantity) as quantity
+    from public.quote_items
+    where tenant_id = input_tenant_id
+      and quote_id = input_quote_id
+      and product_id is not null
+    group by product_id
+  ) sold
+  where p.tenant_id = input_tenant_id
+    and p.id = sold.product_id;
+
   if clean_payment_method = 'Cuenta corriente' and pending_amount > 0 then
     insert into public.customer_account_movements (
       tenant_id,

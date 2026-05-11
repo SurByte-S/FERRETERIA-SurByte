@@ -30,6 +30,7 @@ type ProductSearchRow = {
   unit: string;
   cost_with_tax: number | null;
   sale_price: number | null;
+  stock_quantity: number | null;
   min_stock: number | null;
   active: boolean;
   image_url: string | null;
@@ -49,6 +50,7 @@ type ProductFallbackRow = {
   unit: string;
   cost_with_tax: number | null;
   sale_price: number | null;
+  stock_quantity: number | null;
   min_stock: number | null;
   active: boolean;
   image_url: string | null;
@@ -90,6 +92,7 @@ export default async function ProductosPage({ searchParams }: ProductsPageProps)
           page={page}
           total={result.total}
           showing={result.showing}
+          lowStockCount={result.lowStockCount}
         />
       ) : (
         <Card className="border-destructive/40">
@@ -125,6 +128,7 @@ function mapRpcRow(row: ProductSearchRow): ProductListItem {
     unit: row.unit,
     cost: row.cost_with_tax,
     salePrice: row.sale_price,
+    stockQuantity: row.stock_quantity ?? 0,
     minStock: row.min_stock ?? 0,
     active: row.active,
     imageUrl: row.image_url ?? "",
@@ -146,6 +150,7 @@ function mapFallbackRow(row: ProductFallbackRow): ProductListItem {
     unit: row.unit,
     cost: row.cost_with_tax,
     salePrice: row.sale_price,
+    stockQuantity: row.stock_quantity ?? 0,
     minStock: row.min_stock ?? 0,
     active: row.active,
     imageUrl: row.image_url ?? "",
@@ -169,6 +174,7 @@ async function loadProducts({
       categories: ProductCatalogOption[];
       total: number;
       showing: number;
+      lowStockCount: number;
     }
   | { ok: false; message: string }
 > {
@@ -183,6 +189,11 @@ async function loadProducts({
       .eq("tenant_id", tenant.id)
       .eq("active", true)
       .order("name");
+    const lowStockResult = await supabase
+      .from("low_stock_products")
+      .select("id", { count: "exact", head: true })
+      .eq("tenant_id", tenant.id);
+    const lowStockCount = lowStockResult.count ?? 0;
 
     if (categoriesResult.error) {
       return {
@@ -205,6 +216,7 @@ async function loadProducts({
         categories,
         total: 0,
         showing: 0,
+        lowStockCount,
       };
     }
 
@@ -227,13 +239,14 @@ async function loadProducts({
         categories,
         total,
         showing: Math.min(from + rows.length, total),
+        lowStockCount,
       };
     }
 
     let query = supabase
       .from("products")
       .select(
-        "id,sku,barcode,name,description,unit,cost_with_tax,sale_price,min_stock,active,image_url,category_id,brand_id,categories(name),brands(name)",
+        "id,sku,barcode,name,description,unit,cost_with_tax,sale_price,stock_quantity,min_stock,active,image_url,category_id,brand_id,categories(name),brands(name)",
         { count: "exact" }
       )
       .eq("tenant_id", tenant.id)
@@ -293,6 +306,7 @@ async function loadProducts({
       categories,
       total,
       showing: Math.min(from + products.length, total),
+      lowStockCount,
     };
   } catch {
     return {
