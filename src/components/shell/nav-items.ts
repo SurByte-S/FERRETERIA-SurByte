@@ -6,6 +6,7 @@ import {
   Settings,
   ShoppingCart,
   Users,
+  WalletCards,
 } from "lucide-react";
 
 export const navigationItems = [
@@ -32,6 +33,12 @@ export const navigationItems = [
     href: "/ventas",
     icon: ShoppingCart,
     description: "Registrar ventas del mostrador",
+  },
+  {
+    title: "Caja",
+    href: "/caja",
+    icon: WalletCards,
+    description: "Abrir y cerrar caja diaria",
   },
   {
     title: "Clientes",
@@ -65,5 +72,11 @@ export const quickActions = [
     href: "/ventas",
     icon: ShoppingCart,
     description: "Anotar una venta simple del dia.",
+  },
+  {
+    title: "Abrir caja",
+    href: "/caja",
+    icon: WalletCards,
+    description: "Controlar efectivo y cierre diario.",
   },
 ] as const;
