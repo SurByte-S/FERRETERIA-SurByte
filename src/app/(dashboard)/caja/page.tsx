@@ -10,7 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getSupabaseServerClient } from "@/lib/supabase";
-import { getCurrentTenant } from "@/lib/tenant";
+import { requireTenant } from "@/lib/tenant";
 
 type CashSessionRow = {
   id: string;
@@ -74,7 +74,7 @@ function summarizeSales(sales: SaleRow[]) {
 }
 
 export default async function CajaPage() {
-  const tenant = getCurrentTenant();
+  const tenant = await requireTenant();
   const supabase = getSupabaseServerClient();
   const [openSessionResult, historyResult] = await Promise.all([
     supabase

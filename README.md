@@ -6,7 +6,7 @@ Base multi-tenant para administrar ferreterias con Next.js App Router, TypeScrip
 
 El proyecto esta listo para una prueba controlada con login, datos de demo y operador tecnico presente.
 
-No usar en produccion sin tenant por usuario y roles en Server Actions. La app todavia usa `NEXT_PUBLIC_DEFAULT_TENANT_ID` como fallback demo y varias Server Actions usan service role del lado servidor.
+No usar en produccion sin roles en Server Actions. Las pantallas principales resuelven tenant por usuario autenticado y `tenant_members`; `NEXT_PUBLIC_DEFAULT_TENANT_ID` queda como fallback demo/local para importadores o flujos explicitamente locales.
 
 Leer `SEGURIDAD_PRE_PRODUCCION.md` antes de operar con datos reales.
 

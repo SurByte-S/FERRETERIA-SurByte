@@ -8,7 +8,7 @@ import type {
 import { PageHeader } from "@/components/shell/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSupabaseServerClient } from "@/lib/supabase";
-import { getCurrentTenant } from "@/lib/tenant";
+import { requireTenant } from "@/lib/tenant";
 
 const PAGE_SIZE = 100;
 
@@ -179,7 +179,7 @@ async function loadProducts({
   | { ok: false; message: string }
 > {
   try {
-    const tenant = getCurrentTenant();
+    const tenant = await requireTenant();
     const supabase = getSupabaseServerClient();
     const from = 0;
     const to = page * PAGE_SIZE - 1;

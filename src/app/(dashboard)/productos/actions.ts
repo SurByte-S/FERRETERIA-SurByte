@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { normalizeName, parseBoolean, parseNullableNumber } from "@/lib/csv/productos";
 import { getSupabaseServerClient } from "@/lib/supabase";
-import { getCurrentTenant } from "@/lib/tenant";
+import { requireTenant } from "@/lib/tenant";
 
 export type ProductActionState = {
   ok: boolean;
@@ -121,7 +121,7 @@ export async function updateProductAction(
   _previousState: ProductActionState,
   formData: FormData
 ): Promise<ProductActionState> {
-  const tenant = getCurrentTenant();
+  const tenant = await requireTenant();
   const currentSku = textValue(formData, "currentSku");
   const nextSku = textValue(formData, "sku");
   const name = textValue(formData, "name");
@@ -194,7 +194,7 @@ export async function adjustProductStockAction(
   _previousState: ProductActionState,
   formData: FormData
 ): Promise<ProductActionState> {
-  const tenant = getCurrentTenant();
+  const tenant = await requireTenant();
   const productId = textValue(formData, "productId");
   const newStock = Number(textValue(formData, "newStock").replace(",", "."));
   const notes = textValue(formData, "notes");

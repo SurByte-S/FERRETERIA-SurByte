@@ -3,3 +3,9 @@ export type Tenant = {
   slug: string;
   name: string;
 };
+
+export type TenantRole = "owner" | "admin" | "seller" | "viewer";
+
+export type AuthenticatedTenant = Tenant & {
+  role: TenantRole;
+};

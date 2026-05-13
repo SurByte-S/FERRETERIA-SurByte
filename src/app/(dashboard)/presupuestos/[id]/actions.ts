@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { getSupabaseServerClient } from "@/lib/supabase";
-import { getCurrentTenant } from "@/lib/tenant";
+import { requireTenant } from "@/lib/tenant";
 
 const PAYMENT_METHODS = [
   "Efectivo",
@@ -81,7 +81,7 @@ export async function convertQuoteToSaleAction({
   }
 
   try {
-    const tenant = getCurrentTenant();
+    const tenant = await requireTenant();
     const supabase = getSupabaseServerClient();
     const { data, error } = await supabase.rpc("convert_quote_to_sale", {
       input_quote_id: quoteId,

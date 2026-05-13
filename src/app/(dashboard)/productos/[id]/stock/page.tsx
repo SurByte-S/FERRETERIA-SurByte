@@ -10,7 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getSupabaseServerClient } from "@/lib/supabase";
-import { getCurrentTenant } from "@/lib/tenant";
+import { requireTenant } from "@/lib/tenant";
 
 type ProductStockPageProps = {
   params: Promise<{ id: string }>;
@@ -78,7 +78,7 @@ function stockStatus(product: ProductRow) {
 
 export default async function ProductStockPage({ params }: ProductStockPageProps) {
   const { id } = await params;
-  const tenant = getCurrentTenant();
+  const tenant = await requireTenant();
   const supabase = getSupabaseServerClient();
   const [productResult, movementsResult] = await Promise.all([
     supabase

@@ -11,7 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getSupabaseServerClient } from "@/lib/supabase";
-import { getCurrentTenant } from "@/lib/tenant";
+import { requireTenant } from "@/lib/tenant";
 
 type QuoteRow = {
   id: string;
@@ -49,7 +49,7 @@ function statusLabel(status: string) {
 }
 
 export default async function PresupuestosPage() {
-  const tenant = getCurrentTenant();
+  const tenant = await requireTenant();
   const supabase = getSupabaseServerClient();
   const { data, error } = await supabase
     .from("quotes")

@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { CustomerForm, type CustomerFormValue } from "@/components/clientes/customer-form";
 import { PageHeader } from "@/components/shell/page-header";
 import { getSupabaseServerClient } from "@/lib/supabase";
-import { getCurrentTenant } from "@/lib/tenant";
+import { requireTenant } from "@/lib/tenant";
 
 type EditCustomerPageProps = {
   params: Promise<{ id: string }>;
@@ -11,7 +11,7 @@ type EditCustomerPageProps = {
 
 export default async function EditarClientePage({ params }: EditCustomerPageProps) {
   const { id } = await params;
-  const tenant = getCurrentTenant();
+  const tenant = await requireTenant();
   const supabase = getSupabaseServerClient();
   const { data, error } = await supabase
     .from("customers")

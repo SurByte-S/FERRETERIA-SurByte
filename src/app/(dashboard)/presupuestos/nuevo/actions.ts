@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { getSupabaseServerClient } from "@/lib/supabase";
-import { getCurrentTenant } from "@/lib/tenant";
+import { requireTenant } from "@/lib/tenant";
 import type {
   QuoteCustomer,
   QuoteLine,
@@ -78,7 +78,7 @@ export async function searchQuoteProductsAction(
   }
 
   try {
-    const tenant = getCurrentTenant();
+    const tenant = await requireTenant();
     const supabase = getSupabaseServerClient();
     const { data, error } = await supabase
       .from("products")
@@ -111,7 +111,7 @@ export async function getQuoteProductBySkuAction(
   }
 
   try {
-    const tenant = getCurrentTenant();
+    const tenant = await requireTenant();
     const supabase = getSupabaseServerClient();
     const { data, error } = await supabase
       .from("products")
@@ -149,7 +149,7 @@ export async function saveQuoteAction({
   }
 
   try {
-    const tenant = getCurrentTenant();
+    const tenant = await requireTenant();
     const supabase = getSupabaseServerClient();
     const { data, error } = await supabase.rpc("create_quote_with_items", {
       input_tenant_id: tenant.id,

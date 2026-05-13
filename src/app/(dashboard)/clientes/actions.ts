@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { getSupabaseServerClient } from "@/lib/supabase";
-import { getCurrentTenant } from "@/lib/tenant";
+import { requireTenant } from "@/lib/tenant";
 
 export type CustomerActionResult = {
   ok: boolean;
@@ -31,7 +31,7 @@ export async function createCustomerAction(formData: FormData): Promise<Customer
   }
 
   try {
-    const tenant = getCurrentTenant();
+    const tenant = await requireTenant();
     const supabase = getSupabaseServerClient();
     const { data, error } = await supabase
       .from("customers")
@@ -83,7 +83,7 @@ export async function updateCustomerAction(
   }
 
   try {
-    const tenant = getCurrentTenant();
+    const tenant = await requireTenant();
     const supabase = getSupabaseServerClient();
     const { error } = await supabase
       .from("customers")
@@ -135,7 +135,7 @@ export async function registerCustomerPaymentAction(
   }
 
   try {
-    const tenant = getCurrentTenant();
+    const tenant = await requireTenant();
     const supabase = getSupabaseServerClient();
     const { error } = await supabase.from("customer_account_movements").insert({
       tenant_id: tenant.id,

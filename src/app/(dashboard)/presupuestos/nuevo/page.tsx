@@ -2,7 +2,7 @@ import { NewQuoteForm } from "@/components/presupuestos/new-quote-form";
 import type { QuoteCustomerOption } from "@/components/presupuestos/quote-types";
 import { PageHeader } from "@/components/shell/page-header";
 import { getSupabaseServerClient } from "@/lib/supabase";
-import { getCurrentTenant } from "@/lib/tenant";
+import { requireTenant } from "@/lib/tenant";
 
 export default async function NuevoPresupuestoPage({
   searchParams,
@@ -10,7 +10,7 @@ export default async function NuevoPresupuestoPage({
   searchParams: Promise<{ sku?: string }>;
 }) {
   const { sku } = await searchParams;
-  const tenant = getCurrentTenant();
+  const tenant = await requireTenant();
   const supabase = getSupabaseServerClient();
   const { data } = await supabase
     .from("customers")

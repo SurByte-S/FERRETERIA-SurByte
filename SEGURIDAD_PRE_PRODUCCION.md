@@ -62,27 +62,34 @@ Importante:
 
 ## Etapa 3 - Tenant por usuario
 
-Pendiente antes de produccion.
+Implementado para las pantallas y Server Actions principales.
 
-Diseno recomendado:
+- `requireTenant()` resuelve el usuario autenticado con `requireUser()`.
+- Busca membresia activa en `tenant_members`.
+- Hace join con `tenants`.
+- Si el usuario tiene un tenant, usa ese tenant.
+- Si tiene varios tenants, usa el primero por ahora.
+- Si no tiene tenant, redirige a `/sin-ferreteria` con mensaje claro.
+- `getCurrentTenant()` queda solo como fallback demo/local para importadores o flujos explicitamente locales.
 
-- Resolver tenant desde el usuario autenticado y `tenant_members`.
-- Si el usuario pertenece a un solo tenant, usar ese tenant automaticamente.
-- Si pertenece a varios, usar temporalmente el primero y crear selector despues.
-- Si no pertenece a ningun tenant, mostrar:
-  `No tenes una ferreteria asignada`.
-- Mantener `NEXT_PUBLIC_DEFAULT_TENANT_ID` solo como fallback demo/local, documentado como modo demo.
+Pendiente:
 
-Helpers recomendados:
+- Selector de tenant cuando un usuario tenga multiples ferreterias.
+- Aplicar `requireTenantRole()` por accion critica.
+
+Helpers actuales:
 
 - `requireUser()`
 - `requireTenant()`
+
+Helpers recomendados para la etapa de roles:
+
 - `requireTenantRole(["owner", "admin"])`
 - `requireTenantRole(["owner", "admin", "seller"])`
 
 ## Etapa 4 - Roles minimos
 
-Pendiente antes de produccion.
+Pendiente antes de produccion. Aunque `requireTenant()` ya devuelve `role`, todavia no se aplican permisos efectivos en todas las Server Actions criticas.
 
 Roles actuales esperados en `tenant_members.role`:
 
@@ -160,4 +167,3 @@ Tablas criticas:
 - Revisar politicas de Storage.
 - Definir backup y restauracion.
 - Ejecutar prueba controlada completa con login.
-

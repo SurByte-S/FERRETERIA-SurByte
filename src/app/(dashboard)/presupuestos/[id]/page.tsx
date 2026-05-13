@@ -13,7 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getSupabaseServerClient } from "@/lib/supabase";
-import { getCurrentTenant } from "@/lib/tenant";
+import { requireTenant } from "@/lib/tenant";
 
 type QuotePageProps = {
   params: Promise<{ id: string }>;
@@ -79,7 +79,7 @@ function statusLabel(status: string) {
 
 export default async function QuoteDetailPage({ params }: QuotePageProps) {
   const { id } = await params;
-  const tenant = getCurrentTenant();
+  const tenant = await requireTenant();
   const supabase = getSupabaseServerClient();
   const [quoteResult, itemsResult, customersResult] = await Promise.all([
     supabase

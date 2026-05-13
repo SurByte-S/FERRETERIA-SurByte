@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { getSupabaseServerClient } from "@/lib/supabase";
-import { getCurrentTenant } from "@/lib/tenant";
+import { requireTenant } from "@/lib/tenant";
 
 export type CashActionState = {
   ok: boolean;
@@ -33,7 +33,7 @@ export async function openCashSessionAction(
   }
 
   try {
-    const tenant = getCurrentTenant();
+    const tenant = await requireTenant();
     const supabase = getSupabaseServerClient();
     const { data: openSession } = await supabase
       .from("cash_register_sessions")
@@ -101,7 +101,7 @@ export async function closeCashSessionAction(
   }
 
   try {
-    const tenant = getCurrentTenant();
+    const tenant = await requireTenant();
     const supabase = getSupabaseServerClient();
     const { data: session, error: sessionError } = await supabase
       .from("cash_register_sessions")

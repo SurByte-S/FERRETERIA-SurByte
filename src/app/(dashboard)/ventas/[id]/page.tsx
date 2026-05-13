@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/card";
 import { PrintSaleButton } from "@/components/ventas/sale-actions";
 import { getSupabaseServerClient } from "@/lib/supabase";
-import { getCurrentTenant } from "@/lib/tenant";
+import { requireTenant } from "@/lib/tenant";
 
 type SalePageProps = {
   params: Promise<{ id: string }>;
@@ -63,7 +63,7 @@ function formatDate(value: string) {
 
 export default async function SaleDetailPage({ params }: SalePageProps) {
   const { id } = await params;
-  const tenant = getCurrentTenant();
+  const tenant = await requireTenant();
   const supabase = getSupabaseServerClient();
   const [saleResult, itemsResult] = await Promise.all([
     supabase

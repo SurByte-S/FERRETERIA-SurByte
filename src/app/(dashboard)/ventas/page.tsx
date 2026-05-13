@@ -11,7 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getSupabaseServerClient } from "@/lib/supabase";
-import { getCurrentTenant } from "@/lib/tenant";
+import { requireTenant } from "@/lib/tenant";
 
 type SaleRow = {
   id: string;
@@ -52,7 +52,7 @@ function todayRange() {
 }
 
 export default async function VentasPage() {
-  const tenant = getCurrentTenant();
+  const tenant = await requireTenant();
   const supabase = getSupabaseServerClient();
   const range = todayRange();
   const [salesResult, todayResult] = await Promise.all([
