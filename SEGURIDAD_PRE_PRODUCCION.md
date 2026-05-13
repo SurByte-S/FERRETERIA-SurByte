@@ -120,7 +120,7 @@ Si el usuario no tiene permiso, la UI muestra:
 
 ## Etapa 5 - Storage `product-images`
 
-Auditado.
+Auditado y migracion de policies preparada en `011_storage_product_images_policies.sql`.
 
 Hallazgos actuales:
 
@@ -140,7 +140,7 @@ Hallazgos actuales:
 - El nombre fijo `foto.{ext}` usa `upsert: true`, por lo que reemplaza la foto del mismo producto y extension.
 - Riesgo residual: si se cambia de extension, por ejemplo de `foto.jpg` a `foto.webp`, puede quedar el archivo anterior sin uso.
 - Riesgo residual: el bucket publico permite lectura anonima de cualquier imagen si se conoce la URL.
-- Riesgo residual: las policies de Storage no fueron modificadas desde este cambio. La proteccion de escritura esta en la Server Action con service role y rol de tenant.
+- La escritura principal de la app sigue pasando por Server Action con service role y `requireTenantRole(["owner", "admin"])`.
 
 Colisiones y aislamiento:
 
@@ -149,14 +149,21 @@ Colisiones y aislamiento:
 - Un usuario de otro tenant no deberia poder sobrescribir por UI porque `updateProductAction` exige tenant/rol y actualiza por `tenant_id` + `product_id`.
 - Si alguien obtiene service role o una policy de Storage demasiado amplia, podria sobrescribir objetos. Por eso service role y policies siguen siendo controles criticos.
 
-Politica recomendada antes de produccion:
+Politica aplicada/recomendada:
 
-- Mantener lectura publica solo si las fotos de productos no son sensibles.
+- Se mantiene lectura publica porque la UI guarda `publicUrl` en `products.image_url`.
+- La policy `product images public read` permite lectura publica del bucket `product-images`.
+- Las policies de insert/update/delete para clientes autenticados exigen:
+  - bucket `product-images`;
+  - path con forma `{tenant_id}/products/{product_id}/...`;
+  - primer segmento del path casteable a `tenant_id`;
+  - tercer segmento casteable a `product_id`;
+  - producto existente en ese tenant;
+  - usuario autenticado con rol `owner` o `admin` en ese tenant.
 - Si se requiere privacidad, convertir el bucket a privado y servir con URLs firmadas.
-- Upload/update/delete: solo usuarios autenticados miembros del tenant, preferentemente con rol `owner` o `admin`.
-- Validar en policies que el primer segmento del object name sea el `tenant_id` del usuario.
-- No permitir deletes desde cliente hasta tener auditoria clara.
-- Provisionar el bucket y sus policies desde migracion/configuracion, no desde la Server Action.
+- No se agregan policies amplias de escritura para cliente.
+- No usar delete desde UI hasta tener auditoria clara.
+- La migracion tambien asegura que el bucket permita solo JPG, PNG y WebP.
 
 ## Etapa 6 - Backup minimo
 
