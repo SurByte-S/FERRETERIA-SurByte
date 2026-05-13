@@ -7,6 +7,8 @@ Usar este checklist con una base de prueba y datos controlados.
 - Confirmar que estan aplicadas las migraciones `001, 003, 004, 005, 006, 007, 008, 009`.
 - Confirmar que `.env.local` apunta al proyecto Supabase de prueba.
 - Confirmar que `NEXT_PUBLIC_DEFAULT_TENANT_ID` corresponde al tenant de prueba.
+- Crear o confirmar un usuario en Supabase Auth.
+- Ingresar desde `/login` con email y contrasena.
 
 ## Flujo principal
 

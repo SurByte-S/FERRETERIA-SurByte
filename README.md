@@ -4,9 +4,11 @@ Base multi-tenant para administrar ferreterias con Next.js App Router, TypeScrip
 
 ## Estado actual
 
-El proyecto esta listo para una prueba controlada con datos de demo y operador tecnico presente.
+El proyecto esta listo para una prueba controlada con login, datos de demo y operador tecnico presente.
 
-No usar en produccion sin auth/tenant real. La app todavia usa `NEXT_PUBLIC_DEFAULT_TENANT_ID` como tenant fijo de demo y varias Server Actions usan service role del lado servidor.
+No usar en produccion sin tenant por usuario y roles en Server Actions. La app todavia usa `NEXT_PUBLIC_DEFAULT_TENANT_ID` como fallback demo y varias Server Actions usan service role del lado servidor.
+
+Leer `SEGURIDAD_PRE_PRODUCCION.md` antes de operar con datos reales.
 
 ## Correr localmente
 
@@ -17,6 +19,8 @@ npm run dev
 ```
 
 Abrir `http://localhost:3000`.
+
+Para entrar al dashboard, crear primero un usuario en Supabase Auth y usar `/login`.
 
 ## Variables
 
