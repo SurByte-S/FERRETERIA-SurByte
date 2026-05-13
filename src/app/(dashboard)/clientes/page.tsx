@@ -35,7 +35,24 @@ function formatMoney(value: number) {
 }
 
 function formatDebt(value: number) {
-  return value > 0 ? `Debe ${formatMoney(value)}` : "Sin deuda";
+  if (value > 0) {
+    return {
+      label: `Debe ${formatMoney(value)}`,
+      className: "border-destructive/40 bg-destructive/10 text-destructive",
+    };
+  }
+
+  if (value < 0) {
+    return {
+      label: `Saldo a favor ${formatMoney(Math.abs(value))}`,
+      className: "border-emerald-500/40 bg-emerald-50 text-emerald-800",
+    };
+  }
+
+  return {
+    label: "Sin deuda",
+    className: "border-emerald-500/40 bg-emerald-50 text-emerald-800",
+  };
 }
 
 export default async function ClientesPage() {
@@ -116,6 +133,7 @@ export default async function ClientesPage() {
         <div className="grid gap-4">
           {customers.map((customer) => {
             const balance = balances.get(customer.id) ?? 0;
+            const debt = formatDebt(balance);
 
             return (
               <Card key={customer.id}>
@@ -137,8 +155,8 @@ export default async function ClientesPage() {
                     ) : null}
                   </div>
                   <div className="grid gap-3 sm:grid-cols-[auto_auto_auto] lg:justify-end">
-                    <p className="rounded-lg border border-border bg-background p-4 text-2xl font-bold">
-                      {formatDebt(balance)}
+                    <p className={`rounded-lg border p-4 text-2xl font-bold ${debt.className}`}>
+                      {debt.label}
                     </p>
                     <Button asChild className="h-14 gap-2 px-5 text-lg">
                       <Link href={`/clientes/${customer.id}`}>

@@ -17,6 +17,7 @@ type ProductsPageProps = {
     codigo?: string;
     nombre?: string;
     categoria?: string;
+    modo?: string;
     page?: string;
   }>;
 };
@@ -70,6 +71,7 @@ export default async function ProductosPage({ searchParams }: ProductsPageProps)
   const code = (params.codigo ?? "").trim();
   const name = (params.nombre ?? "").trim();
   const categoryId = (params.categoria ?? "").trim();
+  const mode = params.modo === "administracion" ? "administracion" : "mostrador";
   const page = Math.max(Number(params.page ?? "1") || 1, 1);
   const result = await loadProducts({ code, name, categoryId, page });
 
@@ -93,6 +95,7 @@ export default async function ProductosPage({ searchParams }: ProductsPageProps)
           total={result.total}
           showing={result.showing}
           lowStockCount={result.lowStockCount}
+          mode={mode}
         />
       ) : (
         <Card className="border-destructive/40">

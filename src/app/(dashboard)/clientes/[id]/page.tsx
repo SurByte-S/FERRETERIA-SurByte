@@ -69,7 +69,27 @@ function formatDate(value: string) {
 }
 
 function formatDebt(value: number) {
-  return value > 0 ? `Debe ${formatMoney(value)}` : "Sin deuda";
+  if (value > 0) {
+    return {
+      label: `Debe ${formatMoney(value)}`,
+      className: "bg-destructive/10 text-destructive",
+      description: "Deuda pendiente en cuenta corriente.",
+    };
+  }
+
+  if (value < 0) {
+    return {
+      label: `Saldo a favor ${formatMoney(Math.abs(value))}`,
+      className: "bg-emerald-100 text-emerald-800",
+      description: "El cliente tiene saldo disponible a favor.",
+    };
+  }
+
+  return {
+    label: "Sin deuda",
+    className: "bg-emerald-100 text-emerald-800",
+    description: "No hay deuda pendiente.",
+  };
 }
 
 function movementLabel(type: MovementRow["movement_type"]) {
@@ -141,6 +161,7 @@ export default async function ClienteDetallePage({ params }: CustomerPageProps) 
   const customer = customerResult.data as unknown as CustomerRow;
   const balance =
     ((balanceResult.data as unknown as { balance: number } | null)?.balance ?? 0);
+  const debt = formatDebt(balance);
   const sales = (salesResult.data ?? []) as unknown as SaleRow[];
   const quotes = (quotesResult.data ?? []) as unknown as QuoteRow[];
   const movements = (movementsResult.data ?? []) as unknown as MovementRow[];
@@ -180,12 +201,12 @@ export default async function ClienteDetallePage({ params }: CustomerPageProps) 
           <Card className="border-primary/40">
             <CardHeader>
               <CardTitle>Saldo actual</CardTitle>
-              <CardDescription>Deuda pendiente en cuenta corriente.</CardDescription>
+              <CardDescription>{debt.description}</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="rounded-lg bg-primary p-5 text-primary-foreground">
+              <div className={`rounded-lg p-5 ${debt.className}`}>
                 <p className="text-lg">Saldo/deuda</p>
-                <p className="mt-1 text-4xl font-bold">{formatDebt(balance)}</p>
+                <p className="mt-1 text-4xl font-bold">{debt.label}</p>
               </div>
             </CardContent>
           </Card>

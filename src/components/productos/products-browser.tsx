@@ -8,6 +8,8 @@ import {
   PackagePlus,
   PackageSearch,
   Search,
+  SlidersHorizontal,
+  X,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -38,11 +40,13 @@ function buildMoreHref({
   code,
   name,
   categoryId,
+  mode,
   page,
 }: {
   code: string;
   name: string;
   categoryId: string;
+  mode: ProductBrowserMode;
   page: number;
 }) {
   const params = new URLSearchParams();
@@ -50,7 +54,31 @@ function buildMoreHref({
   if (code) params.set("codigo", code);
   if (name) params.set("nombre", name);
   if (categoryId) params.set("categoria", categoryId);
+  params.set("modo", mode);
   params.set("page", String(page + 1));
+
+  return `/productos?${params.toString()}`;
+}
+
+type ProductBrowserMode = "mostrador" | "administracion";
+
+function buildProductsHref({
+  code,
+  name,
+  categoryId,
+  mode,
+}: {
+  code?: string;
+  name?: string;
+  categoryId?: string;
+  mode: ProductBrowserMode;
+}) {
+  const params = new URLSearchParams();
+
+  if (code) params.set("codigo", code);
+  if (name) params.set("nombre", name);
+  if (categoryId) params.set("categoria", categoryId);
+  params.set("modo", mode);
 
   return `/productos?${params.toString()}`;
 }
@@ -86,6 +114,7 @@ export function ProductsBrowser({
   total,
   showing,
   lowStockCount,
+  mode,
 }: {
   products: ProductListItem[];
   categories: ProductCatalogOption[];
@@ -96,11 +125,50 @@ export function ProductsBrowser({
   total: number;
   showing: number;
   lowStockCount: number;
+  mode: ProductBrowserMode;
 }) {
   const canShowMore = showing < total;
+  const selectedCategory = categories.find((item) => item.id === categoryId);
+  const activeFilters = [
+    code ? { label: "Codigo", value: code } : null,
+    name ? { label: "Nombre", value: name } : null,
+    categoryId
+      ? { label: "Categoria", value: selectedCategory?.name ?? categoryId }
+      : null,
+  ].filter(Boolean) as { label: string; value: string }[];
 
   return (
     <div className="grid gap-6">
+      <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-3 sm:flex-row">
+        <Button
+          asChild
+          variant={mode === "mostrador" ? "default" : "outline"}
+          className="h-14 flex-1 gap-2 text-lg"
+        >
+          <Link href={buildProductsHref({ code, name, categoryId, mode: "mostrador" })}>
+            <PackageSearch className="size-6" aria-hidden="true" />
+            Modo mostrador
+          </Link>
+        </Button>
+        <Button
+          asChild
+          variant={mode === "administracion" ? "default" : "outline"}
+          className="h-14 flex-1 gap-2 text-lg"
+        >
+          <Link
+            href={buildProductsHref({
+              code,
+              name,
+              categoryId,
+              mode: "administracion",
+            })}
+          >
+            <SlidersHorizontal className="size-6" aria-hidden="true" />
+            Modo administracion
+          </Link>
+        </Button>
+      </div>
+
       <Card>
         <CardHeader>
           <CardTitle>Buscar productos</CardTitle>
@@ -110,6 +178,7 @@ export function ProductsBrowser({
         </CardHeader>
         <CardContent>
           <form className="grid gap-4 xl:grid-cols-[260px_1fr_300px_auto]" action="/productos">
+            <input type="hidden" name="modo" value={mode} />
             <label className="grid gap-2 text-base font-semibold">
               <span>Buscar por código</span>
               <input
@@ -159,6 +228,38 @@ export function ProductsBrowser({
               </Button>
             </div>
           </form>
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap gap-2">
+              {activeFilters.length > 0 ? (
+                activeFilters.map((filter) => (
+                  <span
+                    key={`${filter.label}-${filter.value}`}
+                    className="rounded-full border border-border bg-background px-3 py-2 text-sm font-semibold"
+                  >
+                    {filter.label}: {filter.value}
+                  </span>
+                ))
+              ) : (
+                <span className="text-base font-semibold text-muted-foreground">
+                  Sin filtros activos.
+                </span>
+              )}
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button asChild variant="outline" className="h-12 gap-2 px-4 text-base">
+                <Link href={buildProductsHref({ mode })}>
+                  <X className="size-5" aria-hidden="true" />
+                  Limpiar busqueda
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="h-12 gap-2 px-4 text-base">
+                <Link href={buildProductsHref({ mode })}>
+                  <PackageSearch className="size-5" aria-hidden="true" />
+                  Ver todos
+                </Link>
+              </Button>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -203,16 +304,24 @@ export function ProductsBrowser({
             return (
             <Card key={product.id}>
               <CardHeader className="gap-4">
-                <div className="grid gap-4 lg:grid-cols-[96px_1fr_auto] lg:items-start">
-                  <ProductThumb product={product} />
+                <div
+                  className={
+                    mode === "administracion"
+                      ? "grid gap-4 lg:grid-cols-[96px_1fr_auto] lg:items-start"
+                      : "grid gap-4 lg:grid-cols-[1fr_auto] lg:items-start"
+                  }
+                >
+                  {mode === "administracion" ? <ProductThumb product={product} /> : null}
                   <div>
                     <p className="mb-2 font-mono text-base text-muted-foreground">
                       Código: {product.sku}
                     </p>
                     <CardTitle className="text-2xl">{product.name}</CardTitle>
-                    <CardDescription className="mt-2">
-                      {product.category || "Sin categoría"} - {product.brand || "Sin marca"}
-                    </CardDescription>
+                    {mode === "administracion" ? (
+                      <CardDescription className="mt-2">
+                        {product.category || "Sin categoría"} - {product.brand || "Sin marca"}
+                      </CardDescription>
+                    ) : null}
                   </div>
                   <div className="rounded-lg border border-border bg-background p-4 text-left lg:min-w-56">
                     <p className="text-base text-muted-foreground">Precio de venta</p>
@@ -223,15 +332,23 @@ export function ProductsBrowser({
                 </div>
               </CardHeader>
               <CardContent className="grid gap-4">
-                <div className="grid gap-3 md:grid-cols-3">
+                <div
+                  className={
+                    mode === "administracion"
+                      ? "grid gap-3 md:grid-cols-3"
+                      : "grid gap-3 md:grid-cols-2"
+                  }
+                >
                   <div className="rounded-lg border border-border bg-background p-4">
                     <p className="text-base text-muted-foreground">Stock actual</p>
                     <p className="mt-1 text-2xl font-bold">{product.stockQuantity}</p>
                   </div>
-                  <div className="rounded-lg border border-border bg-background p-4">
-                    <p className="text-base text-muted-foreground">Stock minimo</p>
-                    <p className="mt-1 text-2xl font-bold">{product.minStock}</p>
-                  </div>
+                  {mode === "administracion" ? (
+                    <div className="rounded-lg border border-border bg-background p-4">
+                      <p className="text-base text-muted-foreground">Stock minimo</p>
+                      <p className="mt-1 text-2xl font-bold">{product.minStock}</p>
+                    </div>
+                  ) : null}
                   <div className={`rounded-lg border p-4 ${status.className}`}>
                     <p className="text-base">Estado</p>
                     <p className="mt-1 text-2xl font-bold">{status.label}</p>
@@ -239,29 +356,33 @@ export function ProductsBrowser({
                 </div>
 
                 <div className="flex flex-col gap-3 sm:flex-row">
-                  <details className="group">
-                    <summary className="list-none">
-                      <Button asChild variant="outline" className="h-14 gap-2 px-6 text-lg">
-                        <span>
-                          <Edit3 className="size-6" aria-hidden="true" />
-                          Editar
-                        </span>
-                      </Button>
-                    </summary>
-                    <ProductEditForm product={product} categories={categories} />
-                  </details>
+                  {mode === "administracion" ? (
+                    <>
+                      <details className="group">
+                        <summary className="list-none">
+                          <Button asChild variant="outline" className="h-14 gap-2 px-6 text-lg">
+                            <span>
+                              <Edit3 className="size-6" aria-hidden="true" />
+                              Editar
+                            </span>
+                          </Button>
+                        </summary>
+                        <ProductEditForm product={product} categories={categories} />
+                      </details>
 
-                  <details className="group">
-                    <summary className="list-none">
-                      <Button asChild variant="outline" className="h-14 gap-2 px-6 text-lg">
-                        <span>
-                          <PackagePlus className="size-6" aria-hidden="true" />
-                          Ajustar stock
-                        </span>
-                      </Button>
-                    </summary>
-                    <StockAdjustForm product={product} />
-                  </details>
+                      <details className="group">
+                        <summary className="list-none">
+                          <Button asChild variant="outline" className="h-14 gap-2 px-6 text-lg">
+                            <span>
+                              <PackagePlus className="size-6" aria-hidden="true" />
+                              Ajustar stock
+                            </span>
+                          </Button>
+                        </summary>
+                        <StockAdjustForm product={product} />
+                      </details>
+                    </>
+                  ) : null}
 
                   <Button asChild className="h-14 gap-2 px-6 text-lg">
                     <Link href={`/presupuestos/nuevo?sku=${encodeURIComponent(product.sku)}`}>
@@ -270,12 +391,14 @@ export function ProductsBrowser({
                     </Link>
                   </Button>
 
-                  <Button asChild variant="outline" className="h-14 gap-2 px-6 text-lg">
-                    <Link href={`/productos/${product.id}/stock`}>
-                      <History className="size-6" aria-hidden="true" />
-                      Ver historial
-                    </Link>
-                  </Button>
+                  {mode === "administracion" ? (
+                    <Button asChild variant="outline" className="h-14 gap-2 px-6 text-lg">
+                      <Link href={`/productos/${product.id}/stock`}>
+                        <History className="size-6" aria-hidden="true" />
+                        Ver historial
+                      </Link>
+                    </Button>
+                  ) : null}
                 </div>
               </CardContent>
             </Card>
@@ -287,7 +410,7 @@ export function ProductsBrowser({
       {canShowMore ? (
         <div className="flex justify-center">
           <Button asChild className="h-14 gap-2 px-8 text-lg">
-            <Link href={buildMoreHref({ code, name, categoryId, page })}>
+            <Link href={buildMoreHref({ code, name, categoryId, mode, page })}>
               <PackageSearch className="size-6" aria-hidden="true" />
               Ver más productos
             </Link>

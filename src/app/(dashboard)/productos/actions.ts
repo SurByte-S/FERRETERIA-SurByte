@@ -250,7 +250,7 @@ export async function adjustProductStockAction(
 
     return {
       ok: true,
-      message: "Stock actualizado. Se registro el movimiento.",
+      message: "Stock actualizado correctamente. Se registro el movimiento.",
     };
   } catch (error) {
     if (isTenantRoleForbiddenError(error)) {

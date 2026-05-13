@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Clock, WalletCards } from "lucide-react";
 
 import { PageHeader } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
@@ -10,14 +11,86 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { navigationItems, quickActions } from "@/components/shell/nav-items";
+import { getSupabaseServerClient } from "@/lib/supabase";
+import { requireTenant } from "@/lib/tenant";
 
-export default function InicioPage() {
+type CashSessionRow = {
+  id: string;
+  opening_amount: number;
+  opened_at: string;
+};
+
+type SaleRow = {
+  paid_amount: number;
+  payment_method: string | null;
+};
+
+function formatMoney(value: number) {
+  return new Intl.NumberFormat("es-AR", {
+    style: "currency",
+    currency: "ARS",
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat("es-AR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
+export default async function InicioPage() {
+  const cashStatus = await loadCashStatus();
+
   return (
     <>
       <PageHeader
         title="Inicio"
         description="Accesos grandes para las tareas mas comunes de la ferreteria."
       />
+
+      <Card className={cashStatus.open ? "mb-6 border-emerald-500/40" : "mb-6 border-yellow-500/40"}>
+        <CardContent className="grid gap-4 p-5 lg:grid-cols-[1fr_auto] lg:items-center">
+          <div className="flex items-start gap-4">
+            <div
+              className={
+                cashStatus.open
+                  ? "flex size-14 items-center justify-center rounded-lg bg-emerald-100 text-emerald-800"
+                  : "flex size-14 items-center justify-center rounded-lg bg-yellow-100 text-yellow-900"
+              }
+            >
+              <WalletCards className="size-7" aria-hidden="true" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">
+                {cashStatus.open ? "Caja abierta" : "Caja cerrada"}
+              </p>
+              {cashStatus.open ? (
+                <div className="mt-2 grid gap-1 text-base text-muted-foreground">
+                  <p className="flex items-center gap-2">
+                    <Clock className="size-5" aria-hidden="true" />
+                    Apertura: {formatDate(cashStatus.openedAt)}
+                  </p>
+                  <p className="font-semibold text-foreground">
+                    Efectivo esperado: {formatMoney(cashStatus.expectedCash)}
+                  </p>
+                </div>
+              ) : (
+                <p className="mt-2 text-base text-muted-foreground">
+                  Abri caja antes de empezar a cobrar ventas en efectivo.
+                </p>
+              )}
+            </div>
+          </div>
+          <Button asChild className="h-14 gap-2 px-6 text-lg">
+            <Link href="/caja">
+              <WalletCards className="size-6" aria-hidden="true" />
+              Ir a caja
+            </Link>
+          </Button>
+        </CardContent>
+      </Card>
 
       <section aria-label="Acciones rapidas" className="grid gap-4 xl:grid-cols-3">
         {quickActions.map((action) => {
@@ -74,4 +147,45 @@ export default function InicioPage() {
       </section>
     </>
   );
+}
+
+async function loadCashStatus(): Promise<
+  | { open: true; openedAt: string; expectedCash: number }
+  | { open: false }
+> {
+  try {
+    const tenant = await requireTenant();
+    const supabase = getSupabaseServerClient();
+    const { data } = await supabase
+      .from("cash_register_sessions")
+      .select("id,opening_amount,opened_at")
+      .eq("tenant_id", tenant.id)
+      .eq("status", "open")
+      .order("opened_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const session = (data ?? null) as CashSessionRow | null;
+
+    if (!session) {
+      return { open: false };
+    }
+
+    const salesResult = await supabase
+      .from("sales")
+      .select("paid_amount,payment_method")
+      .eq("tenant_id", tenant.id)
+      .eq("cash_session_id", session.id);
+    const sales = (salesResult.data ?? []) as unknown as SaleRow[];
+    const cashSales = sales
+      .filter((sale) => sale.payment_method === "Efectivo")
+      .reduce((sum, sale) => sum + Number(sale.paid_amount ?? 0), 0);
+
+    return {
+      open: true,
+      openedAt: session.opened_at,
+      expectedCash: Number(session.opening_amount ?? 0) + cashSales,
+    };
+  } catch {
+    return { open: false };
+  }
 }

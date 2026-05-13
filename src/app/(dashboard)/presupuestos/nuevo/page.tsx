@@ -23,8 +23,8 @@ export default async function NuevoPresupuestoPage({
   return (
     <>
       <PageHeader
-        title="Nuevo presupuesto"
-        description="Carga cliente, busca productos y revisa el total sin cambiar de pantalla."
+        title="Venta rapida"
+        description="Busca productos y guarda el comprobante. El cliente es opcional; agregalo solo si hace falta cuenta corriente o seguimiento."
         backHref="/presupuestos"
         backLabel="Volver a presupuestos"
       />

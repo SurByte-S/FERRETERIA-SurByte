@@ -210,7 +210,7 @@ export function NewQuoteForm({
             </div>
             <CardTitle>Datos del cliente</CardTitle>
             <CardDescription>
-              Son opcionales. Sirven para encontrar el presupuesto después.
+              El cliente es opcional. Usalo para cuenta corriente, garantia o para encontrar el comprobante despues.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2">
@@ -269,9 +269,9 @@ export function NewQuoteForm({
             <div className="mb-2 flex size-14 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <ClipboardList className="size-7" aria-hidden="true" />
             </div>
-            <CardTitle>Presupuesto rápido</CardTitle>
+            <CardTitle>Venta rapida</CardTitle>
             <CardDescription>
-              Buscá productos, agregá cantidades y revisá el total.
+              Busca productos, agrega cantidades y revisa el total antes de guardar.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">

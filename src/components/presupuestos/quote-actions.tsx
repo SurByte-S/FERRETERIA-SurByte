@@ -127,6 +127,12 @@ export function ConvertQuoteButton({
         </select>
       </label>
 
+      {paymentMethod === "Cuenta corriente" ? (
+        <p className="rounded-lg border border-yellow-500/40 bg-yellow-50 p-3 text-base font-semibold text-yellow-900">
+          Esta venta queda anotada en cuenta corriente.
+        </p>
+      ) : null}
+
       <label className="grid gap-2 text-base font-semibold">
         <span>Forma de pago</span>
         <select
