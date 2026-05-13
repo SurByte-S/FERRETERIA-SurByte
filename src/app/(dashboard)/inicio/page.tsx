@@ -24,7 +24,7 @@ export default function InicioPage() {
           const Icon = action.icon;
 
           return (
-            <Card key={action.href}>
+            <Card key={`${action.title}-${action.href}`}>
               <CardHeader>
                 <div className="mb-2 flex size-14 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                   <Icon className="size-7" aria-hidden="true" />
