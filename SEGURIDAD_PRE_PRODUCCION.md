@@ -169,6 +169,8 @@ Politica aplicada/recomendada:
 
 Configurar antes de produccion.
 
+Procedimiento operativo completo: ver `BACKUP_OPERATIVO.md`.
+
 Estrategia operativa:
 
 - Activar backups automaticos de Supabase si el plan lo permite.
@@ -216,5 +218,5 @@ Procedimiento minimo de restauracion:
 - Resolver tenant por usuario en todas las consultas/acciones.
 - Validar roles en Server Actions criticas.
 - Revisar politicas de Storage.
-- Definir backup y restauracion.
+- Definir backup y restauracion segun `BACKUP_OPERATIVO.md`.
 - Ejecutar prueba controlada completa con login.

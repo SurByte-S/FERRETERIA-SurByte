@@ -8,7 +8,7 @@ El proyecto esta listo para una prueba controlada con login, datos de demo y ope
 
 No usar en produccion sin roles en Server Actions. Las pantallas principales resuelven tenant por usuario autenticado y `tenant_members`; `NEXT_PUBLIC_DEFAULT_TENANT_ID` queda como fallback demo/local para importadores o flujos explicitamente locales.
 
-Leer `SEGURIDAD_PRE_PRODUCCION.md` antes de operar con datos reales.
+Leer `SEGURIDAD_PRE_PRODUCCION.md` y `BACKUP_OPERATIVO.md` antes de operar con datos reales.
 
 ## Correr localmente
 
