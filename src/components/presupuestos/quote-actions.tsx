@@ -15,6 +15,13 @@ const PAYMENT_METHODS = [
   "Cuenta corriente",
 ];
 
+type StockWarning = {
+  name: string;
+  sku: string | null;
+  currentStock: number;
+  requestedQuantity: number;
+};
+
 function formatMoney(value: number) {
   return new Intl.NumberFormat("es-AR", {
     style: "currency",
@@ -50,12 +57,14 @@ export function ConvertQuoteButton({
   initialCustomerId,
   customers,
   disabled,
+  stockWarnings = [],
 }: {
   quoteId: string;
   total: number;
   initialCustomerId?: string | null;
   customers: { id: string; name: string }[];
   disabled: boolean;
+  stockWarnings?: StockWarning[];
 }) {
   const router = useRouter();
   const [customerId, setCustomerId] = useState(initialCustomerId ?? "");
@@ -156,6 +165,21 @@ export function ConvertQuoteButton({
         <ShoppingCart className="size-6" aria-hidden="true" />
         {pending ? "Convirtiendo..." : "Convertir en venta"}
       </Button>
+      {stockWarnings.length > 0 ? (
+        <div className="rounded-lg border border-yellow-500/40 bg-yellow-50 p-3 text-sm text-yellow-900">
+          <p className="font-semibold">
+            Atencion: esta venta puede dejar productos con stock negativo.
+          </p>
+          <ul className="mt-2 grid gap-1">
+            {stockWarnings.slice(0, 5).map((item) => (
+              <li key={`${item.sku ?? item.name}-${item.requestedQuantity}`}>
+                {item.name}: stock {item.currentStock}, pedido{" "}
+                {item.requestedQuantity}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       {message ? <p className="text-base font-semibold">{message}</p> : null}
     </div>
   );

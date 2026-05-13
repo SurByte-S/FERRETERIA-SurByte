@@ -46,6 +46,9 @@ type QuoteItemRow = {
   quantity: number;
   unit_price: number;
   total: number;
+  products: {
+    stock_quantity: number;
+  } | null;
 };
 
 function formatMoney(value: number) {
@@ -89,7 +92,7 @@ export default async function QuoteDetailPage({ params }: QuotePageProps) {
       .maybeSingle(),
     supabase
       .from("quote_items")
-      .select("sku,name,quantity,unit_price,total")
+      .select("sku,name,quantity,unit_price,total,products(stock_quantity)")
       .eq("tenant_id", tenant.id)
       .eq("quote_id", id)
       .order("name"),
@@ -108,6 +111,18 @@ export default async function QuoteDetailPage({ params }: QuotePageProps) {
   const quote = quoteResult.data as unknown as QuoteRow;
   const items = (itemsResult.data ?? []) as unknown as QuoteItemRow[];
   const customers = (customersResult.data ?? []) as unknown as CustomerOption[];
+  const negativeStockWarnings = items
+    .filter(
+      (item) =>
+        item.products &&
+        Number(item.products.stock_quantity) - Number(item.quantity) < 0
+    )
+    .map((item) => ({
+      name: item.name,
+      sku: item.sku,
+      currentStock: Number(item.products?.stock_quantity ?? 0),
+      requestedQuantity: Number(item.quantity),
+    }));
 
   return (
     <>
@@ -186,6 +201,7 @@ export default async function QuoteDetailPage({ params }: QuotePageProps) {
               initialCustomerId={quote.customer_id}
               customers={customers}
               disabled={quote.status === "converted" || items.length === 0}
+              stockWarnings={negativeStockWarnings}
             />
           </div>
           <Card className="border-primary/40">

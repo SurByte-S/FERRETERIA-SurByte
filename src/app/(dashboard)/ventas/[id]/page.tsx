@@ -25,12 +25,16 @@ type SaleRow = {
   total: number;
   paid_amount: number;
   payment_method: string | null;
+  cash_session_id: string | null;
   created_at: string;
   customers: {
     name: string;
     phone: string | null;
     email: string | null;
     address: string | null;
+  } | null;
+  cash_register_sessions: {
+    opened_at: string;
   } | null;
 };
 
@@ -65,7 +69,7 @@ export default async function SaleDetailPage({ params }: SalePageProps) {
     supabase
       .from("sales")
       .select(
-        "id,sale_number,subtotal,discount_amount,tax_amount,total,paid_amount,payment_method,created_at,customers(name,phone,email,address)"
+        "id,sale_number,subtotal,discount_amount,tax_amount,total,paid_amount,payment_method,cash_session_id,created_at,customers(name,phone,email,address),cash_register_sessions(opened_at)"
       )
       .eq("tenant_id", tenant.id)
       .eq("id", id)
@@ -105,7 +109,7 @@ export default async function SaleDetailPage({ params }: SalePageProps) {
               {process.env.NEXT_PUBLIC_DEFAULT_TENANT_SLUG}
             </CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-2">
+          <CardContent className="grid gap-4 md:grid-cols-3">
             <div>
               <p className="text-base text-muted-foreground">Venta</p>
               <p className="text-2xl font-bold">#{sale.sale_number}</p>
@@ -128,6 +132,22 @@ export default async function SaleDetailPage({ params }: SalePageProps) {
               {sale.customers?.phone ? <p>Telefono: {sale.customers.phone}</p> : null}
               {sale.customers?.email ? <p>Email: {sale.customers.email}</p> : null}
               {sale.customers?.address ? <p>Domicilio: {sale.customers.address}</p> : null}
+            </div>
+            <div>
+              <p className="text-base text-muted-foreground">Caja</p>
+              {sale.cash_session_id ? (
+                <>
+                  <p className="text-xl font-semibold">Caja asociada</p>
+                  <p>
+                    Apertura:{" "}
+                    {sale.cash_register_sessions?.opened_at
+                      ? formatDate(sale.cash_register_sessions.opened_at)
+                      : "Sin fecha disponible"}
+                  </p>
+                </>
+              ) : (
+                <p className="text-xl font-semibold">Venta sin caja asociada</p>
+              )}
             </div>
           </CardContent>
         </Card>

@@ -40,6 +40,34 @@ function cleanSearch(value: string) {
   return value.trim().replace(/[%_]/g, "");
 }
 
+function getSaveQuoteErrorMessage(message?: string) {
+  if (!message) {
+    return "No se pudo guardar el presupuesto.";
+  }
+
+  if (message.includes("TENANT_NOT_FOUND")) {
+    return "No se encontro la ferreteria configurada.";
+  }
+
+  if (message.includes("QUOTE_WITHOUT_ITEMS")) {
+    return "Agrega al menos un producto antes de guardar.";
+  }
+
+  if (message.includes("QUOTE_ITEMS_INVALID")) {
+    return "Revisa las cantidades de los productos.";
+  }
+
+  if (message.includes("QUOTE_PRODUCTS_NOT_FOUND")) {
+    return "Hay productos que ya no estan disponibles. Revisa el presupuesto.";
+  }
+
+  if (message.includes("CUSTOMER_NOT_FOUND")) {
+    return "No se encontro el cliente seleccionado.";
+  }
+
+  return "No se pudo guardar el presupuesto. Intenta nuevamente.";
+}
+
 export async function searchQuoteProductsAction(
   rawSearch: string
 ): Promise<QuoteProduct[]> {
@@ -116,132 +144,35 @@ export async function saveQuoteAction({
   if (cleanLines.length === 0) {
     return {
       ok: false,
-      message: "Agregá al menos un producto antes de guardar.",
+      message: "Agrega al menos un producto antes de guardar.",
     };
   }
 
   try {
     const tenant = getCurrentTenant();
     const supabase = getSupabaseServerClient();
-    const skus = cleanLines.map((line) => line.sku);
-    const { data: products, error: productsError } = await supabase
-      .from("products")
-      .select("id,sku,name,description,sale_price")
-      .eq("tenant_id", tenant.id)
-      .in("sku", skus);
+    const { data, error } = await supabase.rpc("create_quote_with_items", {
+      input_tenant_id: tenant.id,
+      input_customer_id: customer.id?.trim() || null,
+      input_customer_name: customer.name.trim() || null,
+      input_customer_phone: customer.phone.trim() || null,
+      input_customer_email: customer.email.trim() || null,
+      input_customer_address: customer.address.trim() || null,
+      input_items: cleanLines.map((line) => ({
+        sku: line.sku,
+        quantity: line.quantity,
+      })),
+      input_notes: "Presupuesto creado desde mostrador",
+    });
 
-    if (productsError || !products || products.length !== skus.length) {
+    if (error || !data) {
       return {
         ok: false,
-        message: "Hay productos que ya no están disponibles. Revisá el presupuesto.",
+        message: getSaveQuoteErrorMessage(error?.message),
       };
     }
 
-    const productMap = new Map(
-      (
-        products as {
-          id: string;
-          sku: string;
-          name: string;
-          description: string | null;
-          sale_price: number | null;
-        }[]
-      ).map((product) => [product.sku, product])
-    );
-    const subtotal = cleanLines.reduce((sum, line) => {
-      const product = productMap.get(line.sku);
-      return sum + line.quantity * (product?.sale_price ?? 0);
-    }, 0);
-    let customerId: string | null = null;
-
-    if (customer.id) {
-      const { data: existingCustomer, error: existingCustomerError } = await supabase
-        .from("customers")
-        .select("id")
-        .eq("tenant_id", tenant.id)
-        .eq("id", customer.id)
-        .maybeSingle();
-
-      if (existingCustomerError || !existingCustomer) {
-        return {
-          ok: false,
-          message: "No se encontro el cliente seleccionado.",
-        };
-      }
-
-      customerId = (existingCustomer as { id: string }).id;
-    } else if (customer.name.trim()) {
-      const { data: customerData, error: customerError } = await supabase
-        .from("customers")
-        .insert({
-          tenant_id: tenant.id,
-          name: customer.name.trim(),
-          phone: customer.phone.trim() || null,
-          email: customer.email.trim() || null,
-          address: customer.address.trim() || null,
-        })
-        .select("id")
-        .single();
-
-      if (customerError || !customerData) {
-        return {
-          ok: false,
-          message: "No se pudo guardar el cliente. Revisá los datos.",
-        };
-      }
-
-      customerId = (customerData as { id: string }).id;
-    }
-
-    const { data: quoteData, error: quoteError } = await supabase
-      .from("quotes")
-      .insert({
-        tenant_id: tenant.id,
-        customer_id: customerId,
-        status: "draft",
-        subtotal,
-        discount_amount: 0,
-        tax_amount: 0,
-        total: subtotal,
-        notes: "Presupuesto creado desde mostrador",
-      })
-      .select("id")
-      .single();
-
-    if (quoteError || !quoteData) {
-      return {
-        ok: false,
-        message: "No se pudo guardar el presupuesto.",
-      };
-    }
-
-    const quoteId = (quoteData as { id: string }).id;
-    const { error: itemsError } = await supabase.from("quote_items").insert(
-      cleanLines.map((line) => {
-        const product = productMap.get(line.sku);
-        const price = product?.sale_price ?? 0;
-
-        return {
-          tenant_id: tenant.id,
-          quote_id: quoteId,
-          product_id: product?.id ?? null,
-          sku: line.sku,
-          name: product?.description ?? product?.name ?? line.description,
-          quantity: line.quantity,
-          unit_price: price,
-          discount_amount: 0,
-          total: line.quantity * price,
-        };
-      })
-    );
-
-    if (itemsError) {
-      return {
-        ok: false,
-        message: "Se guardó el encabezado, pero no los productos. Revisá el presupuesto.",
-      };
-    }
-
+    const quoteId = data as string;
     revalidatePath("/presupuestos");
 
     return {
@@ -252,7 +183,7 @@ export async function saveQuoteAction({
   } catch {
     return {
       ok: false,
-      message: "No se pudo guardar el presupuesto. Intentá nuevamente.",
+      message: "No se pudo guardar el presupuesto. Intenta nuevamente.",
     };
   }
 }
