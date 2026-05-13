@@ -57,7 +57,7 @@ export const navigationItems = [
 export const quickActions = [
   {
     title: "Nuevo presupuesto",
-    href: "/presupuestos",
+    href: "/presupuestos/nuevo",
     icon: ReceiptText,
     description: "Preparar una lista de productos con precio para entregar.",
   },
@@ -68,10 +68,10 @@ export const quickActions = [
     description: "Encontrar articulos por nombre, codigo o rubro.",
   },
   {
-    title: "Registrar venta",
-    href: "/ventas",
+    title: "Nueva venta",
+    href: "/presupuestos/nuevo",
     icon: ShoppingCart,
-    description: "Anotar una venta simple del dia.",
+    description: "Armar el comprobante y convertirlo en venta.",
   },
   {
     title: "Abrir caja",
