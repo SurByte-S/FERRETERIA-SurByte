@@ -4,7 +4,7 @@ Fecha: 2026-05-13
 
 ## Estado
 
-El sistema queda apto para prueba controlada con login. Todavia no esta listo para produccion real hasta completar tenant por usuario, roles en Server Actions y politicas finales de Storage.
+El sistema queda apto para prueba controlada con login, tenant por usuario y roles en Server Actions. Todavia no esta listo para produccion real hasta cerrar politicas finales de Storage, backup operativo y selector de tenant si hay multiples ferreterias.
 
 ## Etapa 1 - Seguridad inmediata
 
@@ -75,7 +75,6 @@ Implementado para las pantallas y Server Actions principales.
 Pendiente:
 
 - Selector de tenant cuando un usuario tenga multiples ferreterias.
-- Aplicar `requireTenantRole()` por accion critica.
 
 Helpers actuales:
 
@@ -121,33 +120,55 @@ Si el usuario no tiene permiso, la UI muestra:
 
 ## Etapa 5 - Storage `product-images`
 
-Estado actual:
+Auditado.
 
-- El bucket se crea desde una Server Action si no existe.
-- Se configura como publico.
-- El path actual usa tenant y SKU: `{tenant_id}/{sku}/foto.{ext}`.
+Hallazgos actuales:
+
+- El bucket se crea en `src/app/(dashboard)/productos/actions.ts`, dentro de `uploadProductImage()`.
+- Se crea como bucket publico con `public: true`.
+- Solo se suben JPG, PNG y WebP.
+- La subida ocurre al editar producto desde `ProductEditForm`.
+- La Server Action exige rol `owner` o `admin` antes de subir o actualizar producto.
+- El path actual fue ajustado a:
+
+```text
+{tenant_id}/products/{product_id}/foto.{ext}
+```
+
+- El path incluye `tenant_id`.
+- El path incluye `product_id`, no SKU. Esto evita que un cambio de SKU deje la foto en una ruta vieja basada en codigo.
+- El nombre fijo `foto.{ext}` usa `upsert: true`, por lo que reemplaza la foto del mismo producto y extension.
+- Riesgo residual: si se cambia de extension, por ejemplo de `foto.jpg` a `foto.webp`, puede quedar el archivo anterior sin uso.
+- Riesgo residual: el bucket publico permite lectura anonima de cualquier imagen si se conoce la URL.
+- Riesgo residual: las policies de Storage no fueron modificadas desde este cambio. La proteccion de escritura esta en la Server Action con service role y rol de tenant.
+
+Colisiones y aislamiento:
+
+- Entre tenants: baja probabilidad de colision porque el primer segmento es `tenant_id`.
+- Dentro del mismo tenant: baja probabilidad de colision porque el segundo segmento es `product_id`.
+- Un usuario de otro tenant no deberia poder sobrescribir por UI porque `updateProductAction` exige tenant/rol y actualiza por `tenant_id` + `product_id`.
+- Si alguien obtiene service role o una policy de Storage demasiado amplia, podria sobrescribir objetos. Por eso service role y policies siguen siendo controles criticos.
 
 Politica recomendada antes de produccion:
 
-- Definir explicitamente si las fotos de producto son publicas o privadas.
-- Si son publicas: permitir lectura publica, pero upload/update/delete solo a usuarios autenticados del tenant.
-- Si son privadas: servir imagenes con URLs firmadas.
-- Cambiar path recomendado a:
-
-```text
-{tenant_id}/products/{product_id}/filename
-```
-
-- Evitar que un usuario de otro tenant pueda sobrescribir imagenes.
+- Mantener lectura publica solo si las fotos de productos no son sensibles.
+- Si se requiere privacidad, convertir el bucket a privado y servir con URLs firmadas.
+- Upload/update/delete: solo usuarios autenticados miembros del tenant, preferentemente con rol `owner` o `admin`.
+- Validar en policies que el primer segmento del object name sea el `tenant_id` del usuario.
+- No permitir deletes desde cliente hasta tener auditoria clara.
+- Provisionar el bucket y sus policies desde migracion/configuracion, no desde la Server Action.
 
 ## Etapa 6 - Backup minimo
 
-Configurar antes de produccion:
+Configurar antes de produccion.
+
+Estrategia operativa:
 
 - Activar backups automaticos de Supabase si el plan lo permite.
 - Si no hay backups automaticos, hacer export manual semanal.
-- Guardar copia fuera de Supabase.
+- Guardar copia fuera de Supabase, por ejemplo almacenamiento cifrado en Drive/OneDrive/S3.
 - Probar una restauracion parcial antes de operar con datos reales.
+- Documentar responsable, frecuencia y ubicacion del backup.
 
 Tablas criticas:
 
@@ -162,6 +183,23 @@ Tablas criticas:
 - `cash_register_sessions`
 - `tenants`
 - `tenant_members`
+
+Procedimiento minimo de export manual:
+
+1. Avisar que se inicia ventana de backup.
+2. Exportar base desde Supabase Dashboard o `pg_dump`.
+3. Guardar archivo con fecha: `ferreteria-backup-YYYY-MM-DD.sql`.
+4. Copiar el archivo fuera de Supabase.
+5. Verificar que el archivo no pese cero y pueda abrirse.
+6. Registrar en una planilla: fecha, responsable, ubicacion y observaciones.
+
+Procedimiento minimo de restauracion:
+
+1. Crear proyecto/base temporal de restauracion.
+2. Importar el backup.
+3. Verificar tablas criticas y conteos basicos.
+4. Probar consultas de productos, clientes, ventas, stock y caja.
+5. Solo restaurar produccion luego de validar en entorno temporal.
 
 ## Checklist antes de produccion
 

@@ -40,10 +40,6 @@ function stockErrorMessage(message?: string) {
   return "No se pudo ajustar el stock. Revisa la conexion y las migraciones.";
 }
 
-function safePathPart(value: string) {
-  return value.replace(/[^a-zA-Z0-9._-]/g, "-");
-}
-
 async function ensureBrand(tenantId: string, name: string) {
   if (!name) {
     return null;
@@ -80,11 +76,11 @@ async function ensureBrand(tenantId: string, name: string) {
 
 async function uploadProductImage({
   tenantId,
-  sku,
+  productId,
   file,
 }: {
   tenantId: string;
-  sku: string;
+  productId: string;
   file: File;
 }) {
   const supabase = getSupabaseServerClient();
@@ -104,7 +100,7 @@ async function uploadProductImage({
   }
 
   const extension = file.name.split(".").pop()?.toLowerCase() || "jpg";
-  const path = `${tenantId}/${safePathPart(sku)}/foto.${extension}`;
+  const path = `${tenantId}/products/${productId}/foto.${extension}`;
   const { error } = await supabase.storage
     .from("product-images")
     .upload(path, file, {
@@ -125,6 +121,7 @@ export async function updateProductAction(
   _previousState: ProductActionState,
   formData: FormData
 ): Promise<ProductActionState> {
+  const productId = textValue(formData, "productId");
   const currentSku = textValue(formData, "currentSku");
   const nextSku = textValue(formData, "sku");
   const name = textValue(formData, "name");
@@ -135,7 +132,7 @@ export async function updateProductAction(
   const imageFile = formData.get("image");
   let imageUrl = textValue(formData, "currentImageUrl");
 
-  if (!currentSku || !nextSku || !name) {
+  if (!productId || !currentSku || !nextSku || !name) {
     return {
       ok: false,
       message: "Necesitan revisión. Nombre y código son obligatorios.",
@@ -150,7 +147,7 @@ export async function updateProductAction(
     if (imageFile instanceof File && imageFile.size > 0) {
       imageUrl = await uploadProductImage({
         tenantId: tenant.id,
-        sku: nextSku,
+        productId,
         file: imageFile,
       });
     }
@@ -173,6 +170,7 @@ export async function updateProductAction(
         image_url: imageUrl || null,
       })
       .eq("tenant_id", tenant.id)
+      .eq("id", productId)
       .eq("sku", currentSku);
 
     if (error) {

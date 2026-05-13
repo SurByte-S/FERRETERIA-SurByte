@@ -29,6 +29,7 @@ export function ProductEditForm({
 
   return (
     <form action={formAction} className="mt-4 grid gap-4 rounded-lg border border-border bg-background p-4">
+      <input type="hidden" name="productId" value={product.id} />
       <input type="hidden" name="currentSku" value={product.sku} />
       <input type="hidden" name="currentImageUrl" value={product.imageUrl} />
 
