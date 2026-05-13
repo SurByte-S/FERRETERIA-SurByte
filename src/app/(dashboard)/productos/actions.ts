@@ -26,10 +26,14 @@ function stockErrorMessage(message?: string) {
   }
 
   if (message?.includes("PRODUCT_NOT_FOUND")) {
-    return "No se encontro el producto.";
+    return "No se encontro el producto para la ferreteria actual. Recarga Productos y proba de nuevo.";
   }
 
-  return "No se pudo ajustar el stock.";
+  if (message?.includes("Could not find the function")) {
+    return "Falta aplicar la migracion 006 de stock en Supabase.";
+  }
+
+  return "No se pudo ajustar el stock. Revisa la conexion y las migraciones.";
 }
 
 function safePathPart(value: string) {
@@ -192,7 +196,7 @@ export async function adjustProductStockAction(
 ): Promise<ProductActionState> {
   const tenant = getCurrentTenant();
   const productId = textValue(formData, "productId");
-  const newStock = Number(textValue(formData, "newStock"));
+  const newStock = Number(textValue(formData, "newStock").replace(",", "."));
   const notes = textValue(formData, "notes");
 
   if (!productId) {
