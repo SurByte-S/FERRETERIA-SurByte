@@ -3,7 +3,11 @@
 import { revalidatePath } from "next/cache";
 
 import { getSupabaseServerClient } from "@/lib/supabase";
-import { requireTenant } from "@/lib/tenant";
+import {
+  FORBIDDEN_ACTION_MESSAGE,
+  isTenantRoleForbiddenError,
+  requireTenantRole,
+} from "@/lib/tenant";
 
 export type CashActionState = {
   ok: boolean;
@@ -33,7 +37,7 @@ export async function openCashSessionAction(
   }
 
   try {
-    const tenant = await requireTenant();
+    const tenant = await requireTenantRole(["owner", "admin", "seller"]);
     const supabase = getSupabaseServerClient();
     const { data: openSession } = await supabase
       .from("cash_register_sessions")
@@ -70,7 +74,14 @@ export async function openCashSessionAction(
       ok: true,
       message: "Caja abierta.",
     };
-  } catch {
+  } catch (error) {
+    if (isTenantRoleForbiddenError(error)) {
+      return {
+        ok: false,
+        message: FORBIDDEN_ACTION_MESSAGE,
+      };
+    }
+
     return {
       ok: false,
       message: "No se pudo abrir la caja.",
@@ -101,7 +112,7 @@ export async function closeCashSessionAction(
   }
 
   try {
-    const tenant = await requireTenant();
+    const tenant = await requireTenantRole(["owner", "admin", "seller"]);
     const supabase = getSupabaseServerClient();
     const { data: session, error: sessionError } = await supabase
       .from("cash_register_sessions")
@@ -175,7 +186,14 @@ export async function closeCashSessionAction(
         }
       ).format(differenceAmount)}.`,
     };
-  } catch {
+  } catch (error) {
+    if (isTenantRoleForbiddenError(error)) {
+      return {
+        ok: false,
+        message: FORBIDDEN_ACTION_MESSAGE,
+      };
+    }
+
     return {
       ok: false,
       message: "No se pudo cerrar la caja.",

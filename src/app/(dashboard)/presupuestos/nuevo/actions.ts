@@ -3,7 +3,12 @@
 import { revalidatePath } from "next/cache";
 
 import { getSupabaseServerClient } from "@/lib/supabase";
-import { requireTenant } from "@/lib/tenant";
+import {
+  FORBIDDEN_ACTION_MESSAGE,
+  isTenantRoleForbiddenError,
+  requireTenant,
+  requireTenantRole,
+} from "@/lib/tenant";
 import type {
   QuoteCustomer,
   QuoteLine,
@@ -78,7 +83,7 @@ export async function searchQuoteProductsAction(
   }
 
   try {
-    const tenant = await requireTenant();
+    const tenant = await requireTenantRole(["owner", "admin", "seller"]);
     const supabase = getSupabaseServerClient();
     const { data, error } = await supabase
       .from("products")
@@ -180,7 +185,14 @@ export async function saveQuoteAction({
       message: "Presupuesto guardado.",
       quoteId,
     };
-  } catch {
+  } catch (error) {
+    if (isTenantRoleForbiddenError(error)) {
+      return {
+        ok: false,
+        message: FORBIDDEN_ACTION_MESSAGE,
+      };
+    }
+
     return {
       ok: false,
       message: "No se pudo guardar el presupuesto. Intenta nuevamente.",

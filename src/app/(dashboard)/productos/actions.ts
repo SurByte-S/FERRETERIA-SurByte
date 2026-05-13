@@ -4,7 +4,11 @@ import { revalidatePath } from "next/cache";
 
 import { normalizeName, parseBoolean, parseNullableNumber } from "@/lib/csv/productos";
 import { getSupabaseServerClient } from "@/lib/supabase";
-import { requireTenant } from "@/lib/tenant";
+import {
+  FORBIDDEN_ACTION_MESSAGE,
+  isTenantRoleForbiddenError,
+  requireTenantRole,
+} from "@/lib/tenant";
 
 export type ProductActionState = {
   ok: boolean;
@@ -121,7 +125,6 @@ export async function updateProductAction(
   _previousState: ProductActionState,
   formData: FormData
 ): Promise<ProductActionState> {
-  const tenant = await requireTenant();
   const currentSku = textValue(formData, "currentSku");
   const nextSku = textValue(formData, "sku");
   const name = textValue(formData, "name");
@@ -140,6 +143,7 @@ export async function updateProductAction(
   }
 
   try {
+    const tenant = await requireTenantRole(["owner", "admin"]);
     const supabase = getSupabaseServerClient();
     const brandId = await ensureBrand(tenant.id, brandName);
 
@@ -182,6 +186,13 @@ export async function updateProductAction(
       message: "Producto guardado.",
     };
   } catch (error) {
+    if (isTenantRoleForbiddenError(error)) {
+      return {
+        ok: false,
+        message: FORBIDDEN_ACTION_MESSAGE,
+      };
+    }
+
     return {
       ok: false,
       message:
@@ -194,7 +205,6 @@ export async function adjustProductStockAction(
   _previousState: ProductActionState,
   formData: FormData
 ): Promise<ProductActionState> {
-  const tenant = await requireTenant();
   const productId = textValue(formData, "productId");
   const newStock = Number(textValue(formData, "newStock").replace(",", "."));
   const notes = textValue(formData, "notes");
@@ -221,6 +231,7 @@ export async function adjustProductStockAction(
   }
 
   try {
+    const tenant = await requireTenantRole(["owner", "admin", "seller"]);
     const supabase = getSupabaseServerClient();
     const { error } = await supabase.rpc("adjust_product_stock", {
       input_product_id: productId,
@@ -243,7 +254,14 @@ export async function adjustProductStockAction(
       ok: true,
       message: "Stock actualizado. Se registro el movimiento.",
     };
-  } catch {
+  } catch (error) {
+    if (isTenantRoleForbiddenError(error)) {
+      return {
+        ok: false,
+        message: FORBIDDEN_ACTION_MESSAGE,
+      };
+    }
+
     return {
       ok: false,
       message: "No se pudo ajustar el stock.",

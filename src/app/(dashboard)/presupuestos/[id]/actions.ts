@@ -3,7 +3,11 @@
 import { revalidatePath } from "next/cache";
 
 import { getSupabaseServerClient } from "@/lib/supabase";
-import { requireTenant } from "@/lib/tenant";
+import {
+  FORBIDDEN_ACTION_MESSAGE,
+  isTenantRoleForbiddenError,
+  requireTenantRole,
+} from "@/lib/tenant";
 
 const PAYMENT_METHODS = [
   "Efectivo",
@@ -81,7 +85,7 @@ export async function convertQuoteToSaleAction({
   }
 
   try {
-    const tenant = await requireTenant();
+    const tenant = await requireTenantRole(["owner", "admin", "seller"]);
     const supabase = getSupabaseServerClient();
     const { data, error } = await supabase.rpc("convert_quote_to_sale", {
       input_quote_id: quoteId,
@@ -110,7 +114,14 @@ export async function convertQuoteToSaleAction({
       message: "Presupuesto convertido en venta.",
       saleId,
     };
-  } catch {
+  } catch (error) {
+    if (isTenantRoleForbiddenError(error)) {
+      return {
+        ok: false,
+        message: FORBIDDEN_ACTION_MESSAGE,
+      };
+    }
+
     return {
       ok: false,
       message: "No se pudo convertir el presupuesto en venta.",

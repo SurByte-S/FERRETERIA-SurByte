@@ -89,7 +89,7 @@ Helpers recomendados para la etapa de roles:
 
 ## Etapa 4 - Roles minimos
 
-Pendiente antes de produccion. Aunque `requireTenant()` ya devuelve `role`, todavia no se aplican permisos efectivos en todas las Server Actions criticas.
+Implementado en Server Actions criticas con `requireTenantRole()`.
 
 Roles actuales esperados en `tenant_members.role`:
 
@@ -104,14 +104,20 @@ Permisos minimos sugeridos:
 - `seller`: ventas, presupuestos, clientes, caja y ajuste de stock limitado.
 - `viewer`: solo lectura.
 
-Acciones criticas a proteger por rol:
+Matriz aplicada:
 
-- Editar productos.
-- Ajustar stock.
-- Abrir/cerrar caja.
-- Registrar pagos.
-- Convertir presupuestos en ventas.
-- Guardar presupuestos.
+- Editar productos: `owner`, `admin`.
+- Ajustar stock: `owner`, `admin`, `seller`.
+- Abrir/cerrar caja: `owner`, `admin`, `seller`.
+- Registrar pagos: `owner`, `admin`, `seller`.
+- Convertir presupuestos en ventas: `owner`, `admin`, `seller`.
+- Guardar presupuestos: `owner`, `admin`, `seller`.
+- Crear clientes: `owner`, `admin`, `seller`.
+- Editar clientes: `owner`, `admin`.
+- Lectura de paginas/listados: permitida a usuarios autenticados con tenant, incluido `viewer`.
+
+Si el usuario no tiene permiso, la UI muestra:
+`No tenes permiso para hacer esta accion.`
 
 ## Etapa 5 - Storage `product-images`
 

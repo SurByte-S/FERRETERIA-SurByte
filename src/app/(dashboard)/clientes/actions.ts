@@ -3,7 +3,11 @@
 import { revalidatePath } from "next/cache";
 
 import { getSupabaseServerClient } from "@/lib/supabase";
-import { requireTenant } from "@/lib/tenant";
+import {
+  FORBIDDEN_ACTION_MESSAGE,
+  isTenantRoleForbiddenError,
+  requireTenantRole,
+} from "@/lib/tenant";
 
 export type CustomerActionResult = {
   ok: boolean;
@@ -31,7 +35,7 @@ export async function createCustomerAction(formData: FormData): Promise<Customer
   }
 
   try {
-    const tenant = await requireTenant();
+    const tenant = await requireTenantRole(["owner", "admin", "seller"]);
     const supabase = getSupabaseServerClient();
     const { data, error } = await supabase
       .from("customers")
@@ -61,7 +65,14 @@ export async function createCustomerAction(formData: FormData): Promise<Customer
       message: "Cliente guardado.",
       customerId,
     };
-  } catch {
+  } catch (error) {
+    if (isTenantRoleForbiddenError(error)) {
+      return {
+        ok: false,
+        message: FORBIDDEN_ACTION_MESSAGE,
+      };
+    }
+
     return {
       ok: false,
       message: "No se pudo guardar el cliente.",
@@ -83,7 +94,7 @@ export async function updateCustomerAction(
   }
 
   try {
-    const tenant = await requireTenant();
+    const tenant = await requireTenantRole(["owner", "admin"]);
     const supabase = getSupabaseServerClient();
     const { error } = await supabase
       .from("customers")
@@ -112,7 +123,14 @@ export async function updateCustomerAction(
       message: "Cliente actualizado.",
       customerId,
     };
-  } catch {
+  } catch (error) {
+    if (isTenantRoleForbiddenError(error)) {
+      return {
+        ok: false,
+        message: FORBIDDEN_ACTION_MESSAGE,
+      };
+    }
+
     return {
       ok: false,
       message: "No se pudo actualizar el cliente.",
@@ -135,7 +153,7 @@ export async function registerCustomerPaymentAction(
   }
 
   try {
-    const tenant = await requireTenant();
+    const tenant = await requireTenantRole(["owner", "admin", "seller"]);
     const supabase = getSupabaseServerClient();
     const { error } = await supabase.from("customer_account_movements").insert({
       tenant_id: tenant.id,
@@ -161,7 +179,14 @@ export async function registerCustomerPaymentAction(
       message: "Pago registrado.",
       customerId,
     };
-  } catch {
+  } catch (error) {
+    if (isTenantRoleForbiddenError(error)) {
+      return {
+        ok: false,
+        message: FORBIDDEN_ACTION_MESSAGE,
+      };
+    }
+
     return {
       ok: false,
       message: "No se pudo registrar el pago.",
