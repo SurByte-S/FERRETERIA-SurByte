@@ -43,25 +43,30 @@ type CashStatus =
   | { open: true; openedAt: string; expectedCash: number }
   | { open: false };
 
+function normalizeFormattedText(value: string) {
+  return value.replace(/[\s\u00a0\u202f]+/g, " ").trim();
+}
+
 function formatMoney(value: number) {
-  return new Intl.NumberFormat("es-AR", {
+  return normalizeFormattedText(new Intl.NumberFormat("es-AR", {
     style: "currency",
     currency: "ARS",
     maximumFractionDigits: 2,
-  }).format(value);
+  }).format(value));
 }
 
 function formatStock(value: number) {
-  return new Intl.NumberFormat("es-AR", {
+  return normalizeFormattedText(new Intl.NumberFormat("es-AR", {
     maximumFractionDigits: 3,
-  }).format(value);
+  }).format(value));
 }
 
 function formatDate(value: string) {
-  return new Intl.DateTimeFormat("es-AR", {
+  return normalizeFormattedText(new Intl.DateTimeFormat("es-AR", {
     dateStyle: "short",
     timeStyle: "short",
-  }).format(new Date(value));
+    timeZone: "America/Argentina/Buenos_Aires",
+  }).format(new Date(value)));
 }
 
 export function QuickSale({
