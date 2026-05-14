@@ -2,7 +2,14 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ClipboardList, Plus, Save, Search, Trash2, UserRound } from "lucide-react";
+import {
+  ClipboardList,
+  Plus,
+  Save,
+  Search,
+  Trash2,
+  UserRound,
+} from "lucide-react";
 
 import {
   getQuoteProductBySkuAction,
@@ -32,6 +39,33 @@ function formatMoney(value: number) {
   }).format(value);
 }
 
+function formatStock(value: number) {
+  return new Intl.NumberFormat("es-AR", {
+    maximumFractionDigits: 3,
+  }).format(value);
+}
+
+function getStockState(product: QuoteProduct) {
+  if (product.stockQuantity <= 0) {
+    return {
+      label: "Sin stock",
+      className: "border-destructive/30 bg-destructive/10 text-destructive",
+    };
+  }
+
+  if (product.minStock > 0 && product.stockQuantity <= product.minStock) {
+    return {
+      label: "Bajo stock",
+      className: "border-yellow-500/40 bg-yellow-50 text-yellow-900",
+    };
+  }
+
+  return {
+    label: "Stock OK",
+    className: "border-green-600/30 bg-green-50 text-green-800",
+  };
+}
+
 export function NewQuoteForm({
   initialSku,
   customers,
@@ -51,7 +85,9 @@ export function NewQuoteForm({
   const [quantity, setQuantity] = useState(1);
   const [results, setResults] = useState<QuoteProduct[]>([]);
   const [lines, setLines] = useState<QuoteLine[]>([]);
-  const [message, setMessage] = useState("Buscá un producto por nombre o código.");
+  const [message, setMessage] = useState(
+    "Buscá por código, nombre o escaneá el código de barras."
+  );
   const [isPending, startTransition] = useTransition();
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -70,11 +106,33 @@ export function NewQuoteForm({
 
       if (product) {
         addProduct(product, 1);
-        setMessage("Producto agregado al presupuesto.");
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialSku]);
+
+  useEffect(() => {
+    const term = search.trim();
+
+    if (!term) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      startTransition(async () => {
+        const found = await searchQuoteProductsAction(term);
+
+        setResults(found);
+        setMessage(
+          found.length > 0
+            ? "Elegí un producto de la lista para agregarlo."
+            : "No encontramos productos con esa búsqueda."
+        );
+      });
+    }, 250);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [search, startTransition]);
 
   function updateCustomer(key: keyof QuoteCustomer, value: string) {
     setCustomer((current) => ({ ...current, [key]: value }));
@@ -103,6 +161,15 @@ export function NewQuoteForm({
     });
   }
 
+  function handleSearchChange(value: string) {
+    setSearch(value);
+
+    if (!value.trim()) {
+      setResults([]);
+      setMessage("Buscá por código, nombre o escaneá el código de barras.");
+    }
+  }
+
   function addProduct(product: QuoteProduct, qty = quantity) {
     const safeQty = Number.isFinite(qty) && qty > 0 ? qty : 1;
 
@@ -122,24 +189,30 @@ export function NewQuoteForm({
     setSearch("");
     setResults([]);
     setQuantity(1);
-    searchInputRef.current?.focus();
+    setMessage("Producto agregado al comprobante.");
+    window.setTimeout(() => searchInputRef.current?.focus(), 0);
   }
 
   function runSearch() {
-    setMessage("");
+    const term = search.trim();
+
+    if (!term) {
+      setResults([]);
+      setMessage("Buscá por código, nombre o escaneá el código de barras.");
+      searchInputRef.current?.focus();
+      return;
+    }
+
+    setMessage("Buscando productos...");
     startTransition(async () => {
-      const found = await searchQuoteProductsAction(search);
-      const exact = found.find(
-        (product) =>
-          product.sku.toLowerCase() === search.trim().toLowerCase() ||
-          product.code.toLowerCase() === search.trim().toLowerCase()
-      );
+      const exact = await getQuoteProductBySkuAction(term);
 
       if (exact) {
         addProduct(exact);
-        setMessage("Producto agregado al presupuesto.");
         return;
       }
+
+      const found = await searchQuoteProductsAction(term);
 
       setResults(found);
       setMessage(
@@ -210,7 +283,8 @@ export function NewQuoteForm({
             </div>
             <CardTitle>Datos del cliente</CardTitle>
             <CardDescription>
-              El cliente es opcional. Usalo para cuenta corriente, garantia o para encontrar el comprobante despues.
+              El cliente es opcional. Agregalo solo si necesitás cuenta
+              corriente o seguimiento.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2">
@@ -256,7 +330,9 @@ export function NewQuoteForm({
             <Field label="Domicilio">
               <input
                 value={customer.address}
-                onChange={(event) => updateCustomer("address", event.target.value)}
+                onChange={(event) =>
+                  updateCustomer("address", event.target.value)
+                }
                 disabled={Boolean(customer.id)}
                 className="h-12 rounded-lg border border-input bg-background px-3 text-base"
               />
@@ -269,9 +345,10 @@ export function NewQuoteForm({
             <div className="mb-2 flex size-14 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <ClipboardList className="size-7" aria-hidden="true" />
             </div>
-            <CardTitle>Venta rapida</CardTitle>
+            <CardTitle>Venta rápida</CardTitle>
             <CardDescription>
-              Busca productos, agrega cantidades y revisa el total antes de guardar.
+              Buscá productos, agregá cantidades y revisá el total antes de
+              guardar.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
@@ -283,9 +360,9 @@ export function NewQuoteForm({
                   <input
                     ref={searchInputRef}
                     value={search}
-                    onChange={(event) => setSearch(event.target.value)}
+                    onChange={(event) => handleSearchChange(event.target.value)}
                     onKeyDown={handleSearchKeyDown}
-                    placeholder="Buscá por nombre o código"
+                    placeholder="Buscá por código, nombre o escaneá el código de barras"
                     className="h-14 w-full rounded-lg border border-input bg-background pl-12 pr-4 text-lg"
                   />
                 </div>
@@ -323,19 +400,34 @@ export function NewQuoteForm({
             {results.length > 0 ? (
               <div className="grid gap-2">
                 {results.map((product) => (
-                  <button
+                  <div
                     key={product.sku}
-                    type="button"
-                    onClick={() => addProduct(product)}
-                    className="rounded-lg border border-border bg-background p-4 text-left hover:bg-muted"
+                    className="grid gap-3 rounded-lg border border-border bg-background p-4 md:grid-cols-[1fr_auto] md:items-center"
                   >
-                    <span className="block text-lg font-semibold">
-                      {product.description}
-                    </span>
-                    <span className="mt-1 block text-base text-muted-foreground">
-                      Código {product.code} - {formatMoney(product.price)}
-                    </span>
-                  </button>
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-lg font-semibold">
+                          {product.name || product.description}
+                        </p>
+                        <StockBadge product={product} />
+                      </div>
+                      <p className="mt-1 text-base text-muted-foreground">
+                        Código/SKU {product.code} · {product.description}
+                      </p>
+                      <p className="mt-2 text-base font-semibold">
+                        {formatMoney(product.price)} · Stock{" "}
+                        {formatStock(product.stockQuantity)} {product.unit}
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      onClick={() => addProduct(product)}
+                      className="h-12 gap-2 px-5 text-base"
+                    >
+                      <Plus className="size-5" aria-hidden="true" />
+                      Agregar
+                    </Button>
+                  </div>
                 ))}
               </div>
             ) : null}
@@ -346,7 +438,8 @@ export function NewQuoteForm({
           <CardHeader>
             <CardTitle>Productos agregados</CardTitle>
             <CardDescription>
-              Cambiá la cantidad o quitá productos antes de guardar el presupuesto.
+              Cambiá la cantidad o quitá productos antes de guardar el
+              presupuesto.
             </CardDescription>
           </CardHeader>
           <CardContent className="overflow-x-auto">
@@ -365,7 +458,8 @@ export function NewQuoteForm({
                 {lines.length === 0 ? (
                   <tr>
                     <td className="p-3 text-muted-foreground" colSpan={6}>
-                      Todavía no agregaste productos. Buscá uno por nombre o código.
+                      Todavía no agregaste productos. Buscá uno por nombre o
+                      código.
                     </td>
                   </tr>
                 ) : (
@@ -413,7 +507,9 @@ export function NewQuoteForm({
         <Card className="border-primary/40">
           <CardHeader>
             <CardTitle>Total general</CardTitle>
-            <CardDescription>El total se actualiza al cambiar cantidades.</CardDescription>
+            <CardDescription>
+              El total se actualiza al cambiar cantidades.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="rounded-lg bg-primary p-5 text-primary-foreground">
@@ -433,6 +529,18 @@ export function NewQuoteForm({
         </Card>
       </aside>
     </div>
+  );
+}
+
+function StockBadge({ product }: { product: QuoteProduct }) {
+  const stock = getStockState(product);
+
+  return (
+    <span
+      className={`rounded-full border px-2.5 py-1 text-sm font-bold ${stock.className}`}
+    >
+      {stock.label}
+    </span>
   );
 }
 

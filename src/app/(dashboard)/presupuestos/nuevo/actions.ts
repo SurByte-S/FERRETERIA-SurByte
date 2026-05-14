@@ -20,9 +20,12 @@ type ProductRow = {
   sku: string;
   barcode: string | null;
   name: string;
+  normalized_name: string;
   description: string | null;
   unit: string;
   sale_price: number | null;
+  stock_quantity: number | null;
+  min_stock: number | null;
 };
 
 export type SaveQuoteResult = {
@@ -35,14 +38,20 @@ function mapProduct(row: ProductRow): QuoteProduct {
   return {
     sku: row.sku,
     code: row.barcode ?? row.sku,
+    name: row.name,
     description: row.description ?? row.name,
     unit: row.unit,
     price: row.sale_price ?? 0,
+    stockQuantity: row.stock_quantity ?? 0,
+    minStock: row.min_stock ?? 0,
   };
 }
 
 function cleanSearch(value: string) {
-  return value.trim().replace(/[%_]/g, "");
+  return value
+    .trim()
+    .replace(/[^\p{L}\p{N}\s.-]/gu, " ")
+    .replace(/\s+/g, " ");
 }
 
 function getSaveQuoteErrorMessage(message?: string) {
@@ -87,14 +96,16 @@ export async function searchQuoteProductsAction(
     const supabase = getSupabaseServerClient();
     const { data, error } = await supabase
       .from("products")
-      .select("id,sku,barcode,name,description,unit,sale_price")
+      .select(
+        "id,sku,barcode,name,normalized_name,description,unit,sale_price,stock_quantity,min_stock"
+      )
       .eq("tenant_id", tenant.id)
       .eq("active", true)
       .or(
-        `sku.ilike.%${search}%,barcode.ilike.%${search}%,name.ilike.%${search}%,description.ilike.%${search}%`
+        `sku.ilike.%${search}%,barcode.ilike.%${search}%,name.ilike.%${search}%,normalized_name.ilike.%${search}%,description.ilike.%${search}%`
       )
       .order("name")
-      .limit(12);
+      .limit(15);
 
     if (error) {
       return [];
@@ -109,7 +120,7 @@ export async function searchQuoteProductsAction(
 export async function getQuoteProductBySkuAction(
   rawSku: string
 ): Promise<QuoteProduct | null> {
-  const sku = rawSku.trim();
+  const sku = cleanSearch(rawSku);
 
   if (!sku) {
     return null;
@@ -118,20 +129,35 @@ export async function getQuoteProductBySkuAction(
   try {
     const tenant = await requireTenant();
     const supabase = getSupabaseServerClient();
-    const { data, error } = await supabase
+    const selectFields =
+      "id,sku,barcode,name,normalized_name,description,unit,sale_price,stock_quantity,min_stock";
+    const skuResult = await supabase
       .from("products")
-      .select("id,sku,barcode,name,description,unit,sale_price")
+      .select(selectFields)
       .eq("tenant_id", tenant.id)
       .eq("active", true)
-      .or(`sku.eq.${sku},barcode.eq.${sku}`)
+      .ilike("sku", sku)
       .limit(1)
       .maybeSingle();
 
-    if (error || !data) {
+    if (!skuResult.error && skuResult.data) {
+      return mapProduct(skuResult.data as unknown as ProductRow);
+    }
+
+    const barcodeResult = await supabase
+      .from("products")
+      .select(selectFields)
+      .eq("tenant_id", tenant.id)
+      .eq("active", true)
+      .ilike("barcode", sku)
+      .limit(1)
+      .maybeSingle();
+
+    if (barcodeResult.error || !barcodeResult.data) {
       return null;
     }
 
-    return mapProduct(data as unknown as ProductRow);
+    return mapProduct(barcodeResult.data as unknown as ProductRow);
   } catch {
     return null;
   }

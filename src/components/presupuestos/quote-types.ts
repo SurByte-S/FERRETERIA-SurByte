@@ -1,9 +1,12 @@
 export type QuoteProduct = {
   sku: string;
   code: string;
+  name: string;
   description: string;
   unit: string;
   price: number;
+  stockQuantity: number;
+  minStock: number;
 };
 
 export type QuoteLine = QuoteProduct & {

@@ -12,6 +12,8 @@ type BrandLogoProps = {
   imageClassName?: string;
 };
 
+const LOGO_SRC = "/brand/ferreteria-guemes-logo.png";
+
 const sizeClasses = {
   small: {
     wrapper: "gap-2",
@@ -73,9 +75,11 @@ export function BrandLogo({
         ) : (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={ferreteriaGuemesBrand.logoPath}
+            src={LOGO_SRC}
             alt={`Logo de ${ferreteriaGuemesBrand.brandName}`}
-            className="h-full w-full object-contain p-1"
+            className="block h-full w-full object-contain p-1"
+            loading="eager"
+            decoding="async"
             onError={() => setImageFailed(true)}
           />
         )}
