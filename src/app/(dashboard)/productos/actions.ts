@@ -178,6 +178,7 @@ export async function updateProductAction(
     }
 
     revalidatePath("/productos");
+    revalidatePath("/stock");
 
     return {
       ok: true,
@@ -246,6 +247,7 @@ export async function adjustProductStockAction(
     }
 
     revalidatePath("/productos");
+    revalidatePath("/stock");
     revalidatePath(`/productos/${productId}/stock`);
 
     return {

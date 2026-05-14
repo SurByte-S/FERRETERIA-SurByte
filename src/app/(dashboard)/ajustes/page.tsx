@@ -15,14 +15,14 @@ export default function AjustesPage() {
   return (
     <>
       <PageHeader
-        title="Ajustes"
-        description="Administración de productos, clientes, historial y datos de la ferretería."
+        title="Mas opciones"
+        description="Clientes, historial, presupuestos, configuracion y productos avanzados."
         backHref="/inicio"
-        backLabel="Volver al mostrador"
+        backLabel="Volver a vender"
       />
 
       <section
-        aria-label="Administración"
+        aria-label="Mas opciones"
         className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
       >
         {adminItems.map((item) => {
@@ -31,8 +31,8 @@ export default function AjustesPage() {
           return (
             <Card key={item.href}>
               <CardHeader>
-                <div className="mb-2 flex size-14 items-center justify-center rounded-lg bg-secondary text-primary">
-                  <Icon className="size-7" aria-hidden="true" />
+                <div className="mb-2 flex size-12 items-center justify-center rounded-lg bg-secondary text-primary">
+                  <Icon className="size-6" aria-hidden="true" />
                 </div>
                 <CardTitle>{item.title}</CardTitle>
                 <CardDescription>{item.description}</CardDescription>
@@ -45,7 +45,7 @@ export default function AjustesPage() {
                 >
                   <Link href={item.href}>
                     <Icon className="size-5" aria-hidden="true" />
-                    Abrir {item.title.toLowerCase()}
+                    Abrir
                   </Link>
                 </Button>
               </CardContent>

@@ -29,7 +29,7 @@ import type {
 } from "@/components/presupuestos/quote-types";
 
 const EMPTY_SEARCH_MESSAGE =
-  "Busca por codigo, nombre o detalle del producto.";
+  "Busca por codigo, barra, nombre o detalle.";
 
 const PAYMENT_METHODS = [
   "Efectivo",
@@ -62,27 +62,6 @@ function formatDate(value: string) {
     dateStyle: "short",
     timeStyle: "short",
   }).format(new Date(value));
-}
-
-function getStockState(product: QuoteProduct) {
-  if (product.stockQuantity <= 0) {
-    return {
-      label: "Sin stock",
-      className: "border-destructive/30 bg-destructive/10 text-destructive",
-    };
-  }
-
-  if (product.minStock > 0 && product.stockQuantity <= product.minStock) {
-    return {
-      label: "Bajo stock",
-      className: "border-yellow-500/40 bg-yellow-50 text-yellow-900",
-    };
-  }
-
-  return {
-    label: "Stock OK",
-    className: "border-green-600/30 bg-green-50 text-green-800",
-  };
 }
 
 export function QuickSale({
@@ -330,10 +309,10 @@ export function QuickSale({
             </span>
             <div>
               <h1 className="text-2xl font-bold leading-tight text-primary">
-                Inicio
+                Vender
               </h1>
               <p className="text-base text-muted-foreground">
-                Busca como en Excel: codigo, nombre o detalle del producto.
+                Busca el producto, agregalo y elegi Venta o Presupuesto.
               </p>
             </div>
           </div>
@@ -388,7 +367,7 @@ export function QuickSale({
             <div>
               <h2 className="text-lg font-bold">Productos</h2>
               <p className="text-sm font-medium text-muted-foreground">
-                Producto, precio publico y stock disponible.
+                Solo productos con stock disponible.
               </p>
             </div>
             <span className="rounded-full bg-secondary px-3 py-1 text-sm font-bold text-primary">
@@ -609,7 +588,7 @@ export function QuickSale({
                 className="h-14 gap-2 text-lg"
               >
                 <Save className="size-6" aria-hidden="true" />
-                Guardar presupuesto
+                Presupuesto
               </Button>
             </div>
           </div>
@@ -665,20 +644,25 @@ function ProductResult({
   onAdd: () => void;
 }) {
   return (
-    <div className="grid gap-3 rounded-lg border border-border bg-background p-4 md:grid-cols-[1fr_auto] md:items-center">
+    <div className="grid gap-3 rounded-lg border border-border bg-background p-4 md:grid-cols-[140px_minmax(0,1fr)_150px_120px_auto] md:items-center">
+      <div>
+        <p className="text-sm font-semibold text-muted-foreground">Codigo</p>
+        <p className="font-mono text-base font-bold">{product.code}</p>
+      </div>
       <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="text-lg font-semibold">
-            {product.name || product.description}
-          </p>
-          <StockBadge product={product} />
-        </div>
-        <p className="mt-1 text-base text-muted-foreground">
-          Codigo/SKU {product.code} - {product.description}
+        <p className="text-sm font-semibold text-muted-foreground">Producto</p>
+        <p className="truncate text-lg font-bold">
+          {product.name || product.description}
         </p>
-        <p className="mt-2 text-base font-semibold">
-          {formatMoney(product.price)} - Stock {formatStock(product.stockQuantity)}{" "}
-          {product.unit}
+      </div>
+      <div>
+        <p className="text-sm font-semibold text-muted-foreground">Precio</p>
+        <p className="text-lg font-bold">{formatMoney(product.price)}</p>
+      </div>
+      <div>
+        <p className="text-sm font-semibold text-muted-foreground">Stock</p>
+        <p className="text-lg font-bold">
+          {formatStock(product.stockQuantity)} {product.unit}
         </p>
       </div>
       <Button type="button" onClick={onAdd} className="h-12 gap-2 px-5 text-base">
@@ -686,18 +670,6 @@ function ProductResult({
         Agregar
       </Button>
     </div>
-  );
-}
-
-function StockBadge({ product }: { product: QuoteProduct }) {
-  const stock = getStockState(product);
-
-  return (
-    <span
-      className={`rounded-full border px-2.5 py-1 text-sm font-bold ${stock.className}`}
-    >
-      {stock.label}
-    </span>
   );
 }
 

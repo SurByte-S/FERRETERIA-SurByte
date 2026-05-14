@@ -3,8 +3,8 @@ import { LogOut } from "lucide-react";
 
 import { logoutAction } from "@/app/(dashboard)/actions";
 import { BrandLogo } from "@/components/brand/brand-logo";
-import { Button } from "@/components/ui/button";
 import { SidebarNav } from "@/components/shell/sidebar-nav";
+import { Button } from "@/components/ui/button";
 import { ferreteriaGuemesBrand } from "@/lib/brand/ferreteria-guemes";
 
 export function DashboardShell({
@@ -18,16 +18,16 @@ export function DashboardShell({
     <div className="min-h-screen bg-background text-foreground">
       <div className="grid min-h-screen lg:h-screen lg:grid-cols-[232px_minmax(0,1fr)] xl:grid-cols-[248px_minmax(0,1fr)]">
         <aside className="no-print border-b border-border bg-sidebar lg:h-screen lg:overflow-y-auto lg:border-b-0 lg:border-r">
-          <div className="flex min-h-full flex-col gap-4 p-3 sm:p-4">
+          <div className="flex min-h-full flex-col gap-3 p-3 sm:p-4">
             <Link
               href="/inicio"
-              className="flex min-h-14 items-center gap-3 rounded-lg border border-border bg-card px-3 text-left transition-colors hover:border-primary/30 hover:bg-secondary/50"
+              className="flex min-h-12 items-center gap-3 rounded-lg border border-border bg-card px-3 text-left transition-colors hover:border-primary/30 hover:bg-secondary/50"
             >
-              <BrandLogo size="small" showText={false} />
+              <BrandLogo size="small" showText={false} imageClassName="size-9" />
               <span>
-                <span className="block text-lg font-bold">Mostrador</span>
-                <span className="block text-sm text-muted-foreground">
-                  Ferretería Güemes
+                <span className="block text-base font-bold">Mostrador</span>
+                <span className="block text-xs text-muted-foreground">
+                  Ferreteria Guemes
                 </span>
               </span>
             </Link>
@@ -55,16 +55,11 @@ export function DashboardShell({
         <main className="flex min-h-screen min-w-0 flex-col lg:h-screen">
           <header className="no-print border-b border-border bg-card px-4 py-2 sm:px-5">
             <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-sm font-semibold uppercase text-muted-foreground">
-                  Sistema de mostrador
-                </p>
-                <p className="text-xl font-bold text-primary">
-                  {ferreteriaGuemesBrand.brandName}
-                </p>
-              </div>
+              <p className="text-lg font-bold text-primary">
+                {ferreteriaGuemesBrand.brandName}
+              </p>
               <div className="flex min-w-0 items-center gap-3">
-                <BrandLogo size="medium" />
+                <BrandLogo size="small" showText={false} />
                 <div className="hidden min-w-0 text-right sm:block">
                   <p className="text-sm text-muted-foreground">Usuario</p>
                   <p className="max-w-48 truncate text-base font-semibold">

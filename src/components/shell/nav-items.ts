@@ -1,6 +1,7 @@
 import {
+  Boxes,
   ClipboardList,
-  Home,
+  LayoutGrid,
   PackageSearch,
   Settings,
   ShoppingCart,
@@ -10,10 +11,10 @@ import {
 
 export const navigationItems = [
   {
-    title: "Inicio",
+    title: "Vender",
     href: "/inicio",
-    icon: Home,
-    description: "Vender desde mostrador",
+    icon: ShoppingCart,
+    description: "Buscar, agregar y cobrar",
   },
   {
     title: "Caja",
@@ -22,42 +23,51 @@ export const navigationItems = [
     description: "Abrir y cerrar caja diaria",
   },
   {
-    title: "Ajustes",
+    title: "Stock",
+    href: "/stock",
+    icon: Boxes,
+    description: "Ver stock y cambiar precios",
+  },
+] as const;
+
+export const secondaryNavigationItems = [
+  {
+    title: "Mas opciones",
     href: "/ajustes",
-    icon: Settings,
-    description: "Administrar la ferreteria",
+    icon: LayoutGrid,
+    description: "Clientes, ventas y configuracion",
   },
 ] as const;
 
 export const adminItems = [
   {
-    title: "Productos",
-    href: "/productos",
-    icon: PackageSearch,
-    description: "Editar productos, fotos, stock e historial",
-  },
-  {
     title: "Clientes",
     href: "/clientes",
     icon: Users,
-    description: "Administrar clientes y cuenta corriente",
+    description: "Datos de clientes y cuenta corriente",
   },
   {
-    title: "Ventas / Historial",
+    title: "Historial de ventas",
     href: "/ventas",
     icon: ShoppingCart,
-    description: "Ver ventas realizadas e imprimir comprobantes",
+    description: "Ventas realizadas e impresion de comprobantes",
   },
   {
     title: "Presupuestos",
     href: "/presupuestos",
     icon: ClipboardList,
-    description: "Ver presupuestos guardados",
+    description: "Presupuestos guardados",
   },
   {
-    title: "Configuración",
+    title: "Configuracion",
     href: "/configuracion",
     icon: Settings,
     description: "Datos de la ferreteria y preferencias",
+  },
+  {
+    title: "Productos avanzados",
+    href: "/productos",
+    icon: PackageSearch,
+    description: "Edicion completa, fotos e historial",
   },
 ] as const;
