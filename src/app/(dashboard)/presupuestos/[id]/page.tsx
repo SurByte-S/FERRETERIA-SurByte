@@ -4,14 +4,12 @@ import {
   ConvertQuoteButton,
   PrintQuoteButton,
 } from "@/components/presupuestos/quote-actions";
-import { PageHeader } from "@/components/shell/page-header";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  PrintDocument,
+  type PrintBusiness,
+  type PrintTotalRow,
+} from "@/components/print/print-document";
+import { PageHeader } from "@/components/shell/page-header";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { requireTenant } from "@/lib/tenant";
 
@@ -38,6 +36,17 @@ type QuoteRow = {
 type CustomerOption = {
   id: string;
   name: string;
+};
+
+type TenantBusinessRow = {
+  name: string;
+  slug: string;
+  business_name: string | null;
+  tax_id: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  logo_url: string | null;
 };
 
 type QuoteItemRow = {
@@ -77,32 +86,57 @@ function statusLabel(status: string) {
   return labels[status] ?? status;
 }
 
+function buildBusiness(
+  tenant: { name: string; slug: string },
+  tenantDetails: TenantBusinessRow | null
+): PrintBusiness {
+  return {
+    name:
+      tenantDetails?.business_name ??
+      tenantDetails?.name ??
+      process.env.NEXT_PUBLIC_DEFAULT_TENANT_NAME ??
+      tenant.name,
+    subtitle: "Ferreteria / Herramientas / Buloneria / Sanitarios",
+    address: tenantDetails?.address ?? "Direccion no configurada",
+    phone: tenantDetails?.phone ?? "Telefono no configurado",
+    email: tenantDetails?.email ?? "Email no configurado",
+    taxId: tenantDetails?.tax_id ?? "CUIT no configurado",
+    logoUrl: tenantDetails?.logo_url,
+  };
+}
+
 export default async function QuoteDetailPage({ params }: QuotePageProps) {
   const { id } = await params;
   const tenant = await requireTenant();
   const supabase = getSupabaseServerClient();
-  const [quoteResult, itemsResult, customersResult] = await Promise.all([
-    supabase
-      .from("quotes")
-      .select(
-        "id,quote_number,customer_id,status,subtotal,total,created_at,customers(name,phone,email,address)"
-      )
-      .eq("tenant_id", tenant.id)
-      .eq("id", id)
-      .maybeSingle(),
-    supabase
-      .from("quote_items")
-      .select("sku,name,quantity,unit_price,total,products(stock_quantity)")
-      .eq("tenant_id", tenant.id)
-      .eq("quote_id", id)
-      .order("name"),
-    supabase
-      .from("customers")
-      .select("id,name")
-      .eq("tenant_id", tenant.id)
-      .order("name")
-      .limit(300),
-  ]);
+  const [quoteResult, itemsResult, customersResult, tenantResult] =
+    await Promise.all([
+      supabase
+        .from("quotes")
+        .select(
+          "id,quote_number,customer_id,status,subtotal,total,created_at,customers(name,phone,email,address)"
+        )
+        .eq("tenant_id", tenant.id)
+        .eq("id", id)
+        .maybeSingle(),
+      supabase
+        .from("quote_items")
+        .select("sku,name,quantity,unit_price,total,products(stock_quantity)")
+        .eq("tenant_id", tenant.id)
+        .eq("quote_id", id)
+        .order("name"),
+      supabase
+        .from("customers")
+        .select("id,name")
+        .eq("tenant_id", tenant.id)
+        .order("name")
+        .limit(300),
+      supabase
+        .from("tenants")
+        .select("name,slug,business_name,tax_id,phone,email,address,logo_url")
+        .eq("id", tenant.id)
+        .maybeSingle(),
+    ]);
 
   if (quoteResult.error || !quoteResult.data) {
     notFound();
@@ -111,6 +145,13 @@ export default async function QuoteDetailPage({ params }: QuotePageProps) {
   const quote = quoteResult.data as unknown as QuoteRow;
   const items = (itemsResult.data ?? []) as unknown as QuoteItemRow[];
   const customers = (customersResult.data ?? []) as unknown as CustomerOption[];
+  const tenantDetails = tenantResult.data as TenantBusinessRow | null;
+  const totalRows: PrintTotalRow[] = [
+    {
+      label: "Subtotal",
+      value: formatMoney(quote.subtotal),
+    },
+  ];
   const negativeStockWarnings = items
     .filter(
       (item) =>
@@ -136,87 +177,40 @@ export default async function QuoteDetailPage({ params }: QuotePageProps) {
       </div>
 
       <div className="grid gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>{process.env.NEXT_PUBLIC_DEFAULT_TENANT_NAME}</CardTitle>
-            <CardDescription>
-              {process.env.NEXT_PUBLIC_DEFAULT_TENANT_SLUG}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-2">
-            <div>
-              <p className="text-base text-muted-foreground">Presupuesto</p>
-              <p className="text-2xl font-bold">#{quote.quote_number}</p>
-              <p className="mt-2 text-base">Fecha: {formatDate(quote.created_at)}</p>
-              <p className="text-base">Estado: {statusLabel(quote.status)}</p>
-            </div>
-            <div>
-              <p className="text-base text-muted-foreground">Cliente</p>
-              <p className="text-xl font-semibold">
-                {quote.customers?.name ?? "Sin cliente"}
-              </p>
-              {quote.customers?.phone ? <p>Teléfono: {quote.customers.phone}</p> : null}
-              {quote.customers?.email ? <p>Email: {quote.customers.email}</p> : null}
-              {quote.customers?.address ? <p>Domicilio: {quote.customers.address}</p> : null}
-            </div>
-          </CardContent>
-        </Card>
+        <PrintDocument
+          business={buildBusiness(tenant, tenantDetails)}
+          document={{
+            typeLabel: "Presupuesto",
+            numberLabel: `#${quote.quote_number}`,
+            shortId: quote.id.slice(0, 8).toUpperCase(),
+            dateLabel: formatDate(quote.created_at),
+            statusLabel: statusLabel(quote.status),
+          }}
+          customer={quote.customers}
+          items={items.map((item) => ({
+            code: item.sku,
+            description: item.name,
+            quantity: item.quantity,
+            unitPrice: formatMoney(item.unit_price),
+            total: formatMoney(item.total),
+          }))}
+          totals={totalRows}
+          finalTotalLabel="Total del presupuesto"
+          finalTotal={formatMoney(quote.total)}
+          note="Este presupuesto esta sujeto a disponibilidad de stock y actualizacion de precios."
+          footerMessage="Gracias por consultar"
+        />
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Productos</CardTitle>
-          </CardHeader>
-          <CardContent className="overflow-x-auto">
-            <table className="w-full min-w-[720px] border-collapse text-left text-base">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="p-3">Código</th>
-                  <th className="p-3">Nombre</th>
-                  <th className="p-3">Cantidad</th>
-                  <th className="p-3">Precio unitario</th>
-                  <th className="p-3">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item) => (
-                  <tr key={`${item.sku}-${item.name}`} className="border-b border-border">
-                    <td className="p-3 font-mono">{item.sku ?? "-"}</td>
-                    <td className="p-3">{item.name}</td>
-                    <td className="p-3">{item.quantity}</td>
-                    <td className="p-3">{formatMoney(item.unit_price)}</td>
-                    <td className="p-3 font-semibold">{formatMoney(item.total)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </CardContent>
-        </Card>
-
-        <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
-          <div className="no-print flex flex-col gap-3 sm:flex-row">
-            <PrintQuoteButton />
-            <ConvertQuoteButton
-              quoteId={quote.id}
-              total={quote.total}
-              initialCustomerId={quote.customer_id}
-              customers={customers}
-              disabled={quote.status === "converted" || items.length === 0}
-              stockWarnings={negativeStockWarnings}
-            />
-          </div>
-          <Card className="border-primary/40">
-            <CardHeader>
-              <CardTitle>Total</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="rounded-lg bg-primary p-5 text-primary-foreground">
-                <p className="text-lg">Total del presupuesto</p>
-                <p className="mt-1 text-4xl font-bold">
-                  {formatMoney(quote.total)}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="no-print flex flex-col gap-3 sm:flex-row">
+          <PrintQuoteButton />
+          <ConvertQuoteButton
+            quoteId={quote.id}
+            total={quote.total}
+            initialCustomerId={quote.customer_id}
+            customers={customers}
+            disabled={quote.status === "converted" || items.length === 0}
+            stockWarnings={negativeStockWarnings}
+          />
         </div>
       </div>
     </>

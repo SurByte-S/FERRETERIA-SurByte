@@ -1,13 +1,11 @@
 import { notFound } from "next/navigation";
 
-import { PageHeader } from "@/components/shell/page-header";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  PrintDocument,
+  type PrintBusiness,
+  type PrintTotalRow,
+} from "@/components/print/print-document";
+import { PageHeader } from "@/components/shell/page-header";
 import { PrintSaleButton } from "@/components/ventas/sale-actions";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { requireTenant } from "@/lib/tenant";
@@ -38,6 +36,17 @@ type SaleRow = {
   } | null;
 };
 
+type TenantBusinessRow = {
+  name: string;
+  slug: string;
+  business_name: string | null;
+  tax_id: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  logo_url: string | null;
+};
+
 type SaleItemRow = {
   sku: string | null;
   name: string;
@@ -61,11 +70,30 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
+function buildBusiness(
+  tenant: { name: string; slug: string },
+  tenantDetails: TenantBusinessRow | null
+): PrintBusiness {
+  return {
+    name:
+      tenantDetails?.business_name ??
+      tenantDetails?.name ??
+      process.env.NEXT_PUBLIC_DEFAULT_TENANT_NAME ??
+      tenant.name,
+    subtitle: "Ferreteria / Herramientas / Buloneria / Sanitarios",
+    address: tenantDetails?.address ?? "Direccion no configurada",
+    phone: tenantDetails?.phone ?? "Telefono no configurado",
+    email: tenantDetails?.email ?? "Email no configurado",
+    taxId: tenantDetails?.tax_id ?? "CUIT no configurado",
+    logoUrl: tenantDetails?.logo_url,
+  };
+}
+
 export default async function SaleDetailPage({ params }: SalePageProps) {
   const { id } = await params;
   const tenant = await requireTenant();
   const supabase = getSupabaseServerClient();
-  const [saleResult, itemsResult] = await Promise.all([
+  const [saleResult, itemsResult, tenantResult] = await Promise.all([
     supabase
       .from("sales")
       .select(
@@ -80,6 +108,11 @@ export default async function SaleDetailPage({ params }: SalePageProps) {
       .eq("tenant_id", tenant.id)
       .eq("sale_id", id)
       .order("name"),
+    supabase
+      .from("tenants")
+      .select("name,slug,business_name,tax_id,phone,email,address,logo_url")
+      .eq("id", tenant.id)
+      .maybeSingle(),
   ]);
 
   if (saleResult.error || !saleResult.data) {
@@ -88,7 +121,38 @@ export default async function SaleDetailPage({ params }: SalePageProps) {
 
   const sale = saleResult.data as unknown as SaleRow;
   const items = (itemsResult.data ?? []) as unknown as SaleItemRow[];
+  const tenantDetails = tenantResult.data as TenantBusinessRow | null;
   const pendingAmount = Math.max(sale.total - sale.paid_amount, 0);
+  const isAccountSale = sale.payment_method === "Cuenta corriente";
+  const totalRows: PrintTotalRow[] = [
+    {
+      label: "Subtotal",
+      value: formatMoney(sale.subtotal),
+    },
+  ];
+
+  if (sale.discount_amount > 0) {
+    totalRows.push({
+      label: "Descuento",
+      value: `-${formatMoney(sale.discount_amount)}`,
+    });
+  }
+
+  totalRows.push({
+    label: "Monto pagado",
+    value: formatMoney(sale.paid_amount),
+    emphasis: "strong",
+  });
+
+  if (pendingAmount > 0) {
+    totalRows.push({
+      label: isAccountSale
+        ? "Saldo pendiente en cuenta corriente"
+        : "Saldo pendiente",
+      value: formatMoney(pendingAmount),
+      emphasis: "warning",
+    });
+  }
 
   return (
     <>
@@ -102,103 +166,39 @@ export default async function SaleDetailPage({ params }: SalePageProps) {
       </div>
 
       <div className="grid gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>{process.env.NEXT_PUBLIC_DEFAULT_TENANT_NAME}</CardTitle>
-            <CardDescription>
-              {process.env.NEXT_PUBLIC_DEFAULT_TENANT_SLUG}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-3">
-            <div>
-              <p className="text-base text-muted-foreground">Venta</p>
-              <p className="text-2xl font-bold">#{sale.sale_number}</p>
-              <p className="mt-2 text-base">Fecha: {formatDate(sale.created_at)}</p>
-              <p className="text-base">
-                Forma de pago: {sale.payment_method ?? "Sin forma de pago"}
-              </p>
-              <p className="text-base">Monto pagado: {formatMoney(sale.paid_amount)}</p>
-              {pendingAmount > 0 ? (
-                <p className="text-base font-semibold text-destructive">
-                  Pendiente: {formatMoney(pendingAmount)}
-                </p>
-              ) : null}
-            </div>
-            <div>
-              <p className="text-base text-muted-foreground">Cliente</p>
-              <p className="text-xl font-semibold">
-                {sale.customers?.name ?? "Sin cliente"}
-              </p>
-              {sale.customers?.phone ? <p>Telefono: {sale.customers.phone}</p> : null}
-              {sale.customers?.email ? <p>Email: {sale.customers.email}</p> : null}
-              {sale.customers?.address ? <p>Domicilio: {sale.customers.address}</p> : null}
-            </div>
-            <div>
-              <p className="text-base text-muted-foreground">Caja</p>
-              {sale.cash_session_id ? (
-                <>
-                  <p className="text-xl font-semibold">Caja asociada</p>
-                  <p>
-                    Apertura:{" "}
-                    {sale.cash_register_sessions?.opened_at
-                      ? formatDate(sale.cash_register_sessions.opened_at)
-                      : "Sin fecha disponible"}
-                  </p>
-                </>
-              ) : (
-                <p className="text-xl font-semibold">Venta sin caja asociada</p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        <PrintDocument
+          business={buildBusiness(tenant, tenantDetails)}
+          document={{
+            typeLabel: "Comprobante de venta",
+            numberLabel: `#${sale.sale_number}`,
+            shortId: sale.id.slice(0, 8).toUpperCase(),
+            dateLabel: formatDate(sale.created_at),
+            statusLabel: pendingAmount > 0 ? "Con saldo pendiente" : "Pagada",
+            paymentMethod: sale.payment_method ?? "Sin forma de pago",
+            cashLabel: sale.cash_session_id
+              ? sale.cash_register_sessions?.opened_at
+                ? `Asociada desde ${formatDate(sale.cash_register_sessions.opened_at)}`
+                : "Caja asociada"
+              : "Sin caja asociada",
+          }}
+          customer={sale.customers}
+          items={items.map((item) => ({
+            code: item.sku,
+            description: item.name,
+            quantity: item.quantity,
+            unitPrice: formatMoney(item.unit_price),
+            total: formatMoney(item.total),
+          }))}
+          totals={totalRows}
+          finalTotalLabel="Total de la venta"
+          finalTotal={formatMoney(sale.total)}
+          badgeLabel={isAccountSale ? "Cuenta corriente" : null}
+          note="Operacion registrada como comprobante interno del comercio."
+          footerMessage="Gracias por su compra"
+        />
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Productos vendidos</CardTitle>
-          </CardHeader>
-          <CardContent className="overflow-x-auto">
-            <table className="w-full min-w-[720px] border-collapse text-left text-base">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="p-3">Codigo</th>
-                  <th className="p-3">Nombre</th>
-                  <th className="p-3">Cantidad</th>
-                  <th className="p-3">Precio unitario</th>
-                  <th className="p-3">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item) => (
-                  <tr key={`${item.sku}-${item.name}`} className="border-b border-border">
-                    <td className="p-3 font-mono">{item.sku ?? "-"}</td>
-                    <td className="p-3">{item.name}</td>
-                    <td className="p-3">{item.quantity}</td>
-                    <td className="p-3">{formatMoney(item.unit_price)}</td>
-                    <td className="p-3 font-semibold">{formatMoney(item.total)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </CardContent>
-        </Card>
-
-        <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
-          <div className="no-print">
-            <PrintSaleButton />
-          </div>
-          <Card className="border-primary/40">
-            <CardHeader>
-              <CardTitle>Total</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="rounded-lg bg-primary p-5 text-primary-foreground">
-                <p className="text-lg">Total de la venta</p>
-                <p className="mt-1 text-4xl font-bold">
-                  {formatMoney(sale.total)}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="no-print">
+          <PrintSaleButton />
         </div>
       </div>
     </>
