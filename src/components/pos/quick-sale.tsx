@@ -1,29 +1,26 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ClipboardList,
   Plus,
   Save,
   Search,
+  ShoppingCart,
   Trash2,
   UserRound,
+  WalletCards,
 } from "lucide-react";
 
 import {
   getQuoteProductBySkuAction,
   saveQuoteAction,
+  saveQuoteAndConvertToSaleAction,
   searchQuoteProductsAction,
 } from "@/app/(dashboard)/presupuestos/nuevo/actions";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import type {
   QuoteCustomer,
   QuoteCustomerOption,
@@ -32,7 +29,19 @@ import type {
 } from "@/components/presupuestos/quote-types";
 
 const EMPTY_SEARCH_MESSAGE =
-  "Buscá por código, nombre o escaneá el código de barras.";
+  "Busca por codigo, nombre o detalle del producto.";
+
+const PAYMENT_METHODS = [
+  "Efectivo",
+  "Transferencia",
+  "Debito",
+  "Credito",
+  "Cuenta corriente",
+];
+
+type CashStatus =
+  | { open: true; openedAt: string; expectedCash: number }
+  | { open: false };
 
 function formatMoney(value: number) {
   return new Intl.NumberFormat("es-AR", {
@@ -46,6 +55,13 @@ function formatStock(value: number) {
   return new Intl.NumberFormat("es-AR", {
     maximumFractionDigits: 3,
   }).format(value);
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat("es-AR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(new Date(value));
 }
 
 function getStockState(product: QuoteProduct) {
@@ -72,9 +88,11 @@ function getStockState(product: QuoteProduct) {
 export function QuickSale({
   initialSku,
   customers,
+  cashStatus,
 }: {
   initialSku?: string;
   customers: QuoteCustomerOption[];
+  cashStatus?: CashStatus;
 }) {
   const router = useRouter();
   const [customer, setCustomer] = useState<QuoteCustomer>({
@@ -89,6 +107,8 @@ export function QuickSale({
   const [results, setResults] = useState<QuoteProduct[]>([]);
   const [lines, setLines] = useState<QuoteLine[]>([]);
   const [message, setMessage] = useState(EMPTY_SEARCH_MESSAGE);
+  const [paymentMethod, setPaymentMethod] = useState(PAYMENT_METHODS[0]);
+  const [paidAmount, setPaidAmount] = useState("");
   const [isPending, startTransition] = useTransition();
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -126,8 +146,8 @@ export function QuickSale({
         setResults(found);
         setMessage(
           found.length > 0
-            ? "Elegí un producto de la lista para agregarlo."
-            : "No encontramos productos con stock disponible para esa búsqueda."
+            ? "Elegi un producto de la lista para agregarlo."
+            : "No encontramos productos con stock disponible."
         );
       });
     }, 250);
@@ -190,7 +210,7 @@ export function QuickSale({
     setSearch("");
     setResults([]);
     setQuantity(1);
-    setMessage("Producto agregado al comprobante.");
+    setMessage("Producto agregado a la lista.");
     window.setTimeout(() => searchInputRef.current?.focus(), 0);
   }
 
@@ -218,8 +238,8 @@ export function QuickSale({
       setResults(found);
       setMessage(
         found.length > 0
-          ? "Elegí un producto de la lista para agregarlo."
-          : "No encontramos productos con stock disponible para esa búsqueda."
+          ? "Elegi un producto de la lista para agregarlo."
+          : "No encontramos productos con stock disponible."
       );
     });
   }
@@ -250,7 +270,7 @@ export function QuickSale({
 
   function removeLine(sku: string) {
     const confirmed = window.confirm(
-      "Vas a quitar este producto del presupuesto. ¿Querés continuar?"
+      "Vas a quitar este producto. Queres continuar?"
     );
 
     if (!confirmed) {
@@ -274,18 +294,51 @@ export function QuickSale({
     });
   }
 
+  function registerSale() {
+    const amount = Number(paidAmount || total);
+
+    if (!Number.isFinite(amount) || amount < 0) {
+      setMessage("Revisa el monto pagado.");
+      return;
+    }
+
+    setMessage("");
+    startTransition(async () => {
+      const result = await saveQuoteAndConvertToSaleAction({
+        customer,
+        lines,
+        paymentMethod,
+        paidAmount: amount,
+      });
+
+      if (result.ok && result.saleId) {
+        router.push(`/ventas/${result.saleId}`);
+        return;
+      }
+
+      setMessage(result.message);
+    });
+  }
+
   return (
-    <div className="grid gap-6">
-      <Card className="border-primary/30">
-        <CardHeader>
-          <div className="mb-2 flex size-14 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Search className="size-7" aria-hidden="true" />
+    <div className="flex min-h-[calc(100vh-7rem)] flex-col gap-4">
+      <section className="grid gap-4 rounded-lg border border-primary/20 bg-card p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+        <div className="grid gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="flex size-11 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <Search className="size-6" aria-hidden="true" />
+            </span>
+            <div>
+              <h1 className="text-2xl font-bold leading-tight text-primary">
+                Inicio
+              </h1>
+              <p className="text-base text-muted-foreground">
+                Busca como en Excel: codigo, nombre o detalle del producto.
+              </p>
+            </div>
           </div>
-          <CardTitle>Buscar producto</CardTitle>
-          <CardDescription>{EMPTY_SEARCH_MESSAGE}</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4">
-          <div className="grid gap-4 lg:grid-cols-[1fr_160px_auto]">
+
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_140px]">
             <label className="grid gap-2 text-base font-semibold">
               <span>Producto</span>
               <div className="relative">
@@ -312,76 +365,100 @@ export function QuickSale({
                 className="h-16 rounded-lg border border-input bg-background px-3 text-xl"
               />
             </label>
-
-            <div className="flex items-end">
-              <Button
-                type="button"
-                onClick={runSearch}
-                disabled={isPending || !search.trim()}
-                className="h-16 w-full gap-2 px-6 text-lg"
-              >
-                <Plus className="size-6" aria-hidden="true" />
-                Agregar producto
-              </Button>
-            </div>
           </div>
+        </div>
 
-          <p className="rounded-lg border border-border bg-background p-4 text-base font-semibold">
-            {isPending ? "Buscando productos..." : message}
-          </p>
-        </CardContent>
-      </Card>
-
-      <section aria-label="Productos encontrados" className="grid gap-3">
-        {results.length > 0
-          ? results.map((product) => (
-              <ProductResult
-                key={product.sku}
-                product={product}
-                onAdd={() => addProduct(product)}
-              />
-            ))
-          : null}
+        <Button
+          type="button"
+          onClick={runSearch}
+          disabled={isPending || !search.trim()}
+          className="h-16 w-full gap-2 px-6 text-lg lg:w-auto"
+        >
+          <Plus className="size-6" aria-hidden="true" />
+          Agregar
+        </Button>
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-[1fr_340px]">
-        <Card>
-          <CardHeader>
-            <div className="mb-2 flex size-14 items-center justify-center rounded-lg bg-secondary text-primary">
-              <ClipboardList className="size-7" aria-hidden="true" />
+      <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
+        <section
+          aria-label="Productos encontrados"
+          className="flex min-h-[260px] flex-col overflow-hidden rounded-lg border border-border bg-card"
+        >
+          <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+            <div>
+              <h2 className="text-lg font-bold">Productos</h2>
+              <p className="text-sm font-medium text-muted-foreground">
+                Producto, precio publico y stock disponible.
+              </p>
             </div>
-            <CardTitle>Carrito de venta</CardTitle>
-            <CardDescription>
-              Cambiá la cantidad o quitá productos antes de guardar el
-              presupuesto.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="overflow-x-auto">
-            <table className="w-full min-w-[720px] border-collapse text-left text-base">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="p-3">Código</th>
-                  <th className="p-3">Descripción</th>
-                  <th className="p-3">Cantidad</th>
-                  <th className="p-3">Precio unitario</th>
-                  <th className="p-3">Subtotal</th>
-                  <th className="p-3">Quitar</th>
-                </tr>
-              </thead>
-              <tbody>
-                {lines.length === 0 ? (
-                  <tr>
-                    <td className="p-3 text-muted-foreground" colSpan={6}>
-                      Todavía no agregaste productos. Buscá uno por código,
-                      nombre o código de barras.
-                    </td>
-                  </tr>
-                ) : (
-                  lines.map((line) => (
-                    <tr key={line.sku} className="border-b border-border">
-                      <td className="p-3 font-mono">{line.code}</td>
-                      <td className="p-3">{line.description}</td>
-                      <td className="p-3">
+            <span className="rounded-full bg-secondary px-3 py-1 text-sm font-bold text-primary">
+              {results.length} encontrados
+            </span>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto p-3">
+            {results.length > 0 ? (
+              <div className="grid gap-3">
+                {results.map((product) => (
+                  <ProductResult
+                    key={product.sku}
+                    product={product}
+                    onAdd={() => addProduct(product)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="grid h-full min-h-48 place-items-center rounded-lg border border-dashed border-border bg-background p-6 text-center text-base font-semibold text-muted-foreground">
+                {isPending ? "Buscando productos..." : message}
+              </div>
+            )}
+          </div>
+        </section>
+
+        <aside className="flex min-h-[520px] flex-col overflow-hidden rounded-lg border border-primary/30 bg-card">
+          <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+            <div>
+              <h2 className="text-lg font-bold">Lista de venta</h2>
+              <p className="text-sm font-medium text-muted-foreground">
+                Elegi Venta o Presupuesto al finalizar.
+              </p>
+            </div>
+            <ClipboardList className="size-6 text-primary" aria-hidden="true" />
+          </div>
+
+          <div className="min-h-0 flex-1 overflow-y-auto p-3">
+            {lines.length === 0 ? (
+              <div className="grid h-full min-h-48 place-items-center rounded-lg border border-dashed border-border bg-background p-5 text-center text-base font-semibold text-muted-foreground">
+                Todavia no agregaste productos.
+              </div>
+            ) : (
+              <div className="grid gap-3">
+                {lines.map((line) => (
+                  <div
+                    key={line.sku}
+                    className="grid gap-3 rounded-lg border border-border bg-background p-3"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-base font-bold">
+                          {line.description}
+                        </p>
+                        <p className="font-mono text-sm text-muted-foreground">
+                          {line.code}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => removeLine(line.sku)}
+                        className="h-10 px-3"
+                        aria-label={`Quitar ${line.description}`}
+                      >
+                        <Trash2 className="size-4" aria-hidden="true" />
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-[96px_1fr] items-end gap-3">
+                      <label className="grid gap-1 text-sm font-semibold">
+                        <span>Cant.</span>
                         <input
                           value={line.quantity}
                           onChange={(event) =>
@@ -390,124 +467,192 @@ export function QuickSale({
                           type="number"
                           min="1"
                           step="1"
-                          className="h-11 w-24 rounded-lg border border-input bg-background px-3 text-base"
+                          className="h-11 rounded-lg border border-input bg-card px-3 text-base"
                         />
-                      </td>
-                      <td className="p-3">{formatMoney(line.price)}</td>
-                      <td className="p-3 text-lg font-semibold">
-                        {formatMoney(line.quantity * line.price)}
-                      </td>
-                      <td className="p-3">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => removeLine(line.sku)}
-                          className="h-11 gap-2 px-4"
-                        >
-                          <Trash2 className="size-4" aria-hidden="true" />
-                          Quitar
-                        </Button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </CardContent>
-        </Card>
-
-        <aside className="sticky bottom-4 top-6 h-fit">
-          <Card className="border-primary/40">
-            <CardHeader>
-              <CardTitle>Total general</CardTitle>
-              <CardDescription>
-                El total se actualiza al cambiar cantidades.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="rounded-lg bg-primary p-5 text-primary-foreground">
-                <p className="text-lg">Total</p>
-                <p className="mt-1 text-4xl font-bold">{formatMoney(total)}</p>
+                      </label>
+                      <div className="text-right">
+                        <p className="text-sm text-muted-foreground">
+                          {formatMoney(line.price)} c/u
+                        </p>
+                        <p className="text-xl font-bold text-primary">
+                          {formatMoney(line.quantity * line.price)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
+            )}
+          </div>
+
+          <div className="grid gap-3 border-t border-border bg-background p-4">
+            {cashStatus ? <CashStatusLine cashStatus={cashStatus} /> : null}
+
+            <details className="rounded-lg border border-border bg-card">
+              <summary className="flex min-h-12 cursor-pointer items-center gap-2 px-3 text-base font-semibold">
+                <UserRound className="size-5 text-primary" aria-hidden="true" />
+                Cliente opcional
+              </summary>
+              <div className="grid gap-3 border-t border-border p-3">
+                <p className="text-sm text-muted-foreground">
+                  El cliente es opcional. Agregalo solo si necesitas cuenta
+                  corriente, garantia o seguimiento.
+                </p>
+                <Field label="Cliente guardado">
+                  <select
+                    value={customer.id ?? ""}
+                    onChange={(event) => selectCustomer(event.target.value)}
+                    className="h-12 rounded-lg border border-input bg-background px-3 text-base"
+                  >
+                    <option value="">Sin cliente guardado</option>
+                    {customers.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.name}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Nombre">
+                  <input
+                    value={customer.name}
+                    onChange={(event) =>
+                      updateCustomer("name", event.target.value)
+                    }
+                    disabled={Boolean(customer.id)}
+                    className="h-12 rounded-lg border border-input bg-background px-3 text-base"
+                  />
+                </Field>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field label="Telefono">
+                    <input
+                      value={customer.phone}
+                      onChange={(event) =>
+                        updateCustomer("phone", event.target.value)
+                      }
+                      disabled={Boolean(customer.id)}
+                      className="h-12 rounded-lg border border-input bg-background px-3 text-base"
+                    />
+                  </Field>
+                  <Field label="Email">
+                    <input
+                      type="email"
+                      value={customer.email}
+                      onChange={(event) =>
+                        updateCustomer("email", event.target.value)
+                      }
+                      disabled={Boolean(customer.id)}
+                      className="h-12 rounded-lg border border-input bg-background px-3 text-base"
+                    />
+                  </Field>
+                </div>
+                <Field label="Domicilio">
+                  <input
+                    value={customer.address}
+                    onChange={(event) =>
+                      updateCustomer("address", event.target.value)
+                    }
+                    disabled={Boolean(customer.id)}
+                    className="h-12 rounded-lg border border-input bg-background px-3 text-base"
+                  />
+                </Field>
+              </div>
+            </details>
+
+            <div className="rounded-lg bg-primary p-4 text-primary-foreground">
+              <div className="flex items-end justify-between gap-3">
+                <p className="text-lg font-semibold">Total</p>
+                <p className="text-4xl font-bold">{formatMoney(total)}</p>
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Pago">
+                <select
+                  value={paymentMethod}
+                  onChange={(event) => setPaymentMethod(event.target.value)}
+                  className="h-12 rounded-lg border border-input bg-card px-3 text-base"
+                >
+                  {PAYMENT_METHODS.map((method) => (
+                    <option key={method} value={method}>
+                      {method}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Monto pagado">
+                <input
+                  value={paidAmount || String(total)}
+                  onChange={(event) => setPaidAmount(event.target.value)}
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  className="h-12 rounded-lg border border-input bg-card px-3 text-base"
+                />
+              </Field>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
               <Button
                 type="button"
+                onClick={registerSale}
+                disabled={isPending || lines.length === 0}
+                className="h-14 gap-2 text-lg"
+              >
+                <ShoppingCart className="size-6" aria-hidden="true" />
+                {isPending ? "Procesando..." : "Venta"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
                 onClick={saveQuote}
                 disabled={isPending || lines.length === 0}
-                className="mt-4 h-14 w-full gap-2 text-lg"
+                className="h-14 gap-2 text-lg"
               >
                 <Save className="size-6" aria-hidden="true" />
-                {isPending ? "Guardando..." : "Guardar presupuesto"}
+                Guardar presupuesto
               </Button>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </aside>
       </div>
+    </div>
+  );
+}
 
-      <details className="rounded-lg border border-border bg-card">
-        <summary className="flex min-h-16 cursor-pointer items-center gap-3 px-6 text-lg font-semibold">
-          <span className="flex size-10 items-center justify-center rounded-lg bg-secondary text-primary">
-            <UserRound className="size-5" aria-hidden="true" />
-          </span>
-          Cliente opcional
-        </summary>
-        <div className="border-t border-border p-6">
-          <p className="mb-4 text-base text-muted-foreground">
-            El cliente es opcional. Agregalo solo si necesitás cuenta corriente,
-            garantía o seguimiento.
+function CashStatusLine({ cashStatus }: { cashStatus: CashStatus }) {
+  return (
+    <div
+      className={
+        cashStatus.open
+          ? "flex items-center justify-between gap-3 rounded-lg border border-emerald-500/40 bg-emerald-50 p-3 text-sm"
+          : "flex items-center justify-between gap-3 rounded-lg border border-yellow-500/40 bg-yellow-50 p-3 text-sm"
+      }
+    >
+      <div className="flex min-w-0 items-center gap-2">
+        <WalletCards
+          className={
+            cashStatus.open
+              ? "size-5 shrink-0 text-emerald-800"
+              : "size-5 shrink-0 text-yellow-900"
+          }
+          aria-hidden="true"
+        />
+        <div className="min-w-0">
+          <p className="font-bold">
+            {cashStatus.open ? "Caja abierta" : "Caja cerrada"}
           </p>
-          <div className="grid gap-4 md:grid-cols-2">
-            <Field label="Cliente guardado">
-              <select
-                value={customer.id ?? ""}
-                onChange={(event) => selectCustomer(event.target.value)}
-                className="h-12 rounded-lg border border-input bg-background px-3 text-base"
-              >
-                <option value="">Sin cliente guardado</option>
-                {customers.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Nombre o razón social">
-              <input
-                value={customer.name}
-                onChange={(event) => updateCustomer("name", event.target.value)}
-                disabled={Boolean(customer.id)}
-                className="h-12 rounded-lg border border-input bg-background px-3 text-base"
-              />
-            </Field>
-            <Field label="Teléfono">
-              <input
-                value={customer.phone}
-                onChange={(event) => updateCustomer("phone", event.target.value)}
-                disabled={Boolean(customer.id)}
-                className="h-12 rounded-lg border border-input bg-background px-3 text-base"
-              />
-            </Field>
-            <Field label="Email">
-              <input
-                type="email"
-                value={customer.email}
-                onChange={(event) => updateCustomer("email", event.target.value)}
-                disabled={Boolean(customer.id)}
-                className="h-12 rounded-lg border border-input bg-background px-3 text-base"
-              />
-            </Field>
-            <Field label="Domicilio">
-              <input
-                value={customer.address}
-                onChange={(event) =>
-                  updateCustomer("address", event.target.value)
-                }
-                disabled={Boolean(customer.id)}
-                className="h-12 rounded-lg border border-input bg-background px-3 text-base"
-              />
-            </Field>
-          </div>
+          <p className="truncate text-muted-foreground">
+            {cashStatus.open
+              ? `${formatDate(cashStatus.openedAt)} - ${formatMoney(
+                  cashStatus.expectedCash
+                )}`
+              : "Abri caja antes de cobrar en efectivo."}
+          </p>
         </div>
-      </details>
+      </div>
+      <Button asChild variant="outline" className="h-10 px-3 text-sm">
+        <Link href="/caja">Caja</Link>
+      </Button>
     </div>
   );
 }
@@ -520,8 +665,8 @@ function ProductResult({
   onAdd: () => void;
 }) {
   return (
-    <div className="grid gap-3 rounded-lg border border-border bg-card p-4 md:grid-cols-[1fr_auto] md:items-center">
-      <div>
+    <div className="grid gap-3 rounded-lg border border-border bg-background p-4 md:grid-cols-[1fr_auto] md:items-center">
+      <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-lg font-semibold">
             {product.name || product.description}
@@ -529,11 +674,11 @@ function ProductResult({
           <StockBadge product={product} />
         </div>
         <p className="mt-1 text-base text-muted-foreground">
-          Código/SKU {product.code} · {product.description}
+          Codigo/SKU {product.code} - {product.description}
         </p>
         <p className="mt-2 text-base font-semibold">
-          {formatMoney(product.price)} · Stock{" "}
-          {formatStock(product.stockQuantity)} {product.unit}
+          {formatMoney(product.price)} - Stock {formatStock(product.stockQuantity)}{" "}
+          {product.unit}
         </p>
       </div>
       <Button type="button" onClick={onAdd} className="h-12 gap-2 px-5 text-base">

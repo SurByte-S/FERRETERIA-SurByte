@@ -16,12 +16,12 @@ export function DashboardShell({
 }) {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="grid min-h-screen lg:grid-cols-[300px_1fr]">
-        <aside className="no-print border-b border-border bg-sidebar lg:border-b-0 lg:border-r">
-          <div className="flex h-full flex-col gap-6 p-4 sm:p-6">
+      <div className="grid min-h-screen lg:h-screen lg:grid-cols-[232px_minmax(0,1fr)] xl:grid-cols-[248px_minmax(0,1fr)]">
+        <aside className="no-print border-b border-border bg-sidebar lg:h-screen lg:overflow-y-auto lg:border-b-0 lg:border-r">
+          <div className="flex min-h-full flex-col gap-4 p-3 sm:p-4">
             <Link
               href="/inicio"
-              className="flex min-h-16 items-center gap-3 rounded-lg border border-border bg-card px-4 text-left transition-colors hover:border-primary/30 hover:bg-secondary/50"
+              className="flex min-h-14 items-center gap-3 rounded-lg border border-border bg-card px-3 text-left transition-colors hover:border-primary/30 hover:bg-secondary/50"
             >
               <BrandLogo size="small" showText={false} />
               <span>
@@ -32,7 +32,7 @@ export function DashboardShell({
               </span>
             </Link>
             <SidebarNav />
-            <div className="mt-auto grid gap-3 rounded-lg border border-border bg-card p-4">
+            <div className="mt-auto grid gap-3 rounded-lg border border-border bg-card p-3">
               <div>
                 <p className="text-sm text-muted-foreground">Usuario</p>
                 <p className="break-all text-base font-semibold">
@@ -52,8 +52,8 @@ export function DashboardShell({
             </div>
           </div>
         </aside>
-        <main className="min-w-0">
-          <header className="no-print border-b border-border bg-card px-4 py-3 sm:px-6 lg:px-8">
+        <main className="flex min-h-screen min-w-0 flex-col lg:h-screen">
+          <header className="no-print border-b border-border bg-card px-4 py-2 sm:px-5">
             <div className="flex items-center justify-between gap-4">
               <div>
                 <p className="text-sm font-semibold uppercase text-muted-foreground">
@@ -74,7 +74,9 @@ export function DashboardShell({
               </div>
             </div>
           </header>
-          <div className="p-4 sm:p-6 lg:p-8">{children}</div>
+          <div className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 lg:p-5">
+            {children}
+          </div>
         </main>
       </div>
     </div>

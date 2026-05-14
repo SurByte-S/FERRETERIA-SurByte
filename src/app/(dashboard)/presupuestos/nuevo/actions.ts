@@ -32,7 +32,16 @@ export type SaveQuoteResult = {
   ok: boolean;
   message: string;
   quoteId?: string;
+  saleId?: string;
 };
+
+const PAYMENT_METHODS = [
+  "Efectivo",
+  "Transferencia",
+  "Debito",
+  "Credito",
+  "Cuenta corriente",
+];
 
 function mapProduct(row: ProductRow): QuoteProduct {
   return {
@@ -80,6 +89,42 @@ function getSaveQuoteErrorMessage(message?: string) {
   }
 
   return "No se pudo guardar el presupuesto. Intenta nuevamente.";
+}
+
+function getConvertQuoteErrorMessage(message?: string) {
+  if (!message) {
+    return "No se pudo registrar la venta.";
+  }
+
+  if (message.includes("QUOTE_NOT_FOUND")) {
+    return "No se encontro el presupuesto guardado.";
+  }
+
+  if (message.includes("QUOTE_ALREADY_CONVERTED")) {
+    return "Este presupuesto ya estaba convertido en venta.";
+  }
+
+  if (message.includes("QUOTE_WITHOUT_ITEMS")) {
+    return "El presupuesto no tiene productos para vender.";
+  }
+
+  if (message.includes("PAYMENT_METHOD_INVALID")) {
+    return "Elegi una forma de pago valida.";
+  }
+
+  if (message.includes("PAID_AMOUNT_INVALID")) {
+    return "El monto pagado no puede ser negativo.";
+  }
+
+  if (message.includes("PAID_AMOUNT_TOO_LOW")) {
+    return "Para esta forma de pago, el monto pagado debe cubrir el total.";
+  }
+
+  if (message.includes("CUSTOMER_REQUIRED_FOR_CREDIT")) {
+    return "Para dejar deuda en cuenta corriente, elegi un cliente.";
+  }
+
+  return "No se pudo registrar la venta.";
 }
 
 export async function searchQuoteProductsAction(
@@ -225,6 +270,122 @@ export async function saveQuoteAction({
     return {
       ok: false,
       message: "No se pudo guardar el presupuesto. Intenta nuevamente.",
+    };
+  }
+}
+
+export async function saveQuoteAndConvertToSaleAction({
+  customer,
+  lines,
+  paymentMethod,
+  paidAmount,
+}: {
+  customer: QuoteCustomer;
+  lines: QuoteLine[];
+  paymentMethod: string;
+  paidAmount: number;
+}): Promise<SaveQuoteResult> {
+  const cleanPaymentMethod = paymentMethod.trim();
+
+  if (!PAYMENT_METHODS.includes(cleanPaymentMethod)) {
+    return {
+      ok: false,
+      message: "Elegi una forma de pago para registrar la venta.",
+    };
+  }
+
+  if (!Number.isFinite(paidAmount) || paidAmount < 0) {
+    return {
+      ok: false,
+      message: "Revisa el monto pagado.",
+    };
+  }
+
+  const cleanLines = lines.filter((line) => line.quantity > 0);
+
+  if (cleanLines.length === 0) {
+    return {
+      ok: false,
+      message: "Agrega al menos un producto antes de vender.",
+    };
+  }
+
+  try {
+    const tenant = await requireTenantRole(["owner", "admin", "seller"]);
+    const supabase = getSupabaseServerClient();
+    const { data: quoteData, error: quoteError } = await supabase.rpc(
+      "create_quote_with_items",
+      {
+        input_tenant_id: tenant.id,
+        input_customer_id: customer.id?.trim() || null,
+        input_customer_name: customer.name.trim() || null,
+        input_customer_phone: customer.phone.trim() || null,
+        input_customer_email: customer.email.trim() || null,
+        input_customer_address: customer.address.trim() || null,
+        input_items: cleanLines.map((line) => ({
+          sku: line.sku,
+          quantity: line.quantity,
+        })),
+        input_notes: "Venta creada desde mostrador",
+      }
+    );
+
+    if (quoteError || !quoteData) {
+      return {
+        ok: false,
+        message: getSaveQuoteErrorMessage(quoteError?.message),
+      };
+    }
+
+    const quoteId = quoteData as string;
+    const { data: saleData, error: saleError } = await supabase.rpc(
+      "convert_quote_to_sale",
+      {
+        input_quote_id: quoteId,
+        input_tenant_id: tenant.id,
+        input_customer_id: customer.id?.trim() || null,
+        input_payment_method: cleanPaymentMethod,
+        input_paid_amount: paidAmount,
+      }
+    );
+
+    if (saleError || !saleData) {
+      revalidatePath("/presupuestos");
+      revalidatePath(`/presupuestos/${quoteId}`);
+
+      return {
+        ok: false,
+        message: `${getConvertQuoteErrorMessage(
+          saleError?.message
+        )} El presupuesto quedo guardado para revisarlo.`,
+        quoteId,
+      };
+    }
+
+    const saleId = saleData as string;
+
+    revalidatePath("/presupuestos");
+    revalidatePath(`/presupuestos/${quoteId}`);
+    revalidatePath("/ventas");
+    revalidatePath(`/ventas/${saleId}`);
+
+    return {
+      ok: true,
+      message: "Venta registrada.",
+      quoteId,
+      saleId,
+    };
+  } catch (error) {
+    if (isTenantRoleForbiddenError(error)) {
+      return {
+        ok: false,
+        message: FORBIDDEN_ACTION_MESSAGE,
+      };
+    }
+
+    return {
+      ok: false,
+      message: "No se pudo registrar la venta. Intenta nuevamente.",
     };
   }
 }
