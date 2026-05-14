@@ -101,6 +101,7 @@ export async function searchQuoteProductsAction(
       )
       .eq("tenant_id", tenant.id)
       .eq("active", true)
+      .gt("stock_quantity", 0)
       .or(
         `sku.ilike.%${search}%,barcode.ilike.%${search}%,name.ilike.%${search}%,normalized_name.ilike.%${search}%,description.ilike.%${search}%`
       )
@@ -136,6 +137,7 @@ export async function getQuoteProductBySkuAction(
       .select(selectFields)
       .eq("tenant_id", tenant.id)
       .eq("active", true)
+      .gt("stock_quantity", 0)
       .ilike("sku", sku)
       .limit(1)
       .maybeSingle();
@@ -149,6 +151,7 @@ export async function getQuoteProductBySkuAction(
       .select(selectFields)
       .eq("tenant_id", tenant.id)
       .eq("active", true)
+      .gt("stock_quantity", 0)
       .ilike("barcode", sku)
       .limit(1)
       .maybeSingle();

@@ -1,0 +1,58 @@
+import Link from "next/link";
+
+import { adminItems } from "@/components/shell/nav-items";
+import { PageHeader } from "@/components/shell/page-header";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+
+export default function AjustesPage() {
+  return (
+    <>
+      <PageHeader
+        title="Ajustes"
+        description="Administración de productos, clientes, historial y datos de la ferretería."
+        backHref="/inicio"
+        backLabel="Volver al mostrador"
+      />
+
+      <section
+        aria-label="Administración"
+        className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
+      >
+        {adminItems.map((item) => {
+          const Icon = item.icon;
+
+          return (
+            <Card key={item.href}>
+              <CardHeader>
+                <div className="mb-2 flex size-14 items-center justify-center rounded-lg bg-secondary text-primary">
+                  <Icon className="size-7" aria-hidden="true" />
+                </div>
+                <CardTitle>{item.title}</CardTitle>
+                <CardDescription>{item.description}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button
+                  asChild
+                  variant="outline"
+                  className="h-14 w-full justify-start gap-2 px-5 text-base"
+                >
+                  <Link href={item.href}>
+                    <Icon className="size-5" aria-hidden="true" />
+                    Abrir {item.title.toLowerCase()}
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </section>
+    </>
+  );
+}

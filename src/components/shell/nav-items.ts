@@ -2,7 +2,6 @@ import {
   ClipboardList,
   Home,
   PackageSearch,
-  ReceiptText,
   Settings,
   ShoppingCart,
   Users,
@@ -14,31 +13,7 @@ export const navigationItems = [
     title: "Inicio",
     href: "/inicio",
     icon: Home,
-    description: "Ver accesos principales",
-  },
-  {
-    title: "Venta rapida",
-    href: "/presupuestos/nuevo",
-    icon: ShoppingCart,
-    description: "Armar y cobrar desde mostrador",
-  },
-  {
-    title: "Productos",
-    href: "/productos",
-    icon: PackageSearch,
-    description: "Consultar precios y stock",
-  },
-  {
-    title: "Clientes",
-    href: "/clientes",
-    icon: Users,
-    description: "Guardar datos y cuenta corriente",
-  },
-  {
-    title: "Ventas",
-    href: "/ventas",
-    icon: ShoppingCart,
-    description: "Registrar ventas del mostrador",
+    description: "Vender desde mostrador",
   },
   {
     title: "Caja",
@@ -47,42 +22,42 @@ export const navigationItems = [
     description: "Abrir y cerrar caja diaria",
   },
   {
-    title: "Presupuestos",
-    href: "/presupuestos",
-    icon: ClipboardList,
-    description: "Revisar presupuestos guardados",
-  },
-  {
     title: "Ajustes",
-    href: "/configuracion",
+    href: "/ajustes",
     icon: Settings,
-    description: "Ajustar datos de la ferreteria",
+    description: "Administrar la ferreteria",
   },
 ] as const;
 
-export const quickActions = [
+export const adminItems = [
   {
-    title: "Nuevo presupuesto",
-    href: "/presupuestos/nuevo",
-    icon: ReceiptText,
-    description: "Preparar una lista de productos con precio para entregar.",
-  },
-  {
-    title: "Buscar productos",
+    title: "Productos",
     href: "/productos",
     icon: PackageSearch,
-    description: "Encontrar articulos por nombre, codigo o rubro.",
+    description: "Editar productos, fotos, stock e historial",
   },
   {
-    title: "Venta rapida",
-    href: "/presupuestos/nuevo",
+    title: "Clientes",
+    href: "/clientes",
+    icon: Users,
+    description: "Administrar clientes y cuenta corriente",
+  },
+  {
+    title: "Ventas / Historial",
+    href: "/ventas",
     icon: ShoppingCart,
-    description: "Armar el comprobante y convertirlo en venta.",
+    description: "Ver ventas realizadas e imprimir comprobantes",
   },
   {
-    title: "Abrir caja",
-    href: "/caja",
-    icon: WalletCards,
-    description: "Controlar efectivo y cierre diario.",
+    title: "Presupuestos",
+    href: "/presupuestos",
+    icon: ClipboardList,
+    description: "Ver presupuestos guardados",
+  },
+  {
+    title: "Configuración",
+    href: "/configuracion",
+    icon: Settings,
+    description: "Datos de la ferreteria y preferencias",
   },
 ] as const;
