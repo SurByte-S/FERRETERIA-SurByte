@@ -7,6 +7,7 @@ import {
 } from "@/components/print/print-document";
 import { PageHeader } from "@/components/shell/page-header";
 import { PrintSaleButton } from "@/components/ventas/sale-actions";
+import { ferreteriaGuemesBrand } from "@/lib/brand/ferreteria-guemes";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { requireTenant } from "@/lib/tenant";
 
@@ -70,22 +71,15 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
-function buildBusiness(
-  tenant: { name: string; slug: string },
-  tenantDetails: TenantBusinessRow | null
-): PrintBusiness {
+function buildBusiness(tenantDetails: TenantBusinessRow | null): PrintBusiness {
   return {
-    name:
-      tenantDetails?.business_name ??
-      tenantDetails?.name ??
-      process.env.NEXT_PUBLIC_DEFAULT_TENANT_NAME ??
-      tenant.name,
-    subtitle: "Ferreteria / Herramientas / Buloneria / Sanitarios",
-    address: tenantDetails?.address ?? "Direccion no configurada",
-    phone: tenantDetails?.phone ?? "Telefono no configurado",
-    email: tenantDetails?.email ?? "Email no configurado",
-    taxId: tenantDetails?.tax_id ?? "CUIT no configurado",
-    logoUrl: tenantDetails?.logo_url,
+    name: ferreteriaGuemesBrand.brandName,
+    subtitle: ferreteriaGuemesBrand.slogan,
+    address: tenantDetails?.address ?? ferreteriaGuemesBrand.address,
+    phone: tenantDetails?.phone ?? ferreteriaGuemesBrand.phone,
+    email: tenantDetails?.email ?? ferreteriaGuemesBrand.email,
+    taxId: tenantDetails?.tax_id ?? ferreteriaGuemesBrand.taxId,
+    logoUrl: tenantDetails?.logo_url ?? ferreteriaGuemesBrand.logoPath,
   };
 }
 
@@ -167,7 +161,7 @@ export default async function SaleDetailPage({ params }: SalePageProps) {
 
       <div className="grid gap-6">
         <PrintDocument
-          business={buildBusiness(tenant, tenantDetails)}
+          business={buildBusiness(tenantDetails)}
           document={{
             typeLabel: "Comprobante de venta",
             numberLabel: `#${sale.sale_number}`,

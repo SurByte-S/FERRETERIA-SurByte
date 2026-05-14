@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Clock, WalletCards } from "lucide-react";
 
+import { BrandLogo } from "@/components/brand/brand-logo";
 import { PageHeader } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,6 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { navigationItems, quickActions } from "@/components/shell/nav-items";
+import { ferreteriaGuemesBrand } from "@/lib/brand/ferreteria-guemes";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { requireTenant } from "@/lib/tenant";
 
@@ -49,6 +51,26 @@ export default async function InicioPage() {
         title="Inicio"
         description="Accesos grandes para las tareas mas comunes de la ferreteria."
       />
+
+      <section className="mb-6 overflow-hidden rounded-lg border border-border bg-card">
+        <div className="h-1.5 bg-accent" />
+        <div className="grid gap-4 p-5 lg:grid-cols-[1fr_auto] lg:items-center">
+          <div className="flex items-center gap-4">
+            <BrandLogo size="medium" showText={false} />
+            <div>
+              <p className="text-3xl font-bold leading-tight text-primary">
+                {ferreteriaGuemesBrand.brandName}
+              </p>
+              <p className="mt-1 text-lg font-medium text-muted-foreground">
+                {ferreteriaGuemesBrand.slogan}
+              </p>
+            </div>
+          </div>
+          <p className="max-w-md text-base text-muted-foreground">
+            Gestion diaria clara para ventas, caja, presupuestos y stock.
+          </p>
+        </div>
+      </section>
 
       <Card className={cashStatus.open ? "mb-6 border-emerald-500/40" : "mb-6 border-yellow-500/40"}>
         <CardContent className="grid gap-4 p-5 lg:grid-cols-[1fr_auto] lg:items-center">
@@ -99,7 +121,7 @@ export default async function InicioPage() {
           return (
             <Card key={`${action.title}-${action.href}`}>
               <CardHeader>
-                <div className="mb-2 flex size-14 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                <div className="mb-2 flex size-14 items-center justify-center rounded-lg bg-secondary text-primary">
                   <Icon className="size-7" aria-hidden="true" />
                 </div>
                 <CardTitle>{action.title}</CardTitle>

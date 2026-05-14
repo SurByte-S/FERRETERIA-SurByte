@@ -1,4 +1,4 @@
-import { Wrench } from "lucide-react";
+import { BrandLogo } from "@/components/brand/brand-logo";
 
 export type PrintBusiness = {
   name: string;
@@ -82,12 +82,11 @@ function PrintHeader({
     <header className="print-header">
       <div className="print-brand">
         <div className="print-logo" aria-hidden="true">
-          {business.logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={business.logoUrl} alt="" />
-          ) : (
-            <Wrench className="size-7" strokeWidth={1.8} />
-          )}
+          <BrandLogo
+            size="medium"
+            showText={false}
+            imageClassName="print-logo-image"
+          />
         </div>
         <div>
           <p className="print-kicker">

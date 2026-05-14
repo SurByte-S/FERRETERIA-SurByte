@@ -23,7 +23,9 @@ export function SidebarNav() {
             variant={active ? "default" : "ghost"}
             className={cn(
               "h-14 justify-start gap-3 px-4 text-base",
-              active ? "font-semibold" : "text-muted-foreground"
+              active
+                ? "bg-primary font-semibold text-primary-foreground"
+                : "text-muted-foreground hover:bg-secondary hover:text-primary"
             )}
           >
             <Link href={item.href} aria-current={active ? "page" : undefined}>
