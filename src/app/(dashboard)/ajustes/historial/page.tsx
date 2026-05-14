@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { adminGroupItems } from "@/components/shell/nav-items";
+import { historyItems } from "@/components/shell/nav-items";
 import { PageHeader } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,21 +11,18 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-export default function AjustesPage() {
+export default function HistorialPage() {
   return (
     <>
       <PageHeader
-        title="Administracion"
-        description="Estas opciones son para revisar informacion o cambiar datos del sistema."
-        backHref="/inicio"
-        backLabel="Volver a vender"
+        title="Historial"
+        description="Ventas, presupuestos y clientes."
+        backHref="/ajustes"
+        backLabel="Volver a administracion"
       />
 
-      <section
-        aria-label="Administracion"
-        className="grid max-w-4xl gap-4 md:grid-cols-2"
-      >
-        {adminGroupItems.map((item) => {
+      <section aria-label="Historial" className="grid max-w-4xl gap-4 md:grid-cols-3">
+        {historyItems.map((item) => {
           const Icon = item.icon;
 
           return (

@@ -25,7 +25,7 @@ export function PageHeader({
         </Button>
       ) : null}
       <p className="mb-2 text-base font-medium text-muted-foreground">
-        Panel principal
+        Mostrador
       </p>
       <h1 className="text-3xl font-bold leading-tight tracking-normal sm:text-4xl">
         {title}

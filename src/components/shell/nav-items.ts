@@ -1,6 +1,7 @@
 import {
   Boxes,
   ClipboardList,
+  History,
   LayoutGrid,
   PackageSearch,
   Settings,
@@ -32,14 +33,29 @@ export const navigationItems = [
 
 export const secondaryNavigationItems = [
   {
-    title: "Mas opciones",
+    title: "Administracion",
     href: "/ajustes",
     icon: LayoutGrid,
-    description: "Clientes, ventas y configuracion",
+    description: "Opciones del encargado",
   },
 ] as const;
 
-export const adminItems = [
+export const adminGroupItems = [
+  {
+    title: "Historial",
+    href: "/ajustes/historial",
+    icon: History,
+    description: "Ventas, presupuestos y clientes.",
+  },
+  {
+    title: "Configuracion",
+    href: "/ajustes/configuracion",
+    icon: Settings,
+    description: "Productos y datos de la ferreteria.",
+  },
+] as const;
+
+export const historyItems = [
   {
     title: "Clientes",
     href: "/clientes",
@@ -58,16 +74,19 @@ export const adminItems = [
     icon: ClipboardList,
     description: "Presupuestos guardados",
   },
+] as const;
+
+export const configurationItems = [
   {
-    title: "Configuracion",
-    href: "/configuracion",
-    icon: Settings,
-    description: "Datos de la ferreteria y preferencias",
-  },
-  {
-    title: "Productos avanzados",
+    title: "Editar productos",
     href: "/productos",
     icon: PackageSearch,
-    description: "Edicion completa, fotos e historial",
+    description: "Productos, fotos e historial.",
+  },
+  {
+    title: "Datos de la ferreteria",
+    href: "/configuracion",
+    icon: Settings,
+    description: "Nombre, datos y preferencias.",
   },
 ] as const;

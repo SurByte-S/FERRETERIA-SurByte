@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { adminGroupItems } from "@/components/shell/nav-items";
+import { configurationItems } from "@/components/shell/nav-items";
 import { PageHeader } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,21 +11,21 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-export default function AjustesPage() {
+export default function AjustesConfiguracionPage() {
   return (
     <>
       <PageHeader
-        title="Administracion"
-        description="Estas opciones son para revisar informacion o cambiar datos del sistema."
-        backHref="/inicio"
-        backLabel="Volver a vender"
+        title="Configuracion"
+        description="Productos y datos de la ferreteria."
+        backHref="/ajustes"
+        backLabel="Volver a administracion"
       />
 
       <section
-        aria-label="Administracion"
-        className="grid max-w-4xl gap-4 md:grid-cols-2"
+        aria-label="Configuracion"
+        className="grid max-w-3xl gap-4 md:grid-cols-2"
       >
-        {adminGroupItems.map((item) => {
+        {configurationItems.map((item) => {
           const Icon = item.icon;
 
           return (
