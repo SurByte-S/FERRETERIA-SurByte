@@ -317,7 +317,7 @@ export function QuickSale({
                 Vender
               </h1>
               <p className="text-base text-muted-foreground">
-                Busca el producto, agregalo y elegi Venta o Presupuesto.
+                Busca el producto, agregalo y elegi Venta o Guardar presupuesto.
               </p>
             </div>
           </div>
@@ -363,7 +363,7 @@ export function QuickSale({
         </Button>
       </section>
 
-      <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
+      <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_400px] xl:grid-cols-[minmax(0,1fr)_420px]">
         <section
           aria-label="Productos encontrados"
           className="flex min-h-[260px] flex-col overflow-hidden rounded-lg border border-border bg-card"
@@ -398,18 +398,18 @@ export function QuickSale({
           </div>
         </section>
 
-        <aside className="flex min-h-[520px] flex-col overflow-hidden rounded-lg border border-primary/30 bg-card">
-          <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+        <aside className="flex min-h-[520px] flex-col overflow-hidden rounded-lg border border-primary/30 bg-card lg:sticky lg:top-0 lg:max-h-[calc(100vh-7.5rem)] lg:min-h-0 lg:self-start">
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
             <div>
               <h2 className="text-lg font-bold">Lista de venta</h2>
               <p className="text-sm font-medium text-muted-foreground">
-                Elegi Venta o Presupuesto al finalizar.
+                Elegi Venta o Guardar presupuesto al finalizar.
               </p>
             </div>
             <ClipboardList className="size-6 text-primary" aria-hidden="true" />
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto p-3">
+          <div className="min-h-[140px] flex-1 overflow-y-auto p-3">
             {lines.length === 0 ? (
               <div className="grid h-full min-h-48 place-items-center rounded-lg border border-dashed border-border bg-background p-5 text-center text-base font-semibold text-muted-foreground">
                 Todavia no agregaste productos.
@@ -469,7 +469,7 @@ export function QuickSale({
             )}
           </div>
 
-          <div className="grid gap-3 border-t border-border bg-background p-4">
+          <div className="grid shrink-0 gap-3 border-t border-border bg-background p-4">
             {cashStatus ? <CashStatusLine cashStatus={cashStatus} /> : null}
 
             <details className="rounded-lg border border-border bg-card">
@@ -593,7 +593,7 @@ export function QuickSale({
                 className="h-14 gap-2 text-lg"
               >
                 <Save className="size-6" aria-hidden="true" />
-                Presupuesto
+                Guardar presupuesto
               </Button>
             </div>
           </div>
