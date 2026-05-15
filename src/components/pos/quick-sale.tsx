@@ -39,6 +39,8 @@ const PAYMENT_METHODS = [
   "Cuenta corriente",
 ];
 
+type SaleMode = "sale" | "quote";
+
 type CashStatus =
   | { open: true; openedAt: string; expectedCash: number }
   | { open: false };
@@ -87,6 +89,7 @@ export function QuickSale({
     address: "",
   });
   const [search, setSearch] = useState(initialSku ?? "");
+  const [mode, setMode] = useState<SaleMode>("sale");
   const [quantity, setQuantity] = useState(1);
   const [results, setResults] = useState<QuoteProduct[]>([]);
   const [lines, setLines] = useState<QuoteLine[]>([]);
@@ -100,6 +103,17 @@ export function QuickSale({
     () => lines.reduce((sum, line) => sum + line.quantity * line.price, 0),
     [lines]
   );
+  const hasOutOfStockLines = useMemo(
+    () => lines.some((line) => !line.availableForSale),
+    [lines]
+  );
+  const isQuoteMode = mode === "quote";
+  const modeHelp = isQuoteMode
+    ? "Busca productos del catalogo, aunque no tengan stock."
+    : "Busca productos con stock para vender.";
+  const resultHelp = isQuoteMode
+    ? "Productos del catalogo. Los faltantes salen como A pedido."
+    : "Solo productos con stock disponible.";
 
   useEffect(() => {
     if (!initialSku) {
@@ -107,14 +121,14 @@ export function QuickSale({
     }
 
     startTransition(async () => {
-      const product = await getQuoteProductBySkuAction(initialSku);
+      const product = await getQuoteProductBySkuAction(initialSku, isQuoteMode);
 
       if (product) {
         addProduct(product, 1);
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialSku]);
+  }, [initialSku, isQuoteMode]);
 
   useEffect(() => {
     const term = search.trim();
@@ -125,19 +139,32 @@ export function QuickSale({
 
     const timeoutId = window.setTimeout(() => {
       startTransition(async () => {
-        const found = await searchQuoteProductsAction(term);
+        const found = await searchQuoteProductsAction(term, isQuoteMode);
 
         setResults(found);
         setMessage(
           found.length > 0
             ? "Elegi un producto de la lista para agregarlo."
-            : "No encontramos productos con stock disponible."
+            : isQuoteMode
+              ? "No encontramos productos para esa busqueda."
+              : "No encontramos productos con stock para esa busqueda."
         );
       });
     }, 250);
 
     return () => window.clearTimeout(timeoutId);
-  }, [search, startTransition]);
+  }, [search, isQuoteMode, startTransition]);
+
+  function changeMode(nextMode: SaleMode) {
+    setMode(nextMode);
+    setResults([]);
+    setMessage(
+      nextMode === "quote"
+        ? "Modo presupuesto: podes buscar productos aunque no tengan stock."
+        : EMPTY_SEARCH_MESSAGE
+    );
+    window.setTimeout(() => searchInputRef.current?.focus(), 0);
+  }
 
   function updateCustomer(key: keyof QuoteCustomer, value: string) {
     setCustomer((current) => ({ ...current, [key]: value }));
@@ -210,20 +237,22 @@ export function QuickSale({
 
     setMessage("Buscando productos...");
     startTransition(async () => {
-      const exact = await getQuoteProductBySkuAction(term);
+      const exact = await getQuoteProductBySkuAction(term, isQuoteMode);
 
       if (exact) {
         addProduct(exact);
         return;
       }
 
-      const found = await searchQuoteProductsAction(term);
+      const found = await searchQuoteProductsAction(term, isQuoteMode);
 
       setResults(found);
       setMessage(
         found.length > 0
           ? "Elegi un producto de la lista para agregarlo."
-          : "No encontramos productos con stock disponible."
+          : isQuoteMode
+            ? "No encontramos productos para esa busqueda."
+            : "No encontramos productos con stock para esa busqueda."
       );
     });
   }
@@ -279,6 +308,13 @@ export function QuickSale({
   }
 
   function registerSale() {
+    if (hasOutOfStockLines) {
+      setMessage(
+        "Hay productos a pedido. Guarda presupuesto o quitalos antes de vender."
+      );
+      return;
+    }
+
     const amount = Number(paidAmount || total);
 
     if (!Number.isFinite(amount) || amount < 0) {
@@ -317,9 +353,22 @@ export function QuickSale({
                 Vender
               </h1>
               <p className="text-base text-muted-foreground">
-                Busca el producto, agregalo y elegi Venta o Guardar presupuesto.
+                {modeHelp}
               </p>
             </div>
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-2 lg:max-w-md">
+            <ModeButton
+              active={mode === "sale"}
+              label="Venta"
+              onClick={() => changeMode("sale")}
+            />
+            <ModeButton
+              active={mode === "quote"}
+              label="Presupuesto"
+              onClick={() => changeMode("quote")}
+            />
           </div>
 
           <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_140px]">
@@ -372,7 +421,7 @@ export function QuickSale({
             <div>
               <h2 className="text-lg font-bold">Productos</h2>
               <p className="text-sm font-medium text-muted-foreground">
-                Solo productos con stock disponible.
+                {resultHelp}
               </p>
             </div>
             <span className="rounded-full bg-secondary px-3 py-1 text-sm font-bold text-primary">
@@ -401,9 +450,13 @@ export function QuickSale({
         <aside className="flex min-h-[520px] flex-col overflow-hidden rounded-lg border border-primary/30 bg-card lg:sticky lg:top-0 lg:max-h-[calc(100vh-7.5rem)] lg:min-h-0 lg:self-start">
           <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
             <div>
-              <h2 className="text-lg font-bold">Lista de venta</h2>
+              <h2 className="text-lg font-bold">
+                {isQuoteMode ? "Lista de presupuesto" : "Lista de venta"}
+              </h2>
               <p className="text-sm font-medium text-muted-foreground">
-                Elegi Venta o Guardar presupuesto al finalizar.
+                {isQuoteMode
+                  ? "Guarda el presupuesto al finalizar."
+                  : "Elegi Venta o Guardar presupuesto al finalizar."}
               </p>
             </div>
             <ClipboardList className="size-6 text-primary" aria-hidden="true" />
@@ -429,6 +482,11 @@ export function QuickSale({
                         <p className="font-mono text-sm text-muted-foreground">
                           {line.code}
                         </p>
+                        {!line.availableForSale ? (
+                          <span className="mt-2 inline-flex rounded-full border border-yellow-500/40 bg-yellow-50 px-3 py-1 text-sm font-bold text-yellow-900">
+                            A pedido
+                          </span>
+                        ) : null}
                       </div>
                       <Button
                         type="button"
@@ -470,7 +528,9 @@ export function QuickSale({
           </div>
 
           <div className="grid shrink-0 gap-3 border-t border-border bg-background p-4">
-            {cashStatus ? <CashStatusLine cashStatus={cashStatus} /> : null}
+            {cashStatus && !isQuoteMode ? (
+              <CashStatusLine cashStatus={cashStatus} />
+            ) : null}
 
             <details className="rounded-lg border border-border bg-card">
               <summary className="flex min-h-12 cursor-pointer items-center gap-2 px-3 text-base font-semibold">
@@ -549,52 +609,77 @@ export function QuickSale({
               </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Pago">
-                <select
-                  value={paymentMethod}
-                  onChange={(event) => setPaymentMethod(event.target.value)}
-                  className="h-12 rounded-lg border border-input bg-card px-3 text-base"
-                >
-                  {PAYMENT_METHODS.map((method) => (
-                    <option key={method} value={method}>
-                      {method}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Monto pagado">
-                <input
-                  value={paidAmount || String(total)}
-                  onChange={(event) => setPaidAmount(event.target.value)}
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  className="h-12 rounded-lg border border-input bg-card px-3 text-base"
-                />
-              </Field>
-            </div>
+            {!isQuoteMode ? (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="Pago">
+                  <select
+                    value={paymentMethod}
+                    onChange={(event) => setPaymentMethod(event.target.value)}
+                    className="h-12 rounded-lg border border-input bg-card px-3 text-base"
+                  >
+                    {PAYMENT_METHODS.map((method) => (
+                      <option key={method} value={method}>
+                        {method}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Monto pagado">
+                  <input
+                    value={paidAmount || String(total)}
+                    onChange={(event) => setPaidAmount(event.target.value)}
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    className="h-12 rounded-lg border border-input bg-card px-3 text-base"
+                  />
+                </Field>
+              </div>
+            ) : null}
+
+            {hasOutOfStockLines ? (
+              <p className="rounded-lg border border-yellow-500/40 bg-yellow-50 p-3 text-base font-semibold text-yellow-900">
+                Hay productos a pedido. Esta lista debe guardarse como
+                presupuesto.
+              </p>
+            ) : null}
 
             <div className="grid gap-3 sm:grid-cols-2">
-              <Button
-                type="button"
-                onClick={registerSale}
-                disabled={isPending || lines.length === 0}
-                className="h-14 gap-2 text-lg"
-              >
-                <ShoppingCart className="size-6" aria-hidden="true" />
-                {isPending ? "Procesando..." : "Venta"}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={saveQuote}
-                disabled={isPending || lines.length === 0}
-                className="h-14 gap-2 text-lg"
-              >
-                <Save className="size-6" aria-hidden="true" />
-                Guardar presupuesto
-              </Button>
+              {isQuoteMode ? (
+                <Button
+                  type="button"
+                  onClick={saveQuote}
+                  disabled={isPending || lines.length === 0}
+                  className="h-14 gap-2 text-lg sm:col-span-2"
+                >
+                  <Save className="size-6" aria-hidden="true" />
+                  Guardar presupuesto
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    type="button"
+                    onClick={registerSale}
+                    disabled={
+                      isPending || lines.length === 0 || hasOutOfStockLines
+                    }
+                    className="h-14 gap-2 text-lg"
+                  >
+                    <ShoppingCart className="size-6" aria-hidden="true" />
+                    {isPending ? "Procesando..." : "Venta"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={saveQuote}
+                    disabled={isPending || lines.length === 0}
+                    className="h-14 gap-2 text-lg"
+                  >
+                    <Save className="size-6" aria-hidden="true" />
+                    Guardar presupuesto
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </aside>
@@ -641,6 +726,28 @@ function CashStatusLine({ cashStatus }: { cashStatus: CashStatus }) {
   );
 }
 
+function ModeButton({
+  active,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <Button
+      type="button"
+      variant={active ? "default" : "outline"}
+      onClick={onClick}
+      className="h-14 text-lg"
+      aria-pressed={active}
+    >
+      {label}
+    </Button>
+  );
+}
+
 function ProductResult({
   product,
   onAdd,
@@ -648,8 +755,10 @@ function ProductResult({
   product: QuoteProduct;
   onAdd: () => void;
 }) {
+  const inStock = product.availableForSale;
+
   return (
-    <div className="grid gap-3 rounded-lg border border-border bg-background p-4 md:grid-cols-[140px_minmax(0,1fr)_150px_120px_auto] md:items-center">
+    <div className="grid gap-3 rounded-lg border border-border bg-background p-4 md:grid-cols-[130px_minmax(0,1fr)_140px_120px_110px_auto] md:items-center">
       <div>
         <p className="text-sm font-semibold text-muted-foreground">Codigo</p>
         <p className="font-mono text-base font-bold">{product.code}</p>
@@ -669,6 +778,18 @@ function ProductResult({
         <p className="text-lg font-bold">
           {formatStock(product.stockQuantity)} {product.unit}
         </p>
+      </div>
+      <div>
+        <p className="text-sm font-semibold text-muted-foreground">Estado</p>
+        <span
+          className={
+            inStock
+              ? "inline-flex rounded-full border border-emerald-500/40 bg-emerald-50 px-3 py-1 text-sm font-bold text-emerald-800"
+              : "inline-flex rounded-full border border-yellow-500/40 bg-yellow-50 px-3 py-1 text-sm font-bold text-yellow-900"
+          }
+        >
+          {inStock ? "Con stock" : "A pedido"}
+        </span>
       </div>
       <Button type="button" onClick={onAdd} className="h-12 gap-2 px-5 text-base">
         <Plus className="size-5" aria-hidden="true" />

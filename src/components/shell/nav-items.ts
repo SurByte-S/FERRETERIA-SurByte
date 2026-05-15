@@ -33,10 +33,10 @@ export const navigationItems = [
 
 export const secondaryNavigationItems = [
   {
-    title: "Administracion",
+    title: "Encargado",
     href: "/ajustes",
     icon: LayoutGrid,
-    description: "Opciones del encargado",
+    description: "Administracion",
   },
 ] as const;
 

@@ -40,7 +40,10 @@ export function SidebarNav() {
         })}
       </div>
 
-      <div className="grid gap-2 border-t border-border pt-3">
+      <div className="mt-4 grid gap-2 border-t border-border pt-3 opacity-80">
+        <p className="px-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Encargado
+        </p>
         {secondaryNavigationItems.map((item) => {
           const Icon = item.icon;
           const active =

@@ -7,6 +7,7 @@ export type QuoteProduct = {
   price: number;
   stockQuantity: number;
   minStock: number;
+  availableForSale: boolean;
 };
 
 export type QuoteLine = QuoteProduct & {

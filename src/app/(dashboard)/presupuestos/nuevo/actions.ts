@@ -53,6 +53,7 @@ function mapProduct(row: ProductRow): QuoteProduct {
     price: row.sale_price ?? 0,
     stockQuantity: row.stock_quantity ?? 0,
     minStock: row.min_stock ?? 0,
+    availableForSale: (row.stock_quantity ?? 0) > 0,
   };
 }
 
@@ -128,7 +129,8 @@ function getConvertQuoteErrorMessage(message?: string) {
 }
 
 export async function searchQuoteProductsAction(
-  rawSearch: string
+  rawSearch: string,
+  includeOutOfStock = false
 ): Promise<QuoteProduct[]> {
   const search = cleanSearch(rawSearch);
 
@@ -139,19 +141,24 @@ export async function searchQuoteProductsAction(
   try {
     const tenant = await requireTenantRole(["owner", "admin", "seller"]);
     const supabase = getSupabaseServerClient();
-    const { data, error } = await supabase
+    let query = supabase
       .from("products")
       .select(
         "id,sku,barcode,name,normalized_name,description,unit,sale_price,stock_quantity,min_stock"
       )
       .eq("tenant_id", tenant.id)
       .eq("active", true)
-      .gt("stock_quantity", 0)
       .or(
         `sku.ilike.%${search}%,barcode.ilike.%${search}%,name.ilike.%${search}%,normalized_name.ilike.%${search}%,description.ilike.%${search}%`
       )
       .order("name")
       .limit(15);
+
+    if (!includeOutOfStock) {
+      query = query.gt("stock_quantity", 0);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       return [];
@@ -164,7 +171,8 @@ export async function searchQuoteProductsAction(
 }
 
 export async function getQuoteProductBySkuAction(
-  rawSku: string
+  rawSku: string,
+  includeOutOfStock = false
 ): Promise<QuoteProduct | null> {
   const sku = cleanSearch(rawSku);
 
@@ -177,29 +185,35 @@ export async function getQuoteProductBySkuAction(
     const supabase = getSupabaseServerClient();
     const selectFields =
       "id,sku,barcode,name,normalized_name,description,unit,sale_price,stock_quantity,min_stock";
-    const skuResult = await supabase
+    let skuQuery = supabase
       .from("products")
       .select(selectFields)
       .eq("tenant_id", tenant.id)
       .eq("active", true)
-      .gt("stock_quantity", 0)
-      .ilike("sku", sku)
-      .limit(1)
-      .maybeSingle();
+      .ilike("sku", sku);
+
+    if (!includeOutOfStock) {
+      skuQuery = skuQuery.gt("stock_quantity", 0);
+    }
+
+    const skuResult = await skuQuery.limit(1).maybeSingle();
 
     if (!skuResult.error && skuResult.data) {
       return mapProduct(skuResult.data as unknown as ProductRow);
     }
 
-    const barcodeResult = await supabase
+    let barcodeQuery = supabase
       .from("products")
       .select(selectFields)
       .eq("tenant_id", tenant.id)
       .eq("active", true)
-      .gt("stock_quantity", 0)
-      .ilike("barcode", sku)
-      .limit(1)
-      .maybeSingle();
+      .ilike("barcode", sku);
+
+    if (!includeOutOfStock) {
+      barcodeQuery = barcodeQuery.gt("stock_quantity", 0);
+    }
+
+    const barcodeResult = await barcodeQuery.limit(1).maybeSingle();
 
     if (barcodeResult.error || !barcodeResult.data) {
       return null;
