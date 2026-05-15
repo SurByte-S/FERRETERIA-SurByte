@@ -1,7 +1,10 @@
 "use server";
 
 import { getSupabaseServerClient } from "@/lib/supabase";
-import { getCurrentTenant } from "@/lib/tenant";
+import {
+  isTenantRoleForbiddenError,
+  requireTenantRole,
+} from "@/lib/tenant";
 import {
   normalizeName,
   parseBoolean,
@@ -161,12 +164,20 @@ export async function importProductsAction(
   formData: FormData
 ): Promise<ImportState> {
   const file = formData.get("csvFile");
-  const tenant = getCurrentTenant();
+  let tenant;
+
+  try {
+    tenant = await requireTenantRole(["owner", "admin"]);
+  } catch (error) {
+    if (isTenantRoleForbiddenError(error)) {
+      return friendlyError("No tenes permiso para importar productos.");
+    }
+
+    throw error;
+  }
 
   if (!isUuid(tenant.id)) {
-    return friendlyError(
-      "Configura NEXT_PUBLIC_DEFAULT_TENANT_ID con el UUID real de la ferreteria antes de importar."
-    );
+    return friendlyError("No se pudo identificar la ferreteria para importar.");
   }
 
   if (!(file instanceof File) || file.size === 0) {
