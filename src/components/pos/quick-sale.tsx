@@ -144,7 +144,7 @@ export function QuickSale({
         setResults(found);
         setMessage(
           found.length > 0
-            ? "Elegi un producto de la lista para agregarlo."
+            ? "Elegí un producto de la lista para agregarlo."
             : isQuoteMode
               ? "No encontramos productos para esa búsqueda."
               : "No encontramos productos con stock para esa búsqueda."
@@ -160,7 +160,7 @@ export function QuickSale({
     setResults([]);
     setMessage(
       nextMode === "quote"
-        ? "Modo presupuesto: podes buscar productos aunque no tengan stock."
+        ? "Modo presupuesto: podés buscar productos aunque no tengan stock."
         : EMPTY_SEARCH_MESSAGE
     );
     window.setTimeout(() => searchInputRef.current?.focus(), 0);
@@ -249,7 +249,7 @@ export function QuickSale({
       setResults(found);
       setMessage(
         found.length > 0
-          ? "Elegi un producto de la lista para agregarlo."
+          ? "Elegí un producto de la lista para agregarlo."
           : isQuoteMode
             ? "No encontramos productos para esa búsqueda."
             : "No encontramos productos con stock para esa búsqueda."
@@ -283,7 +283,7 @@ export function QuickSale({
 
   function removeLine(sku: string) {
     const confirmed = window.confirm(
-      "Vas a quitar este producto. Queres continuar?"
+      "Vas a quitar este producto. ¿Querés continuar?"
     );
 
     if (!confirmed) {
@@ -407,8 +407,8 @@ export function QuickSale({
           disabled={isPending || !search.trim()}
           className="h-16 w-full gap-2 px-6 text-lg lg:w-auto"
         >
-          <Plus className="size-6" aria-hidden="true" />
-          Agregar
+          <Search className="size-6" aria-hidden="true" />
+          Buscar
         </Button>
       </section>
 
@@ -456,7 +456,7 @@ export function QuickSale({
               <p className="text-sm font-medium text-muted-foreground">
                 {isQuoteMode
                   ? "Guarda el presupuesto al finalizar."
-                  : "Elegi Venta o Guardar presupuesto al finalizar."}
+                  : "Elegí Venta o Guardar presupuesto al finalizar."}
               </p>
             </div>
             <ClipboardList className="size-6 text-primary" aria-hidden="true" />
@@ -465,7 +465,7 @@ export function QuickSale({
           <div className="min-h-[140px] flex-1 overflow-y-auto p-3">
             {lines.length === 0 ? (
               <div className="grid h-full min-h-48 place-items-center rounded-lg border border-dashed border-border bg-background p-5 text-center text-base font-semibold text-muted-foreground">
-                Todavia no agregaste productos.
+                Todavía no agregaste productos.
               </div>
             ) : (
               <div className="grid gap-3">
@@ -540,7 +540,7 @@ export function QuickSale({
               <div className="grid gap-3 border-t border-border p-3">
                 <p className="text-sm text-muted-foreground">
                   El cliente es opcional. Agregalo solo si necesitas cuenta
-                  corriente, garantia o seguimiento.
+                  corriente, garantía o seguimiento.
                 </p>
                 <Field label="Cliente guardado">
                   <select
@@ -567,7 +567,7 @@ export function QuickSale({
                   />
                 </Field>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <Field label="Telefono">
+                  <Field label="Teléfono">
                     <input
                       value={customer.phone}
                       onChange={(event) =>
@@ -715,7 +715,7 @@ function CashStatusLine({ cashStatus }: { cashStatus: CashStatus }) {
               ? `${formatDate(cashStatus.openedAt)} - ${formatMoney(
                   cashStatus.expectedCash
                 )}`
-              : "Abri caja antes de cobrar en efectivo."}
+              : "Abrí caja antes de cobrar en efectivo."}
           </p>
         </div>
       </div>
@@ -760,7 +760,7 @@ function ProductResult({
   return (
     <div className="grid gap-3 rounded-lg border border-border bg-background p-4 md:grid-cols-[130px_minmax(0,1fr)_140px_120px_110px_auto] md:items-center">
       <div>
-        <p className="text-sm font-semibold text-muted-foreground">Codigo</p>
+        <p className="text-sm font-semibold text-muted-foreground">Código</p>
         <p className="font-mono text-base font-bold">{product.code}</p>
       </div>
       <div className="min-w-0">

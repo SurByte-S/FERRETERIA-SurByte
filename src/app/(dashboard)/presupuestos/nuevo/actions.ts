@@ -152,7 +152,7 @@ export async function searchQuoteProductsAction(
         `sku.ilike.%${search}%,barcode.ilike.%${search}%,name.ilike.%${search}%,normalized_name.ilike.%${search}%,description.ilike.%${search}%`
       )
       .order("name")
-      .limit(15);
+      .limit(30);
 
     if (!includeOutOfStock) {
       query = query.gt("stock_quantity", 0);
