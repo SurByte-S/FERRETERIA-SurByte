@@ -1,4 +1,5 @@
 import { AlertTriangle, Edit3, PackagePlus, Search } from "lucide-react";
+import Link from "next/link";
 
 import { ProductEditForm } from "@/components/productos/product-edit-form";
 import { StockAdjustForm } from "@/components/productos/stock-adjust-form";
@@ -22,8 +23,9 @@ const PAGE_SIZE = 80;
 
 type StockPageProps = {
   searchParams: Promise<{
+    conStock?: string | string[];
     q?: string;
-    sinStock?: string;
+    sinStock?: string | string[];
   }>;
 };
 
@@ -106,17 +108,48 @@ function stockStatus(product: ProductListItem) {
   };
 }
 
+function buildStockHref({
+  q,
+  onlyOutOfStock = false,
+  onlyWithStock = true,
+}: {
+  q: string;
+  onlyOutOfStock?: boolean;
+  onlyWithStock?: boolean;
+}) {
+  const params = new URLSearchParams();
+
+  if (q) {
+    params.set("q", q);
+  }
+
+  if (onlyOutOfStock) {
+    params.set("sinStock", "1");
+  } else if (!onlyWithStock) {
+    params.set("conStock", "0");
+  }
+
+  const query = params.toString();
+
+  return query ? `/stock?${query}` : "/stock";
+}
+
+function lastParam(value?: string | string[]) {
+  return Array.isArray(value) ? value.at(-1) : value;
+}
+
 export default async function StockPage({ searchParams }: StockPageProps) {
   const params = await searchParams;
   const q = (params.q ?? "").trim();
-  const onlyOutOfStock = params.sinStock === "1";
-  const result = await loadStockProducts({ q, onlyOutOfStock });
+  const onlyOutOfStock = lastParam(params.sinStock) === "1";
+  const onlyWithStock = !onlyOutOfStock && lastParam(params.conStock) !== "0";
+  const result = await loadStockProducts({ q, onlyOutOfStock, onlyWithStock });
 
   return (
     <>
       <PageHeader
         title="Stock"
-        description="Busca un producto, revisa stock, ajusta stock o cambia precio."
+        description="Busca un producto para ver cuanto hay, ajustar stock o cambiar precio."
         backHref="/inicio"
         backLabel="Volver a vender"
       />
@@ -132,6 +165,10 @@ export default async function StockPage({ searchParams }: StockPageProps) {
             </CardHeader>
             <CardContent>
               <form className="grid gap-3 lg:grid-cols-[1fr_auto_auto]" action="/stock">
+                {onlyOutOfStock ? (
+                  <input type="hidden" name="sinStock" value="1" />
+                ) : null}
+                <input type="hidden" name="conStock" value="0" />
                 <label className="grid gap-2 text-base font-semibold">
                   <span>Producto</span>
                   <div className="relative">
@@ -147,27 +184,42 @@ export default async function StockPage({ searchParams }: StockPageProps) {
                 <label className="flex min-h-14 items-center gap-3 self-end rounded-lg border border-border bg-background px-4 text-base font-semibold">
                   <input
                     type="checkbox"
-                    name="sinStock"
+                    name="conStock"
                     value="1"
-                    defaultChecked={onlyOutOfStock}
+                    defaultChecked={onlyWithStock}
+                    disabled={onlyOutOfStock}
                     className="size-5"
                   />
-                  Ver sin stock
+                  Solo con stock
                 </label>
                 <Button type="submit" className="h-14 self-end gap-2 px-6 text-lg">
                   <Search className="size-6" aria-hidden="true" />
                   Buscar
                 </Button>
               </form>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button asChild variant="outline" className="h-11 px-4 text-base">
+                  <Link href={buildStockHref({ q, onlyWithStock: false })}>
+                    Ver todos
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" className="h-11 px-4 text-base">
+                  <Link href={buildStockHref({ q, onlyOutOfStock: true })}>
+                    Ver faltantes
+                  </Link>
+                </Button>
+              </div>
             </CardContent>
           </Card>
 
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-lg font-bold">
-              {result.products.length} productos
+              {onlyWithStock
+                ? `Productos con stock: ${result.products.length}`
+                : `Productos encontrados: ${result.products.length}`}
             </p>
             <p className="text-base font-semibold text-muted-foreground">
-              {result.outOfStockCount} sin stock
+              Productos sin stock: {result.outOfStockCount}
             </p>
           </div>
 
@@ -176,7 +228,9 @@ export default async function StockPage({ searchParams }: StockPageProps) {
               <CardHeader>
                 <CardTitle>No hay productos para mostrar</CardTitle>
                 <CardDescription>
-                  Cambia la busqueda o activa Ver sin stock.
+                  {onlyWithStock
+                    ? "No encontramos productos con stock para esa busqueda."
+                    : "No encontramos productos para esa busqueda."}
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -276,9 +330,11 @@ function StockProductCard({
 async function loadStockProducts({
   q,
   onlyOutOfStock,
+  onlyWithStock,
 }: {
   q: string;
   onlyOutOfStock: boolean;
+  onlyWithStock: boolean;
 }): Promise<
   | {
       ok: true;
@@ -325,6 +381,8 @@ async function loadStockProducts({
 
     if (onlyOutOfStock) {
       query = query.lte("stock_quantity", 0);
+    } else if (onlyWithStock) {
+      query = query.gt("stock_quantity", 0);
     }
 
     if (q.length >= 1) {
