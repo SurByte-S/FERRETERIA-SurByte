@@ -8,14 +8,14 @@ export default function ConfiguracionPage() {
     <>
       <PageHeader
         title="Datos de la ferreteria"
-        description="Define datos de la ferreteria, sucursales y preferencias de uso."
+        description="Datos importantes de la ferreteria."
         backHref="/inicio"
         backLabel="Volver al inicio"
       />
       <EmptyState
         icon={Settings}
         title="Datos del negocio"
-        text="Aca se conectaran los datos del negocio, usuarios y opciones del sistema."
+        text="Aca se cargaran los datos del negocio y opciones importantes."
         actionHref="/inicio"
         actionLabel="Volver al inicio"
       />

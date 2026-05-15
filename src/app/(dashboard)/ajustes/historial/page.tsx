@@ -15,13 +15,16 @@ export default function HistorialPage() {
   return (
     <>
       <PageHeader
-        title="Historial"
-        description="Ventas, presupuestos y clientes."
+        title="Revisar ventas y clientes"
+        description="Consulta ventas, presupuestos y clientes guardados."
         backHref="/ajustes"
-        backLabel="Volver a administracion"
+        backLabel="Volver a encargado"
       />
 
-      <section aria-label="Historial" className="grid max-w-4xl gap-4 md:grid-cols-3">
+      <section
+        aria-label="Revisar ventas y clientes"
+        className="grid max-w-4xl gap-4 md:grid-cols-3"
+      >
         {historyItems.map((item) => {
           const Icon = item.icon;
 
@@ -42,7 +45,7 @@ export default function HistorialPage() {
                 >
                   <Link href={item.href}>
                     <Icon className="size-5" aria-hidden="true" />
-                    Abrir
+                    Ver
                   </Link>
                 </Button>
               </CardContent>

@@ -33,25 +33,25 @@ export const navigationItems = [
 
 export const secondaryNavigationItems = [
   {
-    title: "Encargado",
+    title: "Solo encargado",
     href: "/ajustes",
     icon: LayoutGrid,
-    description: "Administracion",
+    description: "Revisar y editar datos",
   },
 ] as const;
 
 export const adminGroupItems = [
   {
-    title: "Historial",
+    title: "Revisar ventas y clientes",
     href: "/ajustes/historial",
     icon: History,
-    description: "Ventas, presupuestos y clientes.",
+    description: "Ventas realizadas, presupuestos guardados y datos de clientes.",
   },
   {
-    title: "Configuracion",
+    title: "Editar datos",
     href: "/ajustes/configuracion",
     icon: Settings,
-    description: "Productos y datos de la ferreteria.",
+    description: "Productos, precios y datos de la ferreteria.",
   },
 ] as const;
 
@@ -63,13 +63,13 @@ export const historyItems = [
     description: "Datos de clientes y cuenta corriente",
   },
   {
-    title: "Historial de ventas",
+    title: "Ventas realizadas",
     href: "/ventas",
     icon: ShoppingCart,
     description: "Ventas realizadas e impresion de comprobantes",
   },
   {
-    title: "Presupuestos",
+    title: "Presupuestos guardados",
     href: "/presupuestos",
     icon: ClipboardList,
     description: "Presupuestos guardados",

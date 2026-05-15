@@ -15,18 +15,19 @@ export default function AjustesPage() {
   return (
     <>
       <PageHeader
-        title="Administracion"
-        description="Estas opciones son para revisar informacion o cambiar datos del sistema."
+        title="Solo encargado"
+        description="Estas opciones son para revisar ventas, clientes o cambiar datos importantes."
         backHref="/inicio"
         backLabel="Volver a vender"
       />
 
       <section
-        aria-label="Administracion"
+        aria-label="Solo encargado"
         className="grid max-w-4xl gap-4 md:grid-cols-2"
       >
-        {adminGroupItems.map((item) => {
+        {adminGroupItems.map((item, index) => {
           const Icon = item.icon;
+          const actionLabel = index === 0 ? "Ver" : "Editar";
 
           return (
             <Card key={item.href}>
@@ -45,7 +46,7 @@ export default function AjustesPage() {
                 >
                   <Link href={item.href}>
                     <Icon className="size-5" aria-hidden="true" />
-                    Abrir
+                    {actionLabel}
                   </Link>
                 </Button>
               </CardContent>

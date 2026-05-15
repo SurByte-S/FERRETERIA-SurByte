@@ -15,14 +15,14 @@ export default function AjustesConfiguracionPage() {
   return (
     <>
       <PageHeader
-        title="Configuracion"
-        description="Productos y datos de la ferreteria."
+        title="Editar datos"
+        description="Cambiar productos, precios o datos de la ferreteria."
         backHref="/ajustes"
-        backLabel="Volver a administracion"
+        backLabel="Volver a encargado"
       />
 
       <section
-        aria-label="Configuracion"
+        aria-label="Editar datos"
         className="grid max-w-3xl gap-4 md:grid-cols-2"
       >
         {configurationItems.map((item) => {
@@ -45,7 +45,7 @@ export default function AjustesConfiguracionPage() {
                 >
                   <Link href={item.href}>
                     <Icon className="size-5" aria-hidden="true" />
-                    Abrir
+                    Editar
                   </Link>
                 </Button>
               </CardContent>
