@@ -385,7 +385,7 @@ export function ProductsBrowser({
                   ) : null}
 
                   <Button asChild className="h-14 gap-2 px-6 text-lg">
-                    <Link href={`/presupuestos/nuevo?sku=${encodeURIComponent(product.sku)}`}>
+                    <Link href={`/inicio?sku=${encodeURIComponent(product.sku)}`}>
                       <ClipboardList className="size-6" aria-hidden="true" />
                       Usar en venta
                     </Link>

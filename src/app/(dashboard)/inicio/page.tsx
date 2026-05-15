@@ -14,7 +14,12 @@ type SaleRow = {
   payment_method: string | null;
 };
 
-export default async function InicioPage() {
+export default async function InicioPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ sku?: string }>;
+}) {
+  const { sku } = await searchParams;
   const tenant = await requireTenant();
   const supabase = getSupabaseServerClient();
   const [cashStatus, customers] = await Promise.all([
@@ -22,7 +27,7 @@ export default async function InicioPage() {
     loadCustomers(tenant.id, supabase),
   ]);
 
-  return <QuickSale customers={customers} cashStatus={cashStatus} />;
+  return <QuickSale initialSku={sku} customers={customers} cashStatus={cashStatus} />;
 }
 
 async function loadCustomers(
