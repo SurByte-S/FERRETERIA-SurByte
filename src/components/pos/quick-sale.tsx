@@ -29,7 +29,7 @@ import type {
 } from "@/components/presupuestos/quote-types";
 
 const EMPTY_SEARCH_MESSAGE =
-  "Busca por codigo, barra, nombre o detalle.";
+  "Buscá por código, barra, nombre o detalle.";
 
 const PAYMENT_METHODS = [
   "Efectivo",
@@ -109,10 +109,10 @@ export function QuickSale({
   );
   const isQuoteMode = mode === "quote";
   const modeHelp = isQuoteMode
-    ? "Busca productos del catalogo, aunque no tengan stock."
-    : "Busca productos con stock para vender.";
+    ? "Buscá productos del catálogo, aunque no tengan stock."
+    : "Buscá productos con stock para vender.";
   const resultHelp = isQuoteMode
-    ? "Productos del catalogo. Los faltantes salen como A pedido."
+    ? "Productos del catálogo. Los faltantes salen como A pedido."
     : "Solo productos con stock disponible.";
 
   useEffect(() => {
@@ -146,8 +146,8 @@ export function QuickSale({
           found.length > 0
             ? "Elegi un producto de la lista para agregarlo."
             : isQuoteMode
-              ? "No encontramos productos para esa busqueda."
-              : "No encontramos productos con stock para esa busqueda."
+              ? "No encontramos productos para esa búsqueda."
+              : "No encontramos productos con stock para esa búsqueda."
         );
       });
     }, 250);
@@ -251,8 +251,8 @@ export function QuickSale({
         found.length > 0
           ? "Elegi un producto de la lista para agregarlo."
           : isQuoteMode
-            ? "No encontramos productos para esa busqueda."
-            : "No encontramos productos con stock para esa busqueda."
+            ? "No encontramos productos para esa búsqueda."
+            : "No encontramos productos con stock para esa búsqueda."
       );
     });
   }
