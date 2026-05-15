@@ -20,8 +20,18 @@ const errorState = {
   message: "Necesitan revisión. No se pudo guardar el producto.",
 };
 
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value
+  );
+}
+
 function textValue(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
+}
+
+function numberValue(value: string) {
+  return Number(value.replace(",", "."));
 }
 
 function stockErrorMessage(message?: string) {
@@ -200,12 +210,73 @@ export async function updateProductAction(
   }
 }
 
+export async function updateProductPriceAction(
+  _previousState: ProductActionState,
+  formData: FormData
+): Promise<ProductActionState> {
+  const productId = textValue(formData, "productId");
+  const salePrice = numberValue(textValue(formData, "salePrice"));
+
+  if (!isUuid(productId)) {
+    return {
+      ok: false,
+      message: "No se encontro el producto.",
+    };
+  }
+
+  if (!Number.isFinite(salePrice) || salePrice < 0) {
+    return {
+      ok: false,
+      message: "Ingresa un precio valido.",
+    };
+  }
+
+  try {
+    const tenant = await requireTenantRole(["owner", "admin"]);
+    const supabase = getSupabaseServerClient();
+    const { data, error } = await supabase
+      .from("products")
+      .update({ sale_price: salePrice })
+      .eq("tenant_id", tenant.id)
+      .eq("id", productId)
+      .select("id")
+      .maybeSingle();
+
+    if (error || !data) {
+      return {
+        ok: false,
+        message: "No se pudo actualizar el precio.",
+      };
+    }
+
+    revalidatePath("/productos");
+    revalidatePath("/stock");
+
+    return {
+      ok: true,
+      message: "Precio actualizado correctamente.",
+    };
+  } catch (error) {
+    if (isTenantRoleForbiddenError(error)) {
+      return {
+        ok: false,
+        message: FORBIDDEN_ACTION_MESSAGE,
+      };
+    }
+
+    return {
+      ok: false,
+      message: "No se pudo actualizar el precio.",
+    };
+  }
+}
+
 export async function adjustProductStockAction(
   _previousState: ProductActionState,
   formData: FormData
 ): Promise<ProductActionState> {
   const productId = textValue(formData, "productId");
-  const newStock = Number(textValue(formData, "newStock").replace(",", "."));
+  const newStock = numberValue(textValue(formData, "newStock"));
   const notes = textValue(formData, "notes");
 
   if (!productId) {

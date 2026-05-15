@@ -1,12 +1,9 @@
 import { AlertTriangle, Edit3, PackagePlus, Search } from "lucide-react";
 import Link from "next/link";
 
-import { ProductEditForm } from "@/components/productos/product-edit-form";
+import { ProductPriceForm } from "@/components/productos/product-price-form";
 import { StockAdjustForm } from "@/components/productos/stock-adjust-form";
-import type {
-  ProductCatalogOption,
-  ProductListItem,
-} from "@/components/productos/product-types";
+import type { ProductListItem } from "@/components/productos/product-types";
 import { PageHeader } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,11 +43,6 @@ type ProductRow = {
   brand_id: string | null;
   categories: { name: string } | null;
   brands: { name: string } | null;
-};
-
-type CatalogRow = {
-  id: string;
-  name: string;
 };
 
 function formatMoney(value: number | null) {
@@ -240,7 +232,8 @@ export default async function StockPage({ searchParams }: StockPageProps) {
                 <StockProductCard
                   key={product.id}
                   product={product}
-                  categories={result.categories}
+                  canAdjustStock={result.canAdjustStock}
+                  canEditPrice={result.canEditPrice}
                 />
               ))}
             </div>
@@ -263,10 +256,12 @@ export default async function StockPage({ searchParams }: StockPageProps) {
 
 function StockProductCard({
   product,
-  categories,
+  canAdjustStock,
+  canEditPrice,
 }: {
   product: ProductListItem;
-  categories: ProductCatalogOption[];
+  canAdjustStock: boolean;
+  canEditPrice: boolean;
 }) {
   const status = stockStatus(product);
 
@@ -299,29 +294,38 @@ function StockProductCard({
         </div>
       </CardHeader>
       <CardContent className="grid gap-3">
-        <details>
-          <summary className="list-none">
-            <Button asChild className="h-14 gap-2 px-6 text-lg">
-              <span>
-                <PackagePlus className="size-6" aria-hidden="true" />
-                Ajustar stock
-              </span>
-            </Button>
-          </summary>
-          <StockAdjustForm product={product} />
-        </details>
+        {canAdjustStock ? (
+          <details>
+            <summary className="list-none">
+              <Button asChild className="h-14 gap-2 px-6 text-lg">
+                <span>
+                  <PackagePlus className="size-6" aria-hidden="true" />
+                  Ajustar stock
+                </span>
+              </Button>
+            </summary>
+            <StockAdjustForm product={product} />
+          </details>
+        ) : null}
 
-        <details>
-          <summary className="list-none">
-            <Button asChild variant="outline" className="h-14 gap-2 px-6 text-lg">
-              <span>
-                <Edit3 className="size-6" aria-hidden="true" />
-                Cambiar precio
-              </span>
-            </Button>
-          </summary>
-          <ProductEditForm product={product} categories={categories} />
-        </details>
+        {canEditPrice ? (
+          <details>
+            <summary className="list-none">
+              <Button asChild variant="outline" className="h-14 gap-2 px-6 text-lg">
+                <span>
+                  <Edit3 className="size-6" aria-hidden="true" />
+                  Cambiar precio
+                </span>
+              </Button>
+            </summary>
+            <ProductPriceForm
+              productId={product.id}
+              sku={product.sku}
+              name={product.name}
+              salePrice={product.salePrice}
+            />
+          </details>
+        ) : null}
       </CardContent>
     </Card>
   );
@@ -339,35 +343,23 @@ async function loadStockProducts({
   | {
       ok: true;
       products: ProductListItem[];
-      categories: ProductCatalogOption[];
       outOfStockCount: number;
+      canAdjustStock: boolean;
+      canEditPrice: boolean;
     }
   | { ok: false; message: string }
 > {
   try {
     const tenant = await requireTenant();
     const supabase = getSupabaseServerClient();
-    const [categoriesResult, outOfStockResult] = await Promise.all([
-      supabase
-        .from("categories")
-        .select("id,name")
-        .eq("tenant_id", tenant.id)
-        .eq("active", true)
-        .order("name"),
-      supabase
-        .from("products")
-        .select("id", { count: "exact", head: true })
-        .eq("tenant_id", tenant.id)
-        .eq("active", true)
-        .lte("stock_quantity", 0),
-    ]);
-
-    if (categoriesResult.error) {
-      return {
-        ok: false,
-        message: "No se pudieron cargar las categorias.",
-      };
-    }
+    const canAdjustStock = ["owner", "admin", "seller"].includes(tenant.role);
+    const canEditPrice = ["owner", "admin"].includes(tenant.role);
+    const outOfStockResult = await supabase
+      .from("products")
+      .select("id", { count: "exact", head: true })
+      .eq("tenant_id", tenant.id)
+      .eq("active", true)
+      .lte("stock_quantity", 0);
 
     let query = supabase
       .from("products")
@@ -401,18 +393,12 @@ async function loadStockProducts({
       };
     }
 
-    const categories = ((categoriesResult.data ?? []) as CatalogRow[]).map(
-      (item) => ({
-        id: item.id,
-        name: item.name,
-      })
-    );
-
     return {
       ok: true,
       products: ((data ?? []) as unknown as ProductRow[]).map(mapProduct),
-      categories,
       outOfStockCount: outOfStockResult.count ?? 0,
+      canAdjustStock,
+      canEditPrice,
     };
   } catch {
     return {
