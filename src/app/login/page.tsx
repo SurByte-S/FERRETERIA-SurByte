@@ -23,7 +23,7 @@ export default async function LoginPage() {
             Ingresar a {ferreteriaGuemesBrand.brandName}
           </CardTitle>
           <CardDescription>
-            Sistema de gestion
+            Mostrador de ventas
           </CardDescription>
         </CardHeader>
         <CardContent>

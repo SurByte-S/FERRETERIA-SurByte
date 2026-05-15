@@ -165,7 +165,7 @@ export async function importProductsAction(
 
   if (!isUuid(tenant.id)) {
     return friendlyError(
-      "Configura NEXT_PUBLIC_DEFAULT_TENANT_ID con el UUID real del tenant antes de importar."
+      "Configura NEXT_PUBLIC_DEFAULT_TENANT_ID con el UUID real de la ferreteria antes de importar."
     );
   }
 

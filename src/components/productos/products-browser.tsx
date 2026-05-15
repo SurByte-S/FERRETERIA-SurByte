@@ -147,7 +147,7 @@ export function ProductsBrowser({
         >
           <Link href={buildProductsHref({ code, name, categoryId, mode: "mostrador" })}>
             <PackageSearch className="size-6" aria-hidden="true" />
-            Modo mostrador
+            Vista simple
           </Link>
         </Button>
         <Button
@@ -164,7 +164,7 @@ export function ProductsBrowser({
             })}
           >
             <SlidersHorizontal className="size-6" aria-hidden="true" />
-            Modo administracion
+            Editar productos
           </Link>
         </Button>
       </div>
@@ -387,7 +387,7 @@ export function ProductsBrowser({
                   <Button asChild className="h-14 gap-2 px-6 text-lg">
                     <Link href={`/presupuestos/nuevo?sku=${encodeURIComponent(product.sku)}`}>
                       <ClipboardList className="size-6" aria-hidden="true" />
-                      Agregar al presupuesto
+                      Usar en venta
                     </Link>
                   </Button>
 

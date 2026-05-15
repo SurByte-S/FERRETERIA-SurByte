@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ClipboardList, Eye, Printer } from "lucide-react";
+import { Eye, Printer, ShoppingCart } from "lucide-react";
 
 import { PageHeader } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
@@ -70,9 +70,9 @@ export default async function PresupuestosPage() {
 
       <div className="no-print mb-6">
         <Button asChild className="h-14 gap-3 px-6 text-lg">
-          <Link href="/presupuestos/nuevo">
-            <ClipboardList className="size-6" aria-hidden="true" />
-            Nuevo presupuesto
+          <Link href="/inicio">
+            <ShoppingCart className="size-6" aria-hidden="true" />
+            Ir a vender
           </Link>
         </Button>
       </div>
@@ -96,9 +96,9 @@ export default async function PresupuestosPage() {
           </CardHeader>
           <CardContent>
             <Button asChild className="h-14 gap-2 px-6 text-lg">
-              <Link href="/presupuestos/nuevo">
-                <ClipboardList className="size-6" aria-hidden="true" />
-                Nuevo presupuesto
+              <Link href="/inicio">
+                <ShoppingCart className="size-6" aria-hidden="true" />
+                Ir a vender
               </Link>
             </Button>
           </CardContent>

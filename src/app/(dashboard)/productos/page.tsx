@@ -294,7 +294,7 @@ async function loadProducts({
       return {
         ok: false,
         message:
-          "No se pudieron cargar productos. Revisa el tenant, las migraciones y las claves de Supabase.",
+          "No se pudieron cargar productos. Revisa la ferreteria, las migraciones y las claves de Supabase.",
       };
     }
 
@@ -314,7 +314,7 @@ async function loadProducts({
   } catch {
     return {
       ok: false,
-      message: "Configura Supabase y el tenant antes de usar la pantalla de productos.",
+      message: "Configura Supabase y la ferreteria antes de usar la pantalla de productos.",
     };
   }
 }

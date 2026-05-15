@@ -81,7 +81,7 @@ export const configurationItems = [
     title: "Editar productos",
     href: "/productos",
     icon: PackageSearch,
-    description: "Productos, fotos e historial.",
+    description: "Cambiar datos, fotos y detalles de productos.",
   },
   {
     title: "Datos de la ferreteria",

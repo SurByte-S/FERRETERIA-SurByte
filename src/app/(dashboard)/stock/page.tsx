@@ -359,7 +359,7 @@ async function loadStockProducts({
   } catch {
     return {
       ok: false,
-      message: "Configura Supabase y el tenant antes de usar Stock.",
+      message: "Configura Supabase y la ferreteria antes de usar Stock.",
     };
   }
 }
