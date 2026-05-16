@@ -69,7 +69,7 @@ export default async function PresupuestosPage() {
       />
 
       <div className="no-print mb-6">
-        <Button asChild className="h-14 gap-3 px-6 text-lg">
+        <Button asChild className="h-11 gap-2 px-5 text-base xl:h-14 xl:gap-3 xl:px-6 xl:text-lg">
           <Link href="/inicio">
             <ShoppingCart className="size-6" aria-hidden="true" />
             Ir a vender
@@ -95,7 +95,7 @@ export default async function PresupuestosPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button asChild className="h-14 gap-2 px-6 text-lg">
+            <Button asChild className="h-11 gap-2 px-5 text-base xl:h-14 xl:px-6 xl:text-lg">
               <Link href="/inicio">
                 <ShoppingCart className="size-6" aria-hidden="true" />
                 Ir a vender
@@ -107,12 +107,12 @@ export default async function PresupuestosPage() {
         <div className="grid gap-4">
           {quotes.map((quote) => (
             <Card key={quote.id}>
-              <CardContent className="grid gap-4 p-5 lg:grid-cols-[1fr_auto] lg:items-center">
-                <div>
+              <CardContent className="grid gap-3 p-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center xl:p-5">
+                <div className="min-w-0">
                   <p className="text-sm text-muted-foreground">
                     {formatDate(quote.created_at)}
                   </p>
-                  <h2 className="mt-1 text-2xl font-bold">
+                  <h2 className="mt-1 text-xl font-bold xl:text-2xl">
                     Presupuesto #{quote.quote_number}
                   </h2>
                   <p className="mt-2 text-lg">
@@ -122,17 +122,17 @@ export default async function PresupuestosPage() {
                     Estado: {statusLabel(quote.status)}
                   </p>
                 </div>
-                <div className="grid gap-3 sm:grid-cols-[auto_auto_auto] lg:justify-end">
-                  <p className="rounded-lg border border-border bg-background p-4 text-2xl font-bold">
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap xl:justify-end">
+                  <p className="rounded-lg border border-border bg-background p-3 text-xl font-bold xl:p-4 xl:text-2xl">
                     {formatMoney(quote.total)}
                   </p>
-                  <Button asChild className="h-14 gap-2 px-5 text-lg">
+                  <Button asChild className="h-11 gap-2 px-4 text-base xl:h-14 xl:px-5 xl:text-lg">
                     <Link href={`/presupuestos/${quote.id}`}>
                       <Eye className="size-6" aria-hidden="true" />
                       Ver
                     </Link>
                   </Button>
-                  <Button asChild variant="outline" className="h-14 gap-2 px-5 text-lg">
+                  <Button asChild variant="outline" className="h-11 gap-2 px-4 text-base xl:h-14 xl:px-5 xl:text-lg">
                     <Link href={`/presupuestos/${quote.id}?print=1`}>
                       <Printer className="size-6" aria-hidden="true" />
                       Imprimir

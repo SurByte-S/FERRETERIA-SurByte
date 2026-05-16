@@ -16,9 +16,9 @@ export function DashboardShell({
 }) {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="grid min-h-screen lg:h-screen lg:grid-cols-[232px_minmax(0,1fr)] xl:grid-cols-[248px_minmax(0,1fr)]">
-        <aside className="no-print border-b border-border bg-sidebar lg:h-screen lg:overflow-y-auto lg:border-b-0 lg:border-r">
-          <div className="flex min-h-full flex-col gap-3 p-3 sm:p-4">
+      <div className="grid min-h-screen xl:h-screen xl:grid-cols-[212px_minmax(0,1fr)] 2xl:grid-cols-[232px_minmax(0,1fr)]">
+        <aside className="no-print border-b border-border bg-sidebar xl:h-screen xl:overflow-y-auto xl:border-b-0 xl:border-r">
+          <div className="flex min-h-full flex-col gap-2 p-2 sm:p-3 2xl:gap-3 2xl:p-4">
             <Link
               href="/inicio"
               className="flex min-h-12 items-center gap-3 rounded-lg border border-border bg-card px-3 text-left transition-colors hover:border-primary/30 hover:bg-secondary/50"
@@ -32,7 +32,7 @@ export function DashboardShell({
               </span>
             </Link>
             <SidebarNav />
-            <div className="mt-auto grid gap-3 rounded-lg border border-border bg-card p-3">
+            <div className="mt-auto grid gap-2 rounded-lg border border-border bg-card p-3">
               <div>
                 <p className="text-sm text-muted-foreground">Usuario</p>
                 <p className="break-all text-base font-semibold">
@@ -52,7 +52,7 @@ export function DashboardShell({
             </div>
           </div>
         </aside>
-        <main className="flex min-h-screen min-w-0 flex-col lg:h-screen">
+        <main className="flex min-h-screen min-w-0 flex-col xl:h-screen">
           <header className="no-print border-b border-border bg-card px-4 py-2 sm:px-5">
             <div className="flex items-center justify-between gap-4">
               <p className="text-lg font-bold text-primary">
@@ -69,7 +69,7 @@ export function DashboardShell({
               </div>
             </div>
           </header>
-          <div className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 lg:p-5">
+          <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto p-3 sm:p-4 2xl:p-5">
             {children}
           </div>
         </main>

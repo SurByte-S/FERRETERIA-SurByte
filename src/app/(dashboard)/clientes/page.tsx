@@ -92,7 +92,7 @@ export default async function ClientesPage() {
       />
 
       <div className="mb-6">
-        <Button asChild className="h-14 gap-2 px-6 text-lg">
+        <Button asChild className="h-11 gap-2 px-5 text-base xl:h-14 xl:px-6 xl:text-lg">
           <Link href="/clientes/nuevo">
             <Plus className="size-6" aria-hidden="true" />
             Nuevo cliente
@@ -121,7 +121,7 @@ export default async function ClientesPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button asChild className="h-14 gap-2 px-6 text-lg">
+            <Button asChild className="h-11 gap-2 px-5 text-base xl:h-14 xl:px-6 xl:text-lg">
               <Link href="/clientes/nuevo">
                 <Plus className="size-6" aria-hidden="true" />
                 Nuevo cliente
@@ -137,9 +137,9 @@ export default async function ClientesPage() {
 
             return (
               <Card key={customer.id}>
-                <CardContent className="grid gap-4 p-5 lg:grid-cols-[1fr_auto] lg:items-center">
-                  <div>
-                    <h2 className="text-2xl font-bold">{customer.name}</h2>
+                <CardContent className="grid gap-3 p-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center xl:p-5">
+                  <div className="min-w-0">
+                    <h2 className="truncate text-xl font-bold xl:text-2xl">{customer.name}</h2>
                     <p className="mt-2 text-lg">
                       Telefono: {customer.phone ?? "Sin telefono"}
                     </p>
@@ -154,11 +154,11 @@ export default async function ClientesPage() {
                       </p>
                     ) : null}
                   </div>
-                  <div className="grid gap-3 sm:grid-cols-[auto_auto_auto] lg:justify-end">
-                    <p className={`rounded-lg border p-4 text-2xl font-bold ${debt.className}`}>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap xl:justify-end">
+                    <p className={`rounded-lg border p-3 text-xl font-bold xl:p-4 xl:text-2xl ${debt.className}`}>
                       {debt.label}
                     </p>
-                    <Button asChild className="h-14 gap-2 px-5 text-lg">
+                    <Button asChild className="h-11 gap-2 px-4 text-base xl:h-14 xl:px-5 xl:text-lg">
                       <Link href={`/clientes/${customer.id}`}>
                         <Eye className="size-6" aria-hidden="true" />
                         Ver
@@ -167,7 +167,7 @@ export default async function ClientesPage() {
                     <Button
                       asChild
                       variant="outline"
-                      className="h-14 gap-2 px-5 text-lg"
+                      className="h-11 gap-2 px-4 text-base xl:h-14 xl:px-5 xl:text-lg"
                     >
                       <Link href={`/clientes/${customer.id}/editar`}>
                         <Edit className="size-6" aria-hidden="true" />

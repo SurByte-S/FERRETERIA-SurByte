@@ -341,15 +341,15 @@ export function QuickSale({
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-7rem)] flex-col gap-4">
-      <section className="grid gap-4 rounded-lg border border-primary/20 bg-card p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+    <div className="flex min-h-[calc(100vh-6rem)] flex-col gap-3 xl:gap-4">
+      <section className="grid gap-3 rounded-lg border border-primary/20 bg-card p-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end xl:p-4">
         <div className="grid gap-3">
           <div className="flex flex-wrap items-center gap-3">
             <span className="flex size-11 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <Search className="size-6" aria-hidden="true" />
             </span>
             <div>
-              <h1 className="text-2xl font-bold leading-tight text-primary">
+              <h1 className="text-xl font-bold leading-tight text-primary xl:text-2xl">
                 Vender
               </h1>
               <p className="text-base text-muted-foreground">
@@ -358,7 +358,7 @@ export function QuickSale({
             </div>
           </div>
 
-          <div className="grid gap-2 sm:grid-cols-2 lg:max-w-md">
+          <div className="grid gap-2 sm:grid-cols-2 xl:max-w-md">
             <ModeButton
               active={mode === "sale"}
               label="Venta"
@@ -371,7 +371,7 @@ export function QuickSale({
             />
           </div>
 
-          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_140px]">
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_120px] 2xl:grid-cols-[minmax(0,1fr)_140px]">
             <label className="grid gap-2 text-base font-semibold">
               <span>Producto</span>
               <div className="relative">
@@ -382,7 +382,7 @@ export function QuickSale({
                   onChange={(event) => handleSearchChange(event.target.value)}
                   onKeyDown={handleSearchKeyDown}
                   placeholder={EMPTY_SEARCH_MESSAGE}
-                  className="h-16 w-full rounded-lg border border-input bg-background pl-12 pr-4 text-xl"
+                  className="h-12 w-full rounded-lg border border-input bg-background pl-11 pr-3 text-base xl:h-14 xl:pl-12 xl:pr-4 xl:text-lg"
                 />
               </div>
             </label>
@@ -395,7 +395,7 @@ export function QuickSale({
                 min="1"
                 step="1"
                 type="number"
-                className="h-16 rounded-lg border border-input bg-background px-3 text-xl"
+                className="h-12 rounded-lg border border-input bg-background px-3 text-base xl:h-14 xl:text-lg"
               />
             </label>
           </div>
@@ -405,17 +405,17 @@ export function QuickSale({
           type="button"
           onClick={runSearch}
           disabled={isPending || !search.trim()}
-          className="h-16 w-full gap-2 px-6 text-lg lg:w-auto"
+          className="h-12 w-full gap-2 px-5 text-base xl:h-14 xl:w-auto xl:px-6 xl:text-lg"
         >
           <Search className="size-6" aria-hidden="true" />
           Buscar
         </Button>
       </section>
 
-      <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_400px] xl:grid-cols-[minmax(0,1fr)_420px]">
+      <div className="grid min-h-0 flex-1 gap-3 xl:grid-cols-[minmax(0,1fr)_340px] 2xl:grid-cols-[minmax(0,1fr)_380px]">
         <section
           aria-label="Productos encontrados"
-          className="flex min-h-[260px] flex-col overflow-hidden rounded-lg border border-border bg-card"
+          className="flex min-h-[220px] flex-col overflow-hidden rounded-lg border border-border bg-card"
         >
           <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
             <div>
@@ -447,7 +447,7 @@ export function QuickSale({
           </div>
         </section>
 
-        <aside className="flex min-h-[520px] flex-col overflow-hidden rounded-lg border border-primary/30 bg-card lg:sticky lg:top-0 lg:max-h-[calc(100vh-7.5rem)] lg:min-h-0 lg:self-start">
+        <aside className="flex min-h-[360px] flex-col overflow-hidden rounded-lg border border-primary/30 bg-card xl:sticky xl:top-0 xl:max-h-[calc(100vh-6.5rem)] xl:min-h-0 xl:self-start">
           <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
             <div>
               <h2 className="text-lg font-bold">
@@ -605,7 +605,7 @@ export function QuickSale({
             <div className="rounded-lg bg-primary p-4 text-primary-foreground">
               <div className="flex items-end justify-between gap-3">
                 <p className="text-lg font-semibold">Total</p>
-                <p className="text-4xl font-bold">{formatMoney(total)}</p>
+                <p className="text-2xl font-bold xl:text-3xl">{formatMoney(total)}</p>
               </div>
             </div>
 
@@ -650,7 +650,7 @@ export function QuickSale({
                   type="button"
                   onClick={saveQuote}
                   disabled={isPending || lines.length === 0}
-                  className="h-14 gap-2 text-lg sm:col-span-2"
+                  className="h-12 gap-2 text-base xl:h-14 xl:text-lg sm:col-span-2"
                 >
                   <Save className="size-6" aria-hidden="true" />
                   Guardar presupuesto
@@ -663,7 +663,7 @@ export function QuickSale({
                     disabled={
                       isPending || lines.length === 0 || hasOutOfStockLines
                     }
-                    className="h-14 gap-2 text-lg"
+                    className="h-12 gap-2 text-base xl:h-14 xl:text-lg"
                   >
                     <ShoppingCart className="size-6" aria-hidden="true" />
                     {isPending ? "Procesando..." : "Venta"}
@@ -673,7 +673,7 @@ export function QuickSale({
                     variant="outline"
                     onClick={saveQuote}
                     disabled={isPending || lines.length === 0}
-                    className="h-14 gap-2 text-lg"
+                    className="h-12 gap-2 text-base xl:h-14 xl:text-lg"
                   >
                     <Save className="size-6" aria-hidden="true" />
                     Guardar presupuesto
@@ -740,7 +740,7 @@ function ModeButton({
       type="button"
       variant={active ? "default" : "outline"}
       onClick={onClick}
-      className="h-14 text-lg"
+      className="h-11 text-base xl:h-14 xl:text-lg"
       aria-pressed={active}
     >
       {label}
@@ -758,24 +758,24 @@ function ProductResult({
   const inStock = product.availableForSale;
 
   return (
-    <div className="grid gap-3 rounded-lg border border-border bg-background p-4 md:grid-cols-[130px_minmax(0,1fr)_140px_120px_110px_auto] md:items-center">
+    <div className="grid gap-3 rounded-lg border border-border bg-background p-3 lg:grid-cols-[110px_minmax(0,1fr)_120px_100px_96px_auto] lg:items-center 2xl:grid-cols-[130px_minmax(0,1fr)_140px_120px_110px_auto] 2xl:p-4">
       <div>
         <p className="text-sm font-semibold text-muted-foreground">Código</p>
         <p className="font-mono text-base font-bold">{product.code}</p>
       </div>
       <div className="min-w-0">
         <p className="text-sm font-semibold text-muted-foreground">Producto</p>
-        <p className="truncate text-lg font-bold">
+        <p className="truncate text-base font-bold xl:text-lg">
           {product.name || product.description}
         </p>
       </div>
       <div>
         <p className="text-sm font-semibold text-muted-foreground">Precio</p>
-        <p className="text-lg font-bold">{formatMoney(product.price)}</p>
+        <p className="text-base font-bold xl:text-lg">{formatMoney(product.price)}</p>
       </div>
       <div>
         <p className="text-sm font-semibold text-muted-foreground">Stock</p>
-        <p className="text-lg font-bold">
+        <p className="text-base font-bold xl:text-lg">
           {formatStock(product.stockQuantity)} {product.unit}
         </p>
       </div>
@@ -791,7 +791,7 @@ function ProductResult({
           {inStock ? "Con stock" : "A pedido"}
         </span>
       </div>
-      <Button type="button" onClick={onAdd} className="h-12 gap-2 px-5 text-base">
+      <Button type="button" onClick={onAdd} className="h-11 gap-2 px-4 text-base xl:h-12 xl:px-5">
         <Plus className="size-5" aria-hidden="true" />
         Agregar
       </Button>
