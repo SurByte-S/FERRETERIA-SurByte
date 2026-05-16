@@ -1,0 +1,20 @@
+{
+  "archivo": "C:\\Users\\Administrator\\Desktop\\Proyectos\\FERRETERIA-SurByte\\data\\imports\\productos\\productos_tornillo alvearcsv.csv",
+  "modo": "real",
+  "tenant_id": "8b44ea4b-d279-4eba-a3c9-451d67205ffc",
+  "estado": "importado",
+  "total_filas": 51,
+  "productos_nuevos": 51,
+  "productos_actualizados": 0,
+  "productos_con_error": 0,
+  "duplicados_sku": [],
+  "duplicados_codigo": [],
+  "conflictos": [],
+  "errores_por_fila": [],
+  "import_batch_id": "49b33dcf-00d8-493b-8a76-82cc668d6238",
+  "insertados": 51,
+  "actualizados": 0,
+  "fecha_inicio": "2026-05-16T19:12:00.981Z",
+  "fecha_fin": "2026-05-16T19:12:02.498Z",
+  "error_fatal": null
+}
