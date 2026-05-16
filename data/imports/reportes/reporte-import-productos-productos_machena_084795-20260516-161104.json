@@ -1,0 +1,20 @@
+{
+  "archivo": "C:\\Users\\Administrator\\Desktop\\Proyectos\\FERRETERIA-SurByte\\data\\imports\\productos\\productos_machena_084795.csv",
+  "modo": "dry-run",
+  "tenant_id": "8b44ea4b-d279-4eba-a3c9-451d67205ffc",
+  "estado": "dry_run_ok",
+  "total_filas": 49,
+  "productos_nuevos": 49,
+  "productos_actualizados": 0,
+  "productos_con_error": 0,
+  "duplicados_sku": [],
+  "duplicados_codigo": [],
+  "conflictos": [],
+  "errores_por_fila": [],
+  "import_batch_id": null,
+  "insertados": 0,
+  "actualizados": 0,
+  "fecha_inicio": "2026-05-16T19:11:03.657Z",
+  "fecha_fin": "2026-05-16T19:11:04.588Z",
+  "error_fatal": null
+}

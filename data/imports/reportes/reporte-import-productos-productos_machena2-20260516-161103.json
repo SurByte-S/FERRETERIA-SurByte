@@ -1,0 +1,53 @@
+{
+  "archivo": "C:\\Users\\Administrator\\Desktop\\Proyectos\\FERRETERIA-SurByte\\data\\imports\\productos\\productos_machena2.csv",
+  "modo": "dry-run",
+  "tenant_id": "8b44ea4b-d279-4eba-a3c9-451d67205ffc",
+  "estado": "con_errores",
+  "total_filas": 37,
+  "productos_nuevos": 35,
+  "productos_actualizados": 0,
+  "productos_con_error": 4,
+  "duplicados_sku": [
+    "E16476F"
+  ],
+  "duplicados_codigo": [
+    "E16476F"
+  ],
+  "conflictos": [],
+  "errores_por_fila": [
+    {
+      "rowNumber": 34,
+      "sku": "E16476F",
+      "messages": [
+        "sku duplicado dentro del CSV: E16476F."
+      ]
+    },
+    {
+      "rowNumber": 35,
+      "sku": "E16476F",
+      "messages": [
+        "sku duplicado dentro del CSV: E16476F."
+      ]
+    },
+    {
+      "rowNumber": 34,
+      "codigo": "E16476F",
+      "messages": [
+        "codigo duplicado dentro del CSV: E16476F."
+      ]
+    },
+    {
+      "rowNumber": 35,
+      "codigo": "E16476F",
+      "messages": [
+        "codigo duplicado dentro del CSV: E16476F."
+      ]
+    }
+  ],
+  "import_batch_id": null,
+  "insertados": 0,
+  "actualizados": 0,
+  "fecha_inicio": "2026-05-16T19:11:00.403Z",
+  "fecha_fin": "2026-05-16T19:11:03.656Z",
+  "error_fatal": null
+}

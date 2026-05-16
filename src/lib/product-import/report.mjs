@@ -1,0 +1,32 @@
+export function buildImportReport({
+  file,
+  dryRun,
+  tenantId,
+  plan,
+  applied = null,
+  status,
+  startedAt,
+  finishedAt,
+  fatalError = null,
+}) {
+  return {
+    archivo: file,
+    modo: dryRun ? "dry-run" : "real",
+    tenant_id: tenantId,
+    estado: status,
+    total_filas: plan?.totalRows ?? 0,
+    productos_nuevos: plan?.newRows.length ?? 0,
+    productos_actualizados: plan?.updateRows.length ?? 0,
+    productos_con_error: plan?.errors.length ?? 0,
+    duplicados_sku: plan?.duplicateSkus ?? [],
+    duplicados_codigo: plan?.duplicateCodigos ?? [],
+    conflictos: plan?.conflicts ?? [],
+    errores_por_fila: plan?.errors ?? [],
+    import_batch_id: applied?.importBatchId ?? null,
+    insertados: applied?.inserted ?? 0,
+    actualizados: applied?.updated ?? 0,
+    fecha_inicio: startedAt,
+    fecha_fin: finishedAt,
+    error_fatal: fatalError,
+  };
+}
