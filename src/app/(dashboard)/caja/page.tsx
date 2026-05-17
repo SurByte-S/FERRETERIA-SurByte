@@ -149,7 +149,7 @@ export default async function CajaPage() {
             </CardContent>
           </Card>
 
-          <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+          <div className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_340px] 2xl:gap-6">
             <Card>
               <CardHeader>
                 <CardTitle>Total por forma de pago</CardTitle>
@@ -164,7 +164,7 @@ export default async function CajaPage() {
                   Object.entries(summary.totalsByMethod).map(([method, total]) => (
                     <div
                       key={method}
-                      className="flex items-center justify-between rounded-lg border border-border p-3"
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border p-3"
                     >
                       <span className="font-semibold">{method}</span>
                       <span className="text-lg font-bold">{formatMoney(total)}</span>
@@ -244,7 +244,7 @@ function CashHistory({ sessions }: { sessions: CashSessionRow[] }) {
           sessions.map((session) => (
             <div
               key={session.id}
-              className="grid gap-3 rounded-lg border border-border p-4 lg:grid-cols-[1fr_auto]"
+              className="grid gap-3 rounded-lg border border-border p-3 2xl:grid-cols-[minmax(0,1fr)_auto] 2xl:p-4"
             >
               <div>
                 <p className="text-sm text-muted-foreground">
@@ -258,7 +258,7 @@ function CashHistory({ sessions }: { sessions: CashSessionRow[] }) {
                 </p>
                 {session.notes ? <p>Nota: {session.notes}</p> : null}
               </div>
-              <div className="grid gap-2 sm:grid-cols-4">
+              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
                 <Metric label="Inicial" value={formatMoney(session.opening_amount)} />
                 <Metric label="Esperado" value={formatMoney(session.expected_cash_amount)} />
                 <Metric label="Contado" value={formatMoney(session.counted_cash_amount)} />

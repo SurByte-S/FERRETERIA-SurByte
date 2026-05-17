@@ -11,7 +11,7 @@ export function SidebarNav() {
   const pathname = usePathname();
 
   return (
-    <nav aria-label="Navegacion principal" className="grid gap-4">
+    <nav aria-label="Navegacion principal" className="grid gap-3">
       <div className="grid gap-2">
         {navigationItems.map((item) => {
           const Icon = item.icon;
@@ -25,7 +25,7 @@ export function SidebarNav() {
               asChild
               variant={active ? "default" : "ghost"}
               className={cn(
-                "h-14 justify-start gap-3 px-4 text-base",
+                "h-11 justify-start gap-2 px-3 text-sm 2xl:h-14 2xl:gap-3 2xl:px-4 2xl:text-base",
                 active
                   ? "bg-primary font-semibold text-primary-foreground"
                   : "text-muted-foreground hover:bg-secondary hover:text-primary"

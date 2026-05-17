@@ -138,12 +138,12 @@ export function ProductsBrowser({
   ].filter(Boolean) as { label: string; value: string }[];
 
   return (
-    <div className="grid gap-6">
-      <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-3 sm:flex-row">
+    <div className="grid gap-4 xl:gap-6">
+      <div className="flex flex-col gap-2 rounded-lg border border-border bg-card p-3 sm:flex-row">
         <Button
           asChild
           variant={mode === "mostrador" ? "default" : "outline"}
-          className="h-14 flex-1 gap-2 text-lg"
+          className="h-11 flex-1 gap-2 text-base xl:h-14 xl:text-lg"
         >
           <Link href={buildProductsHref({ code, name, categoryId, mode: "mostrador" })}>
             <PackageSearch className="size-6" aria-hidden="true" />
@@ -153,7 +153,7 @@ export function ProductsBrowser({
         <Button
           asChild
           variant={mode === "administracion" ? "default" : "outline"}
-          className="h-14 flex-1 gap-2 text-lg"
+          className="h-11 flex-1 gap-2 text-base xl:h-14 xl:text-lg"
         >
           <Link
             href={buildProductsHref({
@@ -177,7 +177,7 @@ export function ProductsBrowser({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form className="grid gap-4 xl:grid-cols-[260px_1fr_300px_auto]" action="/productos">
+          <form className="grid gap-3 2xl:grid-cols-[240px_minmax(0,1fr)_260px_auto]" action="/productos">
             <input type="hidden" name="modo" value={mode} />
             <label className="grid gap-2 text-base font-semibold">
               <span>Buscar por código</span>
@@ -185,7 +185,7 @@ export function ProductsBrowser({
                 name="codigo"
                 defaultValue={code}
                 placeholder="Ej: 12345 o código de barra"
-                className="h-14 rounded-lg border border-input bg-background px-4 text-lg"
+                className="h-11 rounded-lg border border-input bg-background px-3 text-base xl:h-14 xl:px-4 xl:text-lg"
               />
             </label>
 
@@ -197,7 +197,7 @@ export function ProductsBrowser({
                   name="nombre"
                   defaultValue={name}
                   placeholder="Ej: tornillo, pintura, llave"
-                  className="h-14 w-full rounded-lg border border-input bg-background pl-12 pr-4 text-lg"
+                  className="h-11 w-full rounded-lg border border-input bg-background pl-11 pr-3 text-base xl:h-14 xl:pl-12 xl:pr-4 xl:text-lg"
                 />
               </div>
               <span className="text-sm font-normal text-muted-foreground">
@@ -210,7 +210,7 @@ export function ProductsBrowser({
               <select
                 name="categoria"
                 defaultValue={categoryId}
-                className="h-14 rounded-lg border border-input bg-background px-3 text-base"
+                className="h-11 rounded-lg border border-input bg-background px-3 text-base xl:h-14"
               >
                 <option value="">Todas las categorías</option>
                 {categories.map((item) => (
@@ -222,7 +222,7 @@ export function ProductsBrowser({
             </label>
 
             <div className="flex items-end">
-              <Button type="submit" className="h-14 w-full gap-2 px-6 text-lg xl:w-auto">
+              <Button type="submit" className="h-11 w-full gap-2 px-5 text-base 2xl:w-auto xl:h-14 xl:px-6 xl:text-lg">
                 <PackageSearch className="size-6" aria-hidden="true" />
                 Buscar
               </Button>
@@ -246,13 +246,13 @@ export function ProductsBrowser({
               )}
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">
-              <Button asChild variant="outline" className="h-12 gap-2 px-4 text-base">
+              <Button asChild variant="outline" className="h-10 gap-2 px-3 text-sm xl:h-12 xl:px-4 xl:text-base">
                 <Link href={buildProductsHref({ mode })}>
                   <X className="size-5" aria-hidden="true" />
                   Limpiar busqueda
                 </Link>
               </Button>
-              <Button asChild variant="outline" className="h-12 gap-2 px-4 text-base">
+              <Button asChild variant="outline" className="h-10 gap-2 px-3 text-sm xl:h-12 xl:px-4 xl:text-base">
                 <Link href={buildProductsHref({ mode })}>
                   <PackageSearch className="size-5" aria-hidden="true" />
                   Ver todos
@@ -307,25 +307,25 @@ export function ProductsBrowser({
                 <div
                   className={
                     mode === "administracion"
-                      ? "grid gap-4 lg:grid-cols-[96px_1fr_auto] lg:items-start"
-                      : "grid gap-4 lg:grid-cols-[1fr_auto] lg:items-start"
+                      ? "grid gap-3 xl:grid-cols-[80px_minmax(0,1fr)_auto] xl:items-start 2xl:grid-cols-[96px_minmax(0,1fr)_auto]"
+                      : "grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start"
                   }
                 >
                   {mode === "administracion" ? <ProductThumb product={product} /> : null}
-                  <div>
+                  <div className="min-w-0">
                     <p className="mb-2 font-mono text-base text-muted-foreground">
                       Código: {product.sku}
                     </p>
-                    <CardTitle className="text-2xl">{product.name}</CardTitle>
+                    <CardTitle className="text-xl xl:text-2xl">{product.name}</CardTitle>
                     {mode === "administracion" ? (
                       <CardDescription className="mt-2">
                         {product.category || "Sin categoría"} - {product.brand || "Sin marca"}
                       </CardDescription>
                     ) : null}
                   </div>
-                  <div className="rounded-lg border border-border bg-background p-4 text-left lg:min-w-56">
+                  <div className="rounded-lg border border-border bg-background p-3 text-left xl:min-w-48 xl:p-4">
                     <p className="text-base text-muted-foreground">Precio de venta</p>
-                    <p className="mt-1 text-3xl font-bold">
+                    <p className="mt-1 text-2xl font-bold xl:text-3xl">
                       {formatMoney(product.salePrice)}
                     </p>
                   </div>
@@ -355,12 +355,12 @@ export function ProductsBrowser({
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                   {mode === "administracion" ? (
                     <>
                       <details className="group">
                         <summary className="list-none">
-                          <Button asChild variant="outline" className="h-14 gap-2 px-6 text-lg">
+                          <Button asChild variant="outline" className="h-11 gap-2 px-4 text-base xl:h-14 xl:px-6 xl:text-lg">
                             <span>
                               <Edit3 className="size-6" aria-hidden="true" />
                               Editar
@@ -372,7 +372,7 @@ export function ProductsBrowser({
 
                       <details className="group">
                         <summary className="list-none">
-                          <Button asChild variant="outline" className="h-14 gap-2 px-6 text-lg">
+                          <Button asChild variant="outline" className="h-11 gap-2 px-4 text-base xl:h-14 xl:px-6 xl:text-lg">
                             <span>
                               <PackagePlus className="size-6" aria-hidden="true" />
                               Ajustar stock
@@ -384,7 +384,7 @@ export function ProductsBrowser({
                     </>
                   ) : null}
 
-                  <Button asChild className="h-14 gap-2 px-6 text-lg">
+                  <Button asChild className="h-11 gap-2 px-4 text-base xl:h-14 xl:px-6 xl:text-lg">
                     <Link href={`/inicio?sku=${encodeURIComponent(product.sku)}`}>
                       <ClipboardList className="size-6" aria-hidden="true" />
                       Usar en venta
@@ -392,7 +392,7 @@ export function ProductsBrowser({
                   </Button>
 
                   {mode === "administracion" ? (
-                    <Button asChild variant="outline" className="h-14 gap-2 px-6 text-lg">
+                    <Button asChild variant="outline" className="h-11 gap-2 px-4 text-base xl:h-14 xl:px-6 xl:text-lg">
                       <Link href={`/productos/${product.id}/stock`}>
                         <History className="size-6" aria-hidden="true" />
                         Ver historial
@@ -409,7 +409,7 @@ export function ProductsBrowser({
 
       {canShowMore ? (
         <div className="flex justify-center">
-          <Button asChild className="h-14 gap-2 px-8 text-lg">
+          <Button asChild className="h-11 gap-2 px-6 text-base xl:h-14 xl:px-8 xl:text-lg">
             <Link href={buildMoreHref({ code, name, categoryId, mode, page })}>
               <PackageSearch className="size-6" aria-hidden="true" />
               Ver más productos
@@ -428,13 +428,13 @@ function ProductThumb({ product }: { product: ProductListItem }) {
       <img
         src={product.imageUrl}
         alt={`Foto de ${product.name}`}
-        className="size-24 rounded-lg border border-border object-cover"
+        className="size-20 rounded-lg border border-border object-cover 2xl:size-24"
       />
     );
   }
 
   return (
-    <div className="flex size-24 items-center justify-center rounded-lg border border-border bg-muted text-muted-foreground">
+    <div className="flex size-20 items-center justify-center rounded-lg border border-border bg-muted text-muted-foreground 2xl:size-24">
       <ImageIcon className="size-9" aria-hidden="true" />
     </div>
   );

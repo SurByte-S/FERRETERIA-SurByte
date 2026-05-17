@@ -101,7 +101,7 @@ export function ImportProductsForm() {
             <Button
               type="submit"
               disabled={!hasPreview || pending}
-              className="h-14 w-full gap-3 text-lg sm:w-fit sm:px-6"
+              className="h-11 w-full gap-2 text-base sm:w-fit sm:px-5 xl:h-14 xl:gap-3 xl:px-6 xl:text-lg"
             >
               <Upload className="size-6" aria-hidden="true" />
               {pending ? "Importando productos..." : "Importar productos"}
@@ -129,7 +129,7 @@ export function ImportProductsForm() {
             </CardDescription>
           </CardHeader>
           <CardContent className="overflow-x-auto">
-            <table className="w-full min-w-[900px] border-collapse text-left text-base">
+            <table className="w-full min-w-[760px] border-collapse text-left text-sm xl:min-w-[900px] xl:text-base">
               <thead>
                 <tr className="border-b border-border">
                   <th className="p-3">Fila</th>
@@ -146,7 +146,7 @@ export function ImportProductsForm() {
                   <tr key={`${row.rowNumber}-${row.sku}`} className="border-b border-border">
                     <td className="p-3">{row.rowNumber}</td>
                     <td className="p-3 font-mono">{row.sku || "-"}</td>
-                    <td className="max-w-[340px] p-3">{row.descripcion || "-"}</td>
+                    <td className="max-w-[280px] p-3 xl:max-w-[340px]">{row.descripcion || "-"}</td>
                     <td className="p-3">{row.categoria_sugerida || "-"}</td>
                     <td className="p-3">{row.marca_sugerida || "-"}</td>
                     <td className="p-3">{row.precio_publico_ars || "Revisar"}</td>
@@ -182,7 +182,7 @@ export function ImportProductsForm() {
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-5">
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-5">
               <SummaryBox label="Creados" value={state.summary.creados} />
               <SummaryBox label="Actualizados" value={state.summary.actualizados} />
               <SummaryBox label="Omitidos" value={state.summary.omitidos} />

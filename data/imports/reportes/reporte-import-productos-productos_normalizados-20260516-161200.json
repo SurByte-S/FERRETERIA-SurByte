@@ -1,0 +1,2136 @@
+{
+  "archivo": "C:\\Users\\Administrator\\Desktop\\Proyectos\\FERRETERIA-SurByte\\data\\imports\\productos\\productos_normalizados.csv",
+  "modo": "real",
+  "tenant_id": "8b44ea4b-d279-4eba-a3c9-451d67205ffc",
+  "estado": "con_errores",
+  "total_filas": 10673,
+  "productos_nuevos": 0,
+  "productos_actualizados": 10438,
+  "productos_con_error": 235,
+  "duplicados_sku": [],
+  "duplicados_codigo": [],
+  "conflictos": [],
+  "errores_por_fila": [
+    {
+      "rowNumber": 235,
+      "sku": "47789",
+      "codigo": "47789",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 812,
+      "sku": "1834",
+      "codigo": "1834",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 2316,
+      "sku": "31609",
+      "codigo": "31609",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 2331,
+      "sku": "27926",
+      "codigo": "27926",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 2510,
+      "sku": "45841",
+      "codigo": "45841",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 2807,
+      "sku": "47534",
+      "codigo": "47534",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 3000,
+      "sku": "14775",
+      "codigo": "14775",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 3060,
+      "sku": "32136",
+      "codigo": "32136",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 3075,
+      "sku": "28582",
+      "codigo": "28582",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 3092,
+      "sku": "46757",
+      "codigo": "46757",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 3125,
+      "sku": "24345",
+      "codigo": "24345",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 3265,
+      "sku": "26613",
+      "codigo": "26613",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 3399,
+      "sku": "46126",
+      "codigo": "46126",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 3414,
+      "sku": "17624",
+      "codigo": "17624",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 3418,
+      "sku": "17628",
+      "codigo": "17628",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 3513,
+      "sku": "38181",
+      "codigo": "38181",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 3519,
+      "sku": "34667",
+      "codigo": "34667",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 3520,
+      "sku": "34668",
+      "codigo": "34668",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 3535,
+      "sku": "34818",
+      "codigo": "34818",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 3727,
+      "sku": "27952",
+      "codigo": "27952",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 3826,
+      "sku": "31840",
+      "codigo": "31840",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 3834,
+      "sku": "18173",
+      "codigo": "18173",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 3998,
+      "sku": "46761",
+      "codigo": "46761",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 3999,
+      "sku": "46762",
+      "codigo": "46762",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 4000,
+      "sku": "46763",
+      "codigo": "46763",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 4005,
+      "sku": "46768",
+      "codigo": "46768",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 4008,
+      "sku": "46186",
+      "codigo": "46186",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 4209,
+      "sku": "21710",
+      "codigo": "21710",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 4215,
+      "sku": "21719",
+      "codigo": "21719",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 4492,
+      "sku": "28286",
+      "codigo": "28286",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 4495,
+      "sku": "30884",
+      "codigo": "30884",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 4497,
+      "sku": "31198",
+      "codigo": "31198",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 4498,
+      "sku": "31568",
+      "codigo": "31568",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 4515,
+      "sku": "32083",
+      "codigo": "32083",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 4541,
+      "sku": "46447",
+      "codigo": "46447",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 4546,
+      "sku": "46455",
+      "codigo": "46455",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 4550,
+      "sku": "46592",
+      "codigo": "46592",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 4640,
+      "sku": "45907",
+      "codigo": "45907",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 4643,
+      "sku": "45946",
+      "codigo": "45946",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 4721,
+      "sku": "33321",
+      "codigo": "33321",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 4723,
+      "sku": "33330",
+      "codigo": "33330",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 4764,
+      "sku": "33584",
+      "codigo": "33584",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 5069,
+      "sku": "4554",
+      "codigo": "4554",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 5145,
+      "sku": "4681",
+      "codigo": "4681",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 5280,
+      "sku": "26600",
+      "codigo": "26600",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 5415,
+      "sku": "38054",
+      "codigo": "38054",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 5450,
+      "sku": "36266",
+      "codigo": "36266",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 5489,
+      "sku": "36820",
+      "codigo": "36820",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 5494,
+      "sku": "43008",
+      "codigo": "43008",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 5832,
+      "sku": "47792",
+      "codigo": "47792",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 5944,
+      "sku": "27063",
+      "codigo": "27063",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 5979,
+      "sku": "15510",
+      "codigo": "15510",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 5992,
+      "sku": "47455",
+      "codigo": "47455",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 5993,
+      "sku": "47457",
+      "codigo": "47457",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 5994,
+      "sku": "47458",
+      "codigo": "47458",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 6001,
+      "sku": "18155",
+      "codigo": "18155",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 6016,
+      "sku": "46708",
+      "codigo": "46708",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 6025,
+      "sku": "34706",
+      "codigo": "34706",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 6026,
+      "sku": "34707",
+      "codigo": "34707",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 6032,
+      "sku": "35158",
+      "codigo": "35158",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 6114,
+      "sku": "33693",
+      "codigo": "33693",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 6121,
+      "sku": "32701",
+      "codigo": "32701",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 6163,
+      "sku": "22376",
+      "codigo": "22376",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 6209,
+      "sku": "1052",
+      "codigo": "1052",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 6234,
+      "sku": "1099",
+      "codigo": "1099",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 6235,
+      "sku": "1100",
+      "codigo": "1100",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 6264,
+      "sku": "1142",
+      "codigo": "1142",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 6296,
+      "sku": "35707",
+      "codigo": "35707",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 6346,
+      "sku": "46418",
+      "codigo": "46418",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 6363,
+      "sku": "47339",
+      "codigo": "47339",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 6391,
+      "sku": "35955",
+      "codigo": "35955",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 6430,
+      "sku": "18678",
+      "codigo": "18678",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 6431,
+      "sku": "18679",
+      "codigo": "18679",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 6432,
+      "sku": "18680",
+      "codigo": "18680",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 6438,
+      "sku": "32740",
+      "codigo": "32740",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 6440,
+      "sku": "18637",
+      "codigo": "18637",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 6442,
+      "sku": "18649",
+      "codigo": "18649",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 6443,
+      "sku": "18650",
+      "codigo": "18650",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 6444,
+      "sku": "18651",
+      "codigo": "18651",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 6445,
+      "sku": "18652",
+      "codigo": "18652",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 6446,
+      "sku": "18653",
+      "codigo": "18653",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 6447,
+      "sku": "18654",
+      "codigo": "18654",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 6448,
+      "sku": "18655",
+      "codigo": "18655",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 6449,
+      "sku": "18656",
+      "codigo": "18656",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 6450,
+      "sku": "18658",
+      "codigo": "18658",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 6451,
+      "sku": "18659",
+      "codigo": "18659",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 6452,
+      "sku": "18660",
+      "codigo": "18660",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 6453,
+      "sku": "18661",
+      "codigo": "18661",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 6454,
+      "sku": "18662",
+      "codigo": "18662",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 6456,
+      "sku": "18665",
+      "codigo": "18665",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 6457,
+      "sku": "18666",
+      "codigo": "18666",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 6458,
+      "sku": "18667",
+      "codigo": "18667",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 6460,
+      "sku": "18669",
+      "codigo": "18669",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 6461,
+      "sku": "18684",
+      "codigo": "18684",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 7218,
+      "sku": "28573",
+      "codigo": "28573",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 7278,
+      "sku": "32556",
+      "codigo": "32556",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 7280,
+      "sku": "34717",
+      "codigo": "34717",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 7322,
+      "sku": "47781",
+      "codigo": "47781",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 7323,
+      "sku": "47782",
+      "codigo": "47782",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 7324,
+      "sku": "47783",
+      "codigo": "47783",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 7332,
+      "sku": "36287",
+      "codigo": "36287",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 7335,
+      "sku": "43950",
+      "codigo": "43950",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 7360,
+      "sku": "47776",
+      "codigo": "47776",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 7385,
+      "sku": "26728",
+      "codigo": "26728",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 7402,
+      "sku": "36679",
+      "codigo": "36679",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 7404,
+      "sku": "38342",
+      "codigo": "38342",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 7406,
+      "sku": "46683",
+      "codigo": "46683",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 7456,
+      "sku": "33812",
+      "codigo": "33812",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 7474,
+      "sku": "11996",
+      "codigo": "11996",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 7584,
+      "sku": "36768",
+      "codigo": "36768",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 7590,
+      "sku": "46523",
+      "codigo": "46523",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 7818,
+      "sku": "47790",
+      "codigo": "47790",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 7873,
+      "sku": "30470",
+      "codigo": "30470",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 7968,
+      "sku": "27859",
+      "codigo": "27859",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 7999,
+      "sku": "33219",
+      "codigo": "33219",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8020,
+      "sku": "24662",
+      "codigo": "24662",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8024,
+      "sku": "24741",
+      "codigo": "24741",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8083,
+      "sku": "25048",
+      "codigo": "25048",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8220,
+      "sku": "28173",
+      "codigo": "28173",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8384,
+      "sku": "11991",
+      "codigo": "11991",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8410,
+      "sku": "19041",
+      "codigo": "19041",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8421,
+      "sku": "36418",
+      "codigo": "36418",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8428,
+      "sku": "38353",
+      "codigo": "38353",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8433,
+      "sku": "38360",
+      "codigo": "38360",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8451,
+      "sku": "31810",
+      "codigo": "31810",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8477,
+      "sku": "32142",
+      "codigo": "32142",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8496,
+      "sku": "33452",
+      "codigo": "33452",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8500,
+      "sku": "33477",
+      "codigo": "33477",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8513,
+      "sku": "36295",
+      "codigo": "36295",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8519,
+      "sku": "36440",
+      "codigo": "36440",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8550,
+      "sku": "47784",
+      "codigo": "47784",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8551,
+      "sku": "47785",
+      "codigo": "47785",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8552,
+      "sku": "47786",
+      "codigo": "47786",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8553,
+      "sku": "47787",
+      "codigo": "47787",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8554,
+      "sku": "47788",
+      "codigo": "47788",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8574,
+      "sku": "32418",
+      "codigo": "32418",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8577,
+      "sku": "33541",
+      "codigo": "33541",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8578,
+      "sku": "33548",
+      "codigo": "33548",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8580,
+      "sku": "33550",
+      "codigo": "33550",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8652,
+      "sku": "38235",
+      "codigo": "38235",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8673,
+      "sku": "43067",
+      "codigo": "43067",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8682,
+      "sku": "12415",
+      "codigo": "12415",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8698,
+      "sku": "12037",
+      "codigo": "12037",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8699,
+      "sku": "12041",
+      "codigo": "12041",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8700,
+      "sku": "12043",
+      "codigo": "12043",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8702,
+      "sku": "12045",
+      "codigo": "12045",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8709,
+      "sku": "12056",
+      "codigo": "12056",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8710,
+      "sku": "12057",
+      "codigo": "12057",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8720,
+      "sku": "17411",
+      "codigo": "17411",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8725,
+      "sku": "17552",
+      "codigo": "17552",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8728,
+      "sku": "17645",
+      "codigo": "17645",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8729,
+      "sku": "17700",
+      "codigo": "17700",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8749,
+      "sku": "19053",
+      "codigo": "19053",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8750,
+      "sku": "31134",
+      "codigo": "31134",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8760,
+      "sku": "31340",
+      "codigo": "31340",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8763,
+      "sku": "31343",
+      "codigo": "31343",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8768,
+      "sku": "31427",
+      "codigo": "31427",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8769,
+      "sku": "31782",
+      "codigo": "31782",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8774,
+      "sku": "36017",
+      "codigo": "36017",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8781,
+      "sku": "42980",
+      "codigo": "42980",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8786,
+      "sku": "44078",
+      "codigo": "44078",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8796,
+      "sku": "44279",
+      "codigo": "44279",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8805,
+      "sku": "44133",
+      "codigo": "44133",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8807,
+      "sku": "44137",
+      "codigo": "44137",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8810,
+      "sku": "44285",
+      "codigo": "44285",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8831,
+      "sku": "18317",
+      "codigo": "18317",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8930,
+      "sku": "46701",
+      "codigo": "46701",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8995,
+      "sku": "17566",
+      "codigo": "17566",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 8997,
+      "sku": "17568",
+      "codigo": "17568",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 9002,
+      "sku": "17641",
+      "codigo": "17641",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 9003,
+      "sku": "17642",
+      "codigo": "17642",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 9017,
+      "sku": "17880",
+      "codigo": "17880",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 9018,
+      "sku": "17881",
+      "codigo": "17881",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 9032,
+      "sku": "24490",
+      "codigo": "24490",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 9036,
+      "sku": "26958",
+      "codigo": "26958",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 9071,
+      "sku": "33619",
+      "codigo": "33619",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 9073,
+      "sku": "36649",
+      "codigo": "36649",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 9075,
+      "sku": "38229",
+      "codigo": "38229",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 9123,
+      "sku": "38065",
+      "codigo": "38065",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 9139,
+      "sku": "38467",
+      "codigo": "38467",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 9143,
+      "sku": "38478",
+      "codigo": "38478",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 9166,
+      "sku": "13773",
+      "codigo": "13773",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 9167,
+      "sku": "35982",
+      "codigo": "35982",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 9179,
+      "sku": "39021",
+      "codigo": "39021",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 9192,
+      "sku": "36745",
+      "codigo": "36745",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 9193,
+      "sku": "44545",
+      "codigo": "44545",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 9209,
+      "sku": "47777",
+      "codigo": "47777",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 9215,
+      "sku": "46147",
+      "codigo": "46147",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 9227,
+      "sku": "36483",
+      "codigo": "36483",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 9247,
+      "sku": "47779",
+      "codigo": "47779",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 9262,
+      "sku": "47778",
+      "codigo": "47778",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 9263,
+      "sku": "47791",
+      "codigo": "47791",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 9397,
+      "sku": "36947",
+      "codigo": "36947",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 9609,
+      "sku": "36774",
+      "codigo": "36774",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 9621,
+      "sku": "38223",
+      "codigo": "38223",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 9633,
+      "sku": "47565",
+      "codigo": "47565",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 9634,
+      "sku": "47566",
+      "codigo": "47566",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 9635,
+      "sku": "47651",
+      "codigo": "47651",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 9636,
+      "sku": "47701",
+      "codigo": "47701",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 9637,
+      "sku": "800",
+      "codigo": "800",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 9755,
+      "sku": "35075",
+      "codigo": "35075",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 9764,
+      "sku": "35992",
+      "codigo": "35992",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 9768,
+      "sku": "36164",
+      "codigo": "36164",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 9773,
+      "sku": "43969",
+      "codigo": "43969",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 9774,
+      "sku": "46183",
+      "codigo": "46183",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 9856,
+      "sku": "46970",
+      "codigo": "46970",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 9872,
+      "sku": "33033",
+      "codigo": "33033",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 9881,
+      "sku": "47057",
+      "codigo": "47057",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 9898,
+      "sku": "33069",
+      "codigo": "33069",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 9928,
+      "sku": "36286",
+      "codigo": "36286",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 9930,
+      "sku": "45008",
+      "codigo": "45008",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 9938,
+      "sku": "36342",
+      "codigo": "36342",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 9940,
+      "sku": "36344",
+      "codigo": "36344",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 9943,
+      "sku": "36427",
+      "codigo": "36427",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 10023,
+      "sku": "46197",
+      "codigo": "46197",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 10024,
+      "sku": "46261",
+      "codigo": "46261",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 10035,
+      "sku": "35674",
+      "codigo": "35674",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 10057,
+      "sku": "36210",
+      "codigo": "36210",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 10062,
+      "sku": "47780",
+      "codigo": "47780",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 10086,
+      "sku": "32541",
+      "codigo": "32541",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 10219,
+      "sku": "45850",
+      "codigo": "45850",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 10238,
+      "sku": "18545",
+      "codigo": "18545",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 10257,
+      "sku": "35474",
+      "codigo": "35474",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 10274,
+      "sku": "22520",
+      "codigo": "22520",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 10410,
+      "sku": "38319",
+      "codigo": "38319",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 10412,
+      "sku": "19063",
+      "codigo": "19063",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 10416,
+      "sku": "36674",
+      "codigo": "36674",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 10420,
+      "sku": "38154",
+      "codigo": "38154",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 10428,
+      "sku": "35595",
+      "codigo": "35595",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 10494,
+      "sku": "36453",
+      "codigo": "36453",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 10592,
+      "sku": "36779",
+      "codigo": "36779",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 10633,
+      "sku": "43028",
+      "codigo": "43028",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 10636,
+      "sku": "46361",
+      "codigo": "46361",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 10640,
+      "sku": "46494",
+      "codigo": "46494",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    },
+    {
+      "rowNumber": 10644,
+      "sku": "46653",
+      "codigo": "46653",
+      "messages": [
+        "precio_publico_ars debe ser numérico.",
+        "iva_pct_inferido debe ser numérico."
+      ]
+    }
+  ],
+  "import_batch_id": null,
+  "insertados": 0,
+  "actualizados": 0,
+  "fecha_inicio": "2026-05-16T19:11:59.947Z",
+  "fecha_fin": "2026-05-16T19:12:00.978Z",
+  "error_fatal": null
+}

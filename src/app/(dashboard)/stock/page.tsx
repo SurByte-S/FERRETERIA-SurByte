@@ -147,7 +147,7 @@ export default async function StockPage({ searchParams }: StockPageProps) {
       />
 
       {result.ok ? (
-        <div className="grid gap-5">
+        <div className="grid gap-4 xl:gap-5">
           <Card>
             <CardHeader>
               <CardTitle>Buscar producto</CardTitle>
@@ -156,7 +156,7 @@ export default async function StockPage({ searchParams }: StockPageProps) {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form className="grid gap-3 lg:grid-cols-[1fr_auto_auto]" action="/stock">
+              <form className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto_auto]" action="/stock">
                 {onlyOutOfStock ? (
                   <input type="hidden" name="sinStock" value="1" />
                 ) : null}
@@ -169,11 +169,11 @@ export default async function StockPage({ searchParams }: StockPageProps) {
                       name="q"
                       defaultValue={q}
                       placeholder="Codigo o nombre"
-                      className="h-14 w-full rounded-lg border border-input bg-background pl-12 pr-4 text-lg"
+                      className="h-11 w-full rounded-lg border border-input bg-background pl-11 pr-3 text-base xl:h-14 xl:pl-12 xl:pr-4 xl:text-lg"
                     />
                   </div>
                 </label>
-                <label className="flex min-h-14 items-center gap-3 self-end rounded-lg border border-border bg-background px-4 text-base font-semibold">
+                <label className="flex min-h-11 items-center gap-2 self-end rounded-lg border border-border bg-background px-3 text-sm font-semibold xl:min-h-14 xl:gap-3 xl:px-4 xl:text-base">
                   <input
                     type="checkbox"
                     name="conStock"
@@ -184,18 +184,18 @@ export default async function StockPage({ searchParams }: StockPageProps) {
                   />
                   Solo con stock
                 </label>
-                <Button type="submit" className="h-14 self-end gap-2 px-6 text-lg">
+                <Button type="submit" className="h-11 self-end gap-2 px-5 text-base xl:h-14 xl:px-6 xl:text-lg">
                   <Search className="size-6" aria-hidden="true" />
                   Buscar
                 </Button>
               </form>
               <div className="mt-3 flex flex-wrap gap-2">
-                <Button asChild variant="outline" className="h-11 px-4 text-base">
+                <Button asChild variant="outline" className="h-10 px-3 text-sm xl:h-11 xl:px-4 xl:text-base">
                   <Link href={buildStockHref({ q, onlyWithStock: false })}>
                     Ver todos
                   </Link>
                 </Button>
-                <Button asChild variant="outline" className="h-11 px-4 text-base">
+                <Button asChild variant="outline" className="h-10 px-3 text-sm xl:h-11 xl:px-4 xl:text-base">
                   <Link href={buildStockHref({ q, onlyOutOfStock: true })}>
                     Ver faltantes
                   </Link>
@@ -268,25 +268,25 @@ function StockProductCard({
   return (
     <Card>
       <CardHeader className="gap-4">
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_180px_160px] lg:items-start">
+        <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_160px_150px] xl:items-start 2xl:grid-cols-[minmax(0,1fr)_180px_160px]">
           <div className="min-w-0">
             <p className="mb-2 font-mono text-base text-muted-foreground">
               Codigo: {product.code}
             </p>
-            <CardTitle className="truncate text-2xl">{product.name}</CardTitle>
+            <CardTitle className="truncate text-xl xl:text-2xl">{product.name}</CardTitle>
             <CardDescription className="mt-2 truncate">
               {product.description}
             </CardDescription>
           </div>
-          <div className="rounded-lg border border-border bg-background p-4">
+          <div className="rounded-lg border border-border bg-background p-3 xl:p-4">
             <p className="text-base text-muted-foreground">Precio</p>
-            <p className="mt-1 text-2xl font-bold">
+            <p className="mt-1 text-xl font-bold xl:text-2xl">
               {formatMoney(product.salePrice)}
             </p>
           </div>
-          <div className={`rounded-lg border p-4 ${status.className}`}>
+          <div className={`rounded-lg border p-3 xl:p-4 ${status.className}`}>
             <p className="text-base">Stock</p>
-            <p className="mt-1 text-2xl font-bold">
+            <p className="mt-1 text-xl font-bold xl:text-2xl">
               {product.stockQuantity} {product.unit}
             </p>
             <p className="text-sm font-semibold">{status.label}</p>
@@ -297,7 +297,7 @@ function StockProductCard({
         {canAdjustStock ? (
           <details>
             <summary className="list-none">
-              <Button asChild className="h-14 gap-2 px-6 text-lg">
+              <Button asChild className="h-11 gap-2 px-4 text-base xl:h-14 xl:px-6 xl:text-lg">
                 <span>
                   <PackagePlus className="size-6" aria-hidden="true" />
                   Ajustar stock
@@ -311,7 +311,7 @@ function StockProductCard({
         {canEditPrice ? (
           <details>
             <summary className="list-none">
-              <Button asChild variant="outline" className="h-14 gap-2 px-6 text-lg">
+              <Button asChild variant="outline" className="h-11 gap-2 px-4 text-base xl:h-14 xl:px-6 xl:text-lg">
                 <span>
                   <Edit3 className="size-6" aria-hidden="true" />
                   Cambiar precio

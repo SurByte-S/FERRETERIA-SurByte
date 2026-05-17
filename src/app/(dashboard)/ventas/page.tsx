@@ -91,7 +91,7 @@ export default async function VentasPage() {
         backLabel="Volver al inicio"
       />
 
-      <section className="mb-6 grid gap-4 lg:grid-cols-[1fr_1fr_1fr]">
+      <section className="mb-4 grid gap-3 xl:mb-6 xl:grid-cols-3 xl:gap-4">
         <Card className="border-primary/40">
           <CardHeader>
             <div className="mb-2 flex size-12 items-center justify-center rounded-lg bg-primary text-primary-foreground">
@@ -101,7 +101,7 @@ export default async function VentasPage() {
             <CardDescription>Total vendido en el dia.</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-4xl font-bold">{formatMoney(totalToday)}</p>
+            <p className="text-2xl font-bold xl:text-4xl">{formatMoney(totalToday)}</p>
           </CardContent>
         </Card>
 
@@ -111,7 +111,7 @@ export default async function VentasPage() {
             <CardDescription>Operaciones registradas hoy.</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-4xl font-bold">{todaySales.length}</p>
+            <p className="text-2xl font-bold xl:text-4xl">{todaySales.length}</p>
           </CardContent>
         </Card>
 
@@ -161,7 +161,7 @@ export default async function VentasPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button asChild className="h-14 gap-2 px-6 text-lg">
+            <Button asChild className="h-11 gap-2 px-5 text-base xl:h-14 xl:px-6 xl:text-lg">
               <Link href="/presupuestos">
                 <ReceiptText className="size-6" aria-hidden="true" />
                 Ver presupuestos
@@ -176,12 +176,12 @@ export default async function VentasPage() {
 
             return (
               <Card key={sale.id}>
-                <CardContent className="grid gap-4 p-5 lg:grid-cols-[1fr_auto] lg:items-center">
-                  <div>
+                <CardContent className="grid gap-3 p-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center xl:p-5">
+                  <div className="min-w-0">
                     <p className="text-sm text-muted-foreground">
                       {formatDate(sale.created_at)}
                     </p>
-                    <h2 className="mt-1 text-2xl font-bold">
+                    <h2 className="mt-1 text-xl font-bold xl:text-2xl">
                       Venta #{sale.sale_number}
                     </h2>
                     <p className="mt-2 text-lg">
@@ -197,11 +197,11 @@ export default async function VentasPage() {
                       </p>
                     ) : null}
                   </div>
-                  <div className="grid gap-3 sm:grid-cols-[auto_auto_auto] lg:justify-end">
-                    <p className="rounded-lg border border-border bg-background p-4 text-2xl font-bold">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap xl:justify-end">
+                    <p className="rounded-lg border border-border bg-background p-3 text-xl font-bold xl:p-4 xl:text-2xl">
                       {formatMoney(sale.total)}
                     </p>
-                    <Button asChild className="h-14 gap-2 px-5 text-lg">
+                    <Button asChild className="h-11 gap-2 px-4 text-base xl:h-14 xl:px-5 xl:text-lg">
                       <Link href={`/ventas/${sale.id}`}>
                         <Eye className="size-6" aria-hidden="true" />
                         Ver
@@ -210,7 +210,7 @@ export default async function VentasPage() {
                     <Button
                       asChild
                       variant="outline"
-                      className="h-14 gap-2 px-5 text-lg"
+                      className="h-11 gap-2 px-4 text-base xl:h-14 xl:px-5 xl:text-lg"
                     >
                       <Link href={`/ventas/${sale.id}?print=1`}>
                         <Printer className="size-6" aria-hidden="true" />

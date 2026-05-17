@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "import:products": "node scripts/import-products.mjs"
+    "import:products": "node scripts/import-products.mjs",
+    "import:productos": "node scripts/import-productos.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",
