@@ -43,6 +43,12 @@ const PAYMENT_METHODS = [
   "Cuenta corriente",
 ];
 
+const CASH_REGISTER_CLOSED_MESSAGE =
+  "Caja cerrada. Abrí caja antes de registrar ventas.";
+
+const STOCK_NOT_ENOUGH_MESSAGE =
+  "Stock insuficiente. Revisá las cantidades antes de vender.";
+
 function mapProduct(row: ProductRow): QuoteProduct {
   return {
     sku: row.sku,
@@ -125,7 +131,30 @@ function getConvertQuoteErrorMessage(message?: string) {
     return "Para dejar deuda en cuenta corriente, elegi un cliente.";
   }
 
+  if (message.includes("CASH_REGISTER_CLOSED")) {
+    return CASH_REGISTER_CLOSED_MESSAGE;
+  }
+
+  if (message.includes("STOCK_NOT_ENOUGH")) {
+    return STOCK_NOT_ENOUGH_MESSAGE;
+  }
+
   return "No se pudo registrar la venta.";
+}
+
+async function hasOpenCashRegister(
+  tenantId: string,
+  supabase: ReturnType<typeof getSupabaseServerClient>
+) {
+  const { data, error } = await supabase
+    .from("cash_register_sessions")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("status", "open")
+    .limit(1)
+    .maybeSingle();
+
+  return !error && Boolean(data);
 }
 
 export async function searchQuoteProductsAction(
@@ -327,6 +356,14 @@ export async function saveQuoteAndConvertToSaleAction({
   try {
     const tenant = await requireTenantRole(["owner", "admin", "seller"]);
     const supabase = getSupabaseServerClient();
+
+    if (!(await hasOpenCashRegister(tenant.id, supabase))) {
+      return {
+        ok: false,
+        message: CASH_REGISTER_CLOSED_MESSAGE,
+      };
+    }
+
     const { data: quoteData, error: quoteError } = await supabase.rpc(
       "create_quote_with_items",
       {

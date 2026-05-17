@@ -17,6 +17,12 @@ const PAYMENT_METHODS = [
   "Cuenta corriente",
 ];
 
+const CASH_REGISTER_CLOSED_MESSAGE =
+  "Caja cerrada. Abrí caja antes de registrar ventas.";
+
+const STOCK_NOT_ENOUGH_MESSAGE =
+  "Stock insuficiente. Revisá las cantidades antes de vender.";
+
 function getConvertErrorMessage(message?: string) {
   if (!message) {
     return "No se pudo convertir el presupuesto en venta.";
@@ -52,6 +58,14 @@ function getConvertErrorMessage(message?: string) {
 
   if (message.includes("CUSTOMER_REQUIRED_FOR_CREDIT")) {
     return "Para dejar deuda en cuenta corriente, elegi un cliente.";
+  }
+
+  if (message.includes("CASH_REGISTER_CLOSED")) {
+    return CASH_REGISTER_CLOSED_MESSAGE;
+  }
+
+  if (message.includes("STOCK_NOT_ENOUGH")) {
+    return STOCK_NOT_ENOUGH_MESSAGE;
   }
 
   return "No se pudo convertir el presupuesto en venta.";

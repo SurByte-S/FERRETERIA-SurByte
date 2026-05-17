@@ -108,6 +108,7 @@ export function QuickSale({
     [lines]
   );
   const isQuoteMode = mode === "quote";
+  const isCashRegisterClosed = !isQuoteMode && cashStatus?.open === false;
   const modeHelp = isQuoteMode
     ? "Buscá productos del catálogo, aunque no tengan stock."
     : "Buscá productos con stock para vender.";
@@ -308,6 +309,11 @@ export function QuickSale({
   }
 
   function registerSale() {
+    if (isCashRegisterClosed) {
+      setMessage("Caja cerrada. Abrí caja antes de registrar ventas.");
+      return;
+    }
+
     if (hasOutOfStockLines) {
       setMessage(
         "Hay productos a pedido. Guarda presupuesto o quitalos antes de vender."
@@ -644,6 +650,12 @@ export function QuickSale({
               </p>
             ) : null}
 
+            {isCashRegisterClosed ? (
+              <p className="rounded-lg border border-yellow-500/40 bg-yellow-50 p-3 text-base font-semibold text-yellow-900">
+                Caja cerrada. Abrí caja antes de registrar ventas.
+              </p>
+            ) : null}
+
             <div className="grid gap-3 sm:grid-cols-2">
               {isQuoteMode ? (
                 <Button
@@ -661,7 +673,10 @@ export function QuickSale({
                     type="button"
                     onClick={registerSale}
                     disabled={
-                      isPending || lines.length === 0 || hasOutOfStockLines
+                      isPending ||
+                      lines.length === 0 ||
+                      hasOutOfStockLines ||
+                      isCashRegisterClosed
                     }
                     className="h-12 gap-2 text-base xl:h-14 xl:text-lg"
                   >

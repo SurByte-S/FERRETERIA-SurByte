@@ -47,6 +47,7 @@ Aplicar las migraciones en este orden:
 8. `009_create_quote_rpc.sql`
 9. `010_seed_demo_tenant.sql`
 10. `011_storage_product_images_policies.sql`
+11. `012_harden_sale_conversion_cash_and_stock.sql`
 
 No existe migracion `002` por un salto historico de numeracion. No renombrar migraciones ya aplicadas.
 
