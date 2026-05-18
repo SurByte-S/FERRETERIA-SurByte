@@ -85,7 +85,6 @@ export function QuickSale({
   });
   const [search, setSearch] = useState(initialSku ?? "");
   const [mode, setMode] = useState<SaleMode>("sale");
-  const [quantity, setQuantity] = useState(1);
   const [results, setResults] = useState<QuoteProduct[]>([]);
   const [lines, setLines] = useState<QuoteLine[]>([]);
   const [message, setMessage] = useState(EMPTY_SEARCH_MESSAGE);
@@ -123,7 +122,6 @@ export function QuickSale({
         addProduct(product, 1);
       }
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialSku, isQuoteMode]);
 
   useEffect(() => {
@@ -198,7 +196,7 @@ export function QuickSale({
     }
   }
 
-  function addProduct(product: QuoteProduct, qty = quantity) {
+  function addProduct(product: QuoteProduct, qty = 1) {
     const safeQty = Number.isFinite(qty) && qty > 0 ? qty : 1;
 
     setLines((current) => {
@@ -216,7 +214,6 @@ export function QuickSale({
     });
     setSearch("");
     setResults([]);
-    setQuantity(1);
     setMessage("Producto agregado a la lista.");
     window.setTimeout(() => searchInputRef.current?.focus(), 0);
   }
@@ -342,24 +339,24 @@ export function QuickSale({
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-6rem)] flex-col gap-3 xl:gap-4">
-      <section className="grid gap-3 rounded-lg border border-primary/20 bg-card p-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end xl:p-4">
+    <div className="flex min-h-[calc(100vh-5.5rem)] flex-col gap-2">
+      <section className="grid gap-3 rounded-lg border border-primary/20 bg-card p-3">
         <div className="grid gap-3">
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="flex size-11 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <Search className="size-6" aria-hidden="true" />
             </span>
             <div>
-              <h1 className="text-xl font-bold leading-tight text-primary xl:text-2xl">
+              <h1 className="text-lg font-bold leading-tight text-primary">
                 Vender
               </h1>
-              <p className="text-base text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 {modeHelp}
               </p>
             </div>
           </div>
 
-          <div className="grid gap-2 sm:grid-cols-2 xl:max-w-md">
+          <div className="grid gap-2 sm:grid-cols-2">
             <ModeButton
               active={mode === "sale"}
               label="Venta"
@@ -372,32 +369,20 @@ export function QuickSale({
             />
           </div>
 
-          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_120px] 2xl:grid-cols-[minmax(0,1fr)_140px]">
-            <label className="grid gap-2 text-base font-semibold">
+          <div className="grid gap-2">
+            <label className="grid gap-2 text-sm font-semibold">
               <span>Producto</span>
               <div className="relative">
-                <Search className="pointer-events-none absolute left-4 top-1/2 size-6 -translate-y-1/2 text-muted-foreground" />
+                <Search className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
                 <input
                   ref={searchInputRef}
                   value={search}
                   onChange={(event) => handleSearchChange(event.target.value)}
                   onKeyDown={handleSearchKeyDown}
                   placeholder={EMPTY_SEARCH_MESSAGE}
-                  className="h-12 w-full rounded-lg border border-input bg-background pl-11 pr-3 text-base xl:h-14 xl:pl-12 xl:pr-4 xl:text-lg"
+                  className="h-10 w-full rounded-lg border border-input bg-background pl-10 pr-3 text-sm"
                 />
               </div>
-            </label>
-
-            <label className="grid gap-2 text-base font-semibold">
-              <span>Cantidad</span>
-              <input
-                value={quantity}
-                onChange={(event) => setQuantity(Number(event.target.value))}
-                min="1"
-                step="1"
-                type="number"
-                className="h-12 rounded-lg border border-input bg-background px-3 text-base xl:h-14 xl:text-lg"
-              />
             </label>
           </div>
         </div>
@@ -406,19 +391,19 @@ export function QuickSale({
           type="button"
           onClick={runSearch}
           disabled={isPending || !search.trim()}
-          className="h-12 w-full gap-2 px-5 text-base xl:h-14 xl:w-auto xl:px-6 xl:text-lg"
+          className="h-11 w-full gap-2 px-4 text-sm md:w-auto"
         >
           <Search className="size-6" aria-hidden="true" />
           Buscar
         </Button>
       </section>
 
-      <div className="grid min-h-0 flex-1 gap-3 xl:grid-cols-[minmax(0,1fr)_340px] 2xl:grid-cols-[minmax(0,1fr)_380px]">
+      <div className="grid min-h-0 flex-1 gap-2 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_340px]">
         <section
           aria-label="Productos encontrados"
           className="flex min-h-[220px] flex-col overflow-hidden rounded-lg border border-border bg-card"
         >
-          <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+          <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
             <div>
               <h2 className="text-lg font-bold">Productos</h2>
               <p className="text-sm font-medium text-muted-foreground">
@@ -441,14 +426,14 @@ export function QuickSale({
                 ))}
               </div>
             ) : (
-              <div className="grid h-full min-h-48 place-items-center rounded-lg border border-dashed border-border bg-background p-6 text-center text-base font-semibold text-muted-foreground">
+              <div className="grid h-full min-h-40 place-items-center rounded-lg border border-dashed border-border bg-background p-4 text-center text-sm font-semibold text-muted-foreground">
                 {isPending ? "Buscando productos..." : message}
               </div>
             )}
           </div>
         </section>
 
-        <aside className="flex min-h-[360px] flex-col overflow-hidden rounded-lg border border-primary/30 bg-card xl:sticky xl:top-0 xl:max-h-[calc(100vh-6.5rem)] xl:min-h-0 xl:self-start">
+        <aside className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-primary/30 bg-card lg:sticky lg:top-0 lg:max-h-[calc(100vh-5.5rem)] lg:min-h-0 lg:self-start">
           <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
             <div>
               <h2 className="text-lg font-bold">
@@ -463,7 +448,7 @@ export function QuickSale({
             <ClipboardList className="size-6 text-primary" aria-hidden="true" />
           </div>
 
-          <div className="min-h-[140px] flex-1 overflow-y-auto p-3">
+          <div className="min-h-0 flex-1 overflow-y-auto p-2">
             {lines.length === 0 ? (
               <div className="grid h-full min-h-48 place-items-center rounded-lg border border-dashed border-border bg-background p-5 text-center text-base font-semibold text-muted-foreground">
                 Todavía no agregaste productos.
@@ -473,14 +458,14 @@ export function QuickSale({
                 {lines.map((line) => (
                   <div
                     key={line.sku}
-                    className="grid gap-3 rounded-lg border border-border bg-background p-3"
+                    className="grid gap-2 rounded-lg border border-border bg-background p-2"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="truncate text-base font-bold">
+                        <p className="truncate text-sm font-bold">
                           {line.description}
                         </p>
-                        <p className="font-mono text-sm text-muted-foreground">
+                        <p className="font-mono text-xs text-muted-foreground">
                           {line.code}
                         </p>
                         {!line.availableForSale ? (
@@ -517,7 +502,7 @@ export function QuickSale({
                         <p className="text-sm text-muted-foreground">
                           {formatMoney(line.price)} c/u
                         </p>
-                        <p className="text-xl font-bold text-primary">
+                        <p className="text-lg font-bold text-primary">
                           {formatMoney(line.quantity * line.price)}
                         </p>
                       </div>
@@ -528,7 +513,7 @@ export function QuickSale({
             )}
           </div>
 
-          <div className="grid shrink-0 gap-3 border-t border-border bg-background p-4">
+          <div className="grid shrink-0 gap-2 border-t border-border bg-background p-3">
             {cashStatus && !isQuoteMode ? (
               <CashStatusLine cashStatus={cashStatus} />
             ) : null}
@@ -547,7 +532,7 @@ export function QuickSale({
                   <select
                     value={customer.id ?? ""}
                     onChange={(event) => selectCustomer(event.target.value)}
-                    className="h-12 rounded-lg border border-input bg-background px-3 text-base"
+                    className="h-10 rounded-lg border border-input bg-background px-3 text-sm"
                   >
                     <option value="">Sin cliente guardado</option>
                     {customers.map((item) => (
@@ -564,7 +549,7 @@ export function QuickSale({
                       updateCustomer("name", event.target.value)
                     }
                     disabled={Boolean(customer.id)}
-                    className="h-12 rounded-lg border border-input bg-background px-3 text-base"
+                    className="h-10 rounded-lg border border-input bg-background px-3 text-sm"
                   />
                 </Field>
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -575,7 +560,7 @@ export function QuickSale({
                         updateCustomer("phone", event.target.value)
                       }
                       disabled={Boolean(customer.id)}
-                      className="h-12 rounded-lg border border-input bg-background px-3 text-base"
+                      className="h-10 rounded-lg border border-input bg-background px-3 text-sm"
                     />
                   </Field>
                   <Field label="Email">
@@ -586,7 +571,7 @@ export function QuickSale({
                         updateCustomer("email", event.target.value)
                       }
                       disabled={Boolean(customer.id)}
-                      className="h-12 rounded-lg border border-input bg-background px-3 text-base"
+                      className="h-10 rounded-lg border border-input bg-background px-3 text-sm"
                     />
                   </Field>
                 </div>
@@ -597,16 +582,16 @@ export function QuickSale({
                       updateCustomer("address", event.target.value)
                     }
                     disabled={Boolean(customer.id)}
-                    className="h-12 rounded-lg border border-input bg-background px-3 text-base"
+                    className="h-10 rounded-lg border border-input bg-background px-3 text-sm"
                   />
                 </Field>
               </div>
             </details>
 
-            <div className="rounded-lg bg-primary p-4 text-primary-foreground">
+            <div className="rounded-lg bg-primary p-3 text-primary-foreground">
               <div className="flex items-end justify-between gap-3">
                 <p className="text-lg font-semibold">Total</p>
-                <p className="text-2xl font-bold xl:text-3xl">{formatMoney(total)}</p>
+                <p className="text-2xl font-bold">{formatMoney(total)}</p>
               </div>
             </div>
 
@@ -616,7 +601,7 @@ export function QuickSale({
                   <select
                     value={paymentMethod}
                     onChange={(event) => setPaymentMethod(event.target.value)}
-                    className="h-12 rounded-lg border border-input bg-card px-3 text-base"
+                    className="h-10 rounded-lg border border-input bg-card px-3 text-sm"
                   >
                     {PAYMENT_METHODS.map((method) => (
                       <option key={method} value={method}>
@@ -632,21 +617,21 @@ export function QuickSale({
                     type="number"
                     min="0"
                     step="0.01"
-                    className="h-12 rounded-lg border border-input bg-card px-3 text-base"
+                    className="h-10 rounded-lg border border-input bg-card px-3 text-sm"
                   />
                 </Field>
               </div>
             ) : null}
 
             {hasOutOfStockLines ? (
-              <p className="rounded-lg border border-yellow-500/40 bg-yellow-50 p-3 text-base font-semibold text-yellow-900">
+              <p className="rounded-lg border border-yellow-500/40 bg-yellow-50 p-2 text-sm font-semibold text-yellow-900">
                 Hay productos a pedido. Esta lista debe guardarse como
                 presupuesto.
               </p>
             ) : null}
 
             {isCashRegisterClosed ? (
-              <p className="rounded-lg border border-yellow-500/40 bg-yellow-50 p-3 text-base font-semibold text-yellow-900">
+              <p className="rounded-lg border border-yellow-500/40 bg-yellow-50 p-2 text-sm font-semibold text-yellow-900">
                 Caja cerrada. Abrí caja antes de registrar ventas.
               </p>
             ) : null}
@@ -657,7 +642,7 @@ export function QuickSale({
                   type="button"
                   onClick={saveQuote}
                   disabled={isPending || lines.length === 0}
-                  className="h-12 gap-2 text-base xl:h-14 xl:text-lg sm:col-span-2"
+                  className="h-11 gap-2 text-sm sm:col-span-2"
                 >
                   <Save className="size-6" aria-hidden="true" />
                   Guardar presupuesto
@@ -673,7 +658,7 @@ export function QuickSale({
                       hasOutOfStockLines ||
                       isCashRegisterClosed
                     }
-                    className="h-12 gap-2 text-base xl:h-14 xl:text-lg"
+                    className="h-11 gap-2 text-sm"
                   >
                     <ShoppingCart className="size-6" aria-hidden="true" />
                     {isPending ? "Procesando..." : "Venta"}
@@ -683,7 +668,7 @@ export function QuickSale({
                     variant="outline"
                     onClick={saveQuote}
                     disabled={isPending || lines.length === 0}
-                    className="h-12 gap-2 text-base xl:h-14 xl:text-lg"
+                    className="h-11 gap-2 text-sm"
                   >
                     <Save className="size-6" aria-hidden="true" />
                     Guardar presupuesto
@@ -747,12 +732,12 @@ function ModeButton({
 }) {
   return (
     <Button
-      type="button"
-      variant={active ? "default" : "outline"}
-      onClick={onClick}
-      className="h-11 text-base xl:h-14 xl:text-lg"
-      aria-pressed={active}
-    >
+        type="button"
+        variant={active ? "default" : "outline"}
+        onClick={onClick}
+        className="h-11 text-base"
+        aria-pressed={active}
+      >
       {label}
     </Button>
   );
@@ -768,24 +753,24 @@ function ProductResult({
   const inStock = product.availableForSale;
 
   return (
-    <div className="grid gap-3 rounded-lg border border-border bg-background p-3 lg:grid-cols-[110px_minmax(0,1fr)_120px_100px_96px_auto] lg:items-center 2xl:grid-cols-[130px_minmax(0,1fr)_140px_120px_110px_auto] 2xl:p-4">
+    <div className="grid gap-3 rounded-lg border border-border bg-background p-3 lg:grid-cols-[110px_minmax(0,1fr)_120px_100px_96px_auto] lg:items-center">
       <div>
         <p className="text-sm font-semibold text-muted-foreground">Código</p>
         <p className="font-mono text-base font-bold">{product.code}</p>
       </div>
       <div className="min-w-0">
         <p className="text-sm font-semibold text-muted-foreground">Producto</p>
-        <p className="truncate text-base font-bold xl:text-lg">
+        <p className="truncate text-base font-bold">
           {product.name || product.description}
         </p>
       </div>
       <div>
         <p className="text-sm font-semibold text-muted-foreground">Precio</p>
-        <p className="text-base font-bold xl:text-lg">{formatMoney(product.price)}</p>
+        <p className="text-base font-bold">{formatMoney(product.price)}</p>
       </div>
       <div>
         <p className="text-sm font-semibold text-muted-foreground">Stock</p>
-        <p className="text-base font-bold xl:text-lg">
+        <p className="text-base font-bold">
           {formatStockQuantity(product.stockQuantity)} {product.unit}
         </p>
       </div>
@@ -801,7 +786,7 @@ function ProductResult({
           {inStock ? "Con stock" : "A pedido"}
         </span>
       </div>
-      <Button type="button" onClick={onAdd} className="h-11 gap-2 px-4 text-base xl:h-12 xl:px-5">
+      <Button type="button" onClick={onAdd} className="h-11 gap-2 px-4 text-base">
         <Plus className="size-5" aria-hidden="true" />
         Agregar
       </Button>

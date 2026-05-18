@@ -25,15 +25,18 @@ export function SidebarNav() {
               asChild
               variant={active ? "default" : "ghost"}
               className={cn(
-                "h-10 justify-start gap-2 px-2 text-sm",
+                "h-10 justify-center gap-2 px-2 text-sm transition-all duration-150",
                 active
                   ? "border-l-4 border-l-accent bg-primary pl-1.5 font-bold text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:bg-secondary hover:text-primary"
+                  : "text-muted-foreground hover:bg-secondary hover:text-primary",
+                "lg:group-hover:justify-start"
               )}
             >
               <Link href={item.href} aria-current={active ? "page" : undefined}>
                 <Icon className="size-5 shrink-0" aria-hidden="true" />
-                <span className="truncate">{item.title}</span>
+                <span className="max-w-full overflow-hidden whitespace-nowrap transition-all duration-150 lg:max-w-0 lg:opacity-0 lg:group-hover:max-w-[160px] lg:group-hover:opacity-100">
+                  {item.title}
+                </span>
               </Link>
             </Button>
           );

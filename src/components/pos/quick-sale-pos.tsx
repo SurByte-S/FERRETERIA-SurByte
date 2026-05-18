@@ -79,7 +79,7 @@ export function QuickSalePos({
   const [lines, setLines] = useState<QuoteLine[]>([]);
   const [message, setMessage] = useState(EMPTY_SEARCH_MESSAGE);
   const [paymentMethod, setPaymentMethod] = useState(PAYMENT_METHODS[0]);
-  const [paidAmount, setPaidAmount] = useState("");
+  const paidAmount = ""; // se mantiene la variable para usar total en registro de venta
   const [isPending, startTransition] = useTransition();
 
   const total = useMemo(
@@ -364,9 +364,9 @@ export function QuickSalePos({
   return (
     <div className="grid h-auto min-h-0 gap-2 bg-background lg:h-[calc(100vh-5.75rem)] lg:grid-rows-[auto_minmax(0,1fr)] lg:overflow-hidden">
       <header className="grid shrink-0 gap-2 rounded-lg border border-border bg-card px-3 py-2 shadow-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-        <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
+        <div className="flex min-w-0 flex-wrap items-center gap-3">
           <div className="min-w-0">
-            <h1 className="text-2xl font-black leading-none text-primary">
+            <h1 className="text-xl font-black leading-tight text-primary">
               Mostrador
             </h1>
             <p className="text-sm font-semibold text-muted-foreground">
@@ -374,7 +374,7 @@ export function QuickSalePos({
             </p>
           </div>
 
-          <div className="grid min-w-[17.5rem] grid-cols-[minmax(7rem,1fr)_minmax(9.5rem,1fr)] gap-1 rounded-md border border-border bg-background p-1">
+          <div className="grid min-w-[16rem] grid-cols-[minmax(6rem,1fr)_minmax(8rem,1fr)] gap-1 rounded-md border border-border bg-background p-1">
             <ModeButton
               active={mode === "sale"}
               label="Venta"
@@ -393,23 +393,23 @@ export function QuickSalePos({
 
       <main className="grid min-h-0 gap-2 lg:grid-cols-[minmax(0,1fr)_clamp(360px,33vw,440px)]">
         <section className="grid min-h-0 overflow-hidden rounded-lg border border-border bg-card shadow-sm lg:grid-rows-[auto_minmax(0,1fr)]">
-          <div className="border-b border-border p-2.5">
+          <div className="border-b border-border p-2">
             <label className="grid gap-1">
               <span className="text-base font-black">Buscar producto</span>
-              <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_150px]">
+              <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_120px]">
                 <input
                   ref={searchInputRef}
                   value={search}
                   onChange={(event) => handleSearchChange(event.target.value)}
                   onKeyDown={handleSearchKeyDown}
                   placeholder={SEARCH_PLACEHOLDER}
-                  className="h-11 w-full rounded-md border-2 border-input bg-background px-4 text-lg font-semibold outline-none focus:border-primary"
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-base font-semibold outline-none focus:border-primary"
                 />
                 <Button
                   type="button"
                   onClick={runSearch}
                   disabled={isPending || !search.trim()}
-                  className="h-11 rounded-md text-lg font-black"
+                  className="h-10 rounded-md text-base font-black"
                 >
                   Buscar
                 </Button>
@@ -417,7 +417,7 @@ export function QuickSalePos({
             </label>
 
             {visibleMessage ? (
-              <p className="mt-2 rounded-md border border-primary/20 bg-secondary px-3 py-2 text-base font-bold text-primary">
+              <p className="mt-2 rounded-md border border-primary/20 bg-secondary/10 px-3 py-2 text-sm font-semibold text-primary">
                 {visibleMessage}
               </p>
             ) : null}
@@ -445,9 +445,9 @@ export function QuickSalePos({
                       product={product}
                       onAdd={() => addProduct(product)}
                     />
-                ))}
-              </div>
-            ) : (
+                  ))}
+                </div>
+              ) : (
                 <SearchStatePanel status={searchStatus} />
               )}
             </div>
@@ -501,31 +501,19 @@ export function QuickSalePos({
           <div className="border-t-2 border-accent bg-card p-2.5">
             {!isQuoteMode ? (
               <div className="mb-2 grid gap-2">
-                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-2">
-                  <Field label="Forma de pago">
-                    <select
-                      value={paymentMethod}
-                      onChange={(event) => setPaymentMethod(event.target.value)}
-                      className="h-11 rounded-md border border-input bg-background px-3 text-base font-semibold"
-                    >
-                      {PAYMENT_METHODS.map((method) => (
-                        <option key={method} value={method}>
-                          {method}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                  <Field label="Monto pagado">
-                    <input
-                      value={paidAmount || String(total)}
-                      onChange={(event) => setPaidAmount(event.target.value)}
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      className="h-11 rounded-md border border-input bg-background px-3 text-base font-semibold"
-                    />
-                  </Field>
-                </div>
+                <Field label="Forma de pago">
+                  <select
+                    value={paymentMethod}
+                    onChange={(event) => setPaymentMethod(event.target.value)}
+                    className="h-11 w-full rounded-md border border-input bg-background px-3 text-base font-semibold"
+                  >
+                    {PAYMENT_METHODS.map((method) => (
+                      <option key={method} value={method}>
+                        {method}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
               </div>
             ) : null}
 
@@ -533,7 +521,7 @@ export function QuickSalePos({
               className={
                 isQuoteMode
                   ? "grid gap-2"
-                  : "grid gap-2 sm:grid-cols-[minmax(0,1fr)_170px] sm:items-end"
+                  : "grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end"
               }
             >
               <div className="min-w-0">
@@ -559,7 +547,7 @@ export function QuickSalePos({
                   type="button"
                   onClick={saveQuote}
                   disabled={isPending || lines.length === 0}
-                  className="h-12 min-h-12 w-full px-4 text-lg font-black"
+                  className="h-11 w-full px-4 text-base font-black"
                 >
                   Guardar presupuesto
                 </Button>
@@ -574,7 +562,7 @@ export function QuickSalePos({
                       hasOutOfStockLines ||
                       isCashRegisterClosed
                     }
-                    className="h-12 min-h-12 text-lg font-black"
+                    className="h-11 w-full text-base font-black"
                   >
                     Cobrar venta
                   </Button>
@@ -827,9 +815,9 @@ function ProductRow({
   onAdd: () => void;
 }) {
   return (
-    <div className="grid gap-2 rounded-md border border-border bg-background p-3 md:grid-cols-[minmax(0,1fr)_92px_116px_104px] md:items-center">
+    <div className="grid gap-2 rounded-md border border-border bg-background p-2 md:grid-cols-[minmax(0,1fr)_84px_96px_96px] md:items-center">
       <div className="min-w-0">
-        <p className="line-clamp-2 text-lg font-black leading-tight">
+        <p className="line-clamp-2 text-base font-black leading-tight">
           {product.name || product.description}
         </p>
         <p className="font-mono text-sm font-semibold text-muted-foreground">
@@ -847,11 +835,11 @@ function ProductRow({
       />
       <div>
         <p className="text-sm font-bold text-muted-foreground">Precio</p>
-        <p className="text-xl font-black text-primary">
+        <p className="text-lg font-black text-primary">
           {formatMoney(product.price)}
         </p>
       </div>
-      <Button type="button" onClick={onAdd} className="h-11 text-base font-black">
+      <Button type="button" onClick={onAdd} className="h-10 px-3 text-base font-black">
         Agregar
       </Button>
     </div>
@@ -873,10 +861,10 @@ function TicketLine({
     <div className="grid gap-2 rounded-md border border-border bg-card p-2">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="line-clamp-2 text-base font-black leading-tight">
+          <p className="line-clamp-2 text-sm font-black leading-tight">
             {line.description}
           </p>
-          <p className="font-mono text-sm font-semibold text-muted-foreground">
+          <p className="font-mono text-xs font-semibold text-muted-foreground">
             Codigo: {line.code}
           </p>
         </div>
@@ -884,41 +872,41 @@ function TicketLine({
           type="button"
           variant="outline"
           onClick={onRemove}
-          className="h-9 shrink-0 px-3 text-sm font-bold"
+          className="h-8 shrink-0 px-3 text-xs font-bold"
         >
           Quitar
         </Button>
       </div>
 
-      <div className="grid grid-cols-[128px_minmax(0,1fr)] items-center gap-2">
-        <div className="grid grid-cols-[38px_52px_38px] gap-1">
+      <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2">
+        <div className="grid grid-cols-[32px_44px_32px] gap-1">
           <Button
             type="button"
             variant="outline"
             onClick={onDecrement}
-            className="h-10 px-0 text-xl font-black"
+            className="h-8 px-0 text-lg font-black"
             aria-label={`Restar cantidad de ${line.description}`}
           >
             -
           </Button>
-          <div className="grid h-10 place-items-center rounded-md border border-input bg-background text-base font-black">
+          <div className="grid h-8 place-items-center rounded-md border border-input bg-background text-sm font-black">
             {line.quantity}
           </div>
           <Button
             type="button"
             variant="outline"
             onClick={onIncrement}
-            className="h-10 px-0 text-xl font-black"
+            className="h-8 px-0 text-lg font-black"
             aria-label={`Sumar cantidad de ${line.description}`}
           >
             +
           </Button>
         </div>
         <div className="text-right">
-          <p className="text-sm font-bold text-muted-foreground">
+          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
             {formatMoney(line.price)} c/u
           </p>
-          <p className="text-xl font-black text-primary">
+          <p className="text-lg font-black text-primary">
             {formatMoney(line.quantity * line.price)}
           </p>
         </div>
