@@ -57,7 +57,7 @@ export function BrandLogo({
     >
       <div
         className={cn(
-          "brand-logo-mark flex shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-white",
+          "brand-logo-mark flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-primary/15 bg-white shadow-sm",
           classes.image,
           imageClassName
         )}
@@ -77,7 +77,7 @@ export function BrandLogo({
           <img
             src={LOGO_SRC}
             alt={`Logo de ${ferreteriaGuemesBrand.brandName}`}
-            className="block h-full w-full object-contain p-1"
+            className="block h-full w-full object-contain p-0.5"
             loading="eager"
             decoding="async"
             onError={() => setImageFailed(true)}
