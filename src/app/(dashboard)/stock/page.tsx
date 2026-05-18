@@ -1,8 +1,8 @@
-import { AlertTriangle, Edit3, PackagePlus, Search } from "lucide-react";
+import { AlertTriangle, Edit3, Search } from "lucide-react";
 import Link from "next/link";
 
 import { ProductPriceForm } from "@/components/productos/product-price-form";
-import { StockAdjustForm } from "@/components/productos/stock-adjust-form";
+import { StockAdjustDetails } from "@/components/productos/stock-adjust-details";
 import type { ProductListItem } from "@/components/productos/product-types";
 import { PageHeader } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { formatStockQuantity } from "@/lib/format";
+import { sortProductsBySearchRank } from "@/lib/search-ranking";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { requireTenant } from "@/lib/tenant";
 
@@ -31,6 +33,7 @@ type ProductRow = {
   sku: string;
   barcode: string | null;
   name: string;
+  normalized_name: string | null;
   description: string | null;
   unit: string;
   cost_with_tax: number | null;
@@ -287,7 +290,7 @@ function StockProductCard({
           <div className={`rounded-lg border p-3 xl:p-4 ${status.className}`}>
             <p className="text-base">Stock</p>
             <p className="mt-1 text-xl font-bold xl:text-2xl">
-              {product.stockQuantity} {product.unit}
+              {formatStockQuantity(product.stockQuantity)} {product.unit}
             </p>
             <p className="text-sm font-semibold">{status.label}</p>
           </div>
@@ -295,17 +298,7 @@ function StockProductCard({
       </CardHeader>
       <CardContent className="grid gap-3">
         {canAdjustStock ? (
-          <details>
-            <summary className="list-none">
-              <Button asChild className="h-11 gap-2 px-4 text-base xl:h-14 xl:px-6 xl:text-lg">
-                <span>
-                  <PackagePlus className="size-6" aria-hidden="true" />
-                  Ajustar stock
-                </span>
-              </Button>
-            </summary>
-            <StockAdjustForm product={product} />
-          </details>
+          <StockAdjustDetails product={product} />
         ) : null}
 
         {canEditPrice ? (
@@ -364,12 +357,12 @@ async function loadStockProducts({
     let query = supabase
       .from("products")
       .select(
-        "id,sku,barcode,name,description,unit,cost_with_tax,sale_price,stock_quantity,min_stock,active,image_url,category_id,brand_id,categories(name),brands(name)"
+        "id,sku,barcode,name,normalized_name,description,unit,cost_with_tax,sale_price,stock_quantity,min_stock,active,image_url,category_id,brand_id,categories(name),brands(name)"
       )
       .eq("tenant_id", tenant.id)
       .eq("active", true)
       .order("name")
-      .limit(PAGE_SIZE);
+      .limit(q.length >= 1 ? PAGE_SIZE * 3 : PAGE_SIZE);
 
     if (onlyOutOfStock) {
       query = query.lte("stock_quantity", 0);
@@ -395,7 +388,13 @@ async function loadStockProducts({
 
     return {
       ok: true,
-      products: ((data ?? []) as unknown as ProductRow[]).map(mapProduct),
+      products: sortProductsBySearchRank(
+        ((data ?? []) as unknown as ProductRow[]).map((row) => ({
+          ...mapProduct(row),
+          normalizedName: row.normalized_name,
+        })),
+        q
+      ).slice(0, PAGE_SIZE),
       outOfStockCount: outOfStockResult.count ?? 0,
       canAdjustStock,
       canEditPrice,

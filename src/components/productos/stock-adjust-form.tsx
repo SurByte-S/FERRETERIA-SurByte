@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { startTransition, useActionState, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { PackagePlus } from "lucide-react";
 
 import {
@@ -8,6 +9,7 @@ import {
   type ProductActionState,
 } from "@/app/(dashboard)/productos/actions";
 import { Button } from "@/components/ui/button";
+import { formatStockQuantity } from "@/lib/format";
 import type { ProductListItem } from "./product-types";
 
 const initialState: ProductActionState = {
@@ -16,13 +18,26 @@ const initialState: ProductActionState = {
 };
 
 export function StockAdjustForm({ product }: { product: ProductListItem }) {
-  const [newStockValue, setNewStockValue] = useState(String(product.stockQuantity));
+  const router = useRouter();
+  const [newStockValue, setNewStockValue] = useState(
+    product.stockQuantity === 0 ? "" : String(product.stockQuantity)
+  );
+  const [confirmation, setConfirmation] = useState<{
+    formData: FormData;
+    nextStock: string;
+  } | null>(null);
   const [state, formAction, pending] = useActionState(
     adjustProductStockAction,
     initialState
   );
+
+  useEffect(() => {
+    if (state.ok) {
+      router.refresh();
+    }
+  }, [router, state.ok]);
   const stockPreview = useMemo(() => {
-    const nextStock = Number(newStockValue.replace(",", "."));
+    const nextStock = Number(newStockValue);
 
     if (!Number.isFinite(nextStock)) {
       return {
@@ -38,7 +53,7 @@ export function StockAdjustForm({ product }: { product: ProductListItem }) {
       return {
         nextStock,
         difference,
-        message: `Vas a sumar ${difference} unidades.`,
+        message: `Vas a sumar ${formatStockQuantity(difference)} unidades.`,
       };
     }
 
@@ -46,7 +61,7 @@ export function StockAdjustForm({ product }: { product: ProductListItem }) {
       return {
         nextStock,
         difference,
-        message: `Vas a descontar ${Math.abs(difference)} unidades.`,
+        message: `Vas a descontar ${formatStockQuantity(Math.abs(difference))} unidades.`,
       };
     }
 
@@ -58,21 +73,32 @@ export function StockAdjustForm({ product }: { product: ProductListItem }) {
   }, [newStockValue, product.stockQuantity]);
 
   function submit(formData: FormData) {
-    const notes = String(formData.get("notes") ?? "").trim();
     const nextStock = String(formData.get("newStock") ?? "").trim();
 
-    if (!notes || !nextStock) {
+    if (!nextStock) {
       formAction(formData);
       return;
     }
 
-    const confirmed = window.confirm(
-      `Vas a dejar el stock de ${product.name} en ${nextStock}. Queres continuar?`
-    );
+    setConfirmation({
+      formData,
+      nextStock,
+    });
+  }
 
-    if (confirmed) {
-      formAction(formData);
+  function updateNewStockValue(value: string) {
+    setNewStockValue(value.replace(/\D/g, ""));
+  }
+
+  function confirmStockAdjustment() {
+    if (!confirmation) {
+      return;
     }
+
+    startTransition(() => {
+      formAction(confirmation.formData);
+      setConfirmation(null);
+    });
   }
 
   return (
@@ -81,26 +107,26 @@ export function StockAdjustForm({ product }: { product: ProductListItem }) {
       className="mt-4 grid gap-4 rounded-lg border border-border bg-background p-4"
     >
       <input type="hidden" name="productId" value={product.id} />
+      <input type="hidden" name="notes" value="Ajuste manual de stock" />
 
-      <div className="grid gap-4 md:grid-cols-[180px_1fr]">
+      <div className="grid gap-4 md:max-w-xs">
         <label className="grid gap-2 text-base font-semibold">
           <span>Stock final</span>
           <input
             name="newStock"
             type="number"
-            step="0.001"
+            min="0"
+            step="1"
+            inputMode="numeric"
+            pattern="[0-9]*"
             value={newStockValue}
-            onChange={(event) => setNewStockValue(event.target.value)}
-            className="h-12 rounded-lg border border-input bg-background px-3 text-base"
-          />
-        </label>
-
-        <label className="grid gap-2 text-base font-semibold">
-          <span>Motivo obligatorio</span>
-          <input
-            name="notes"
-            placeholder="Ej: recuento de deposito, carga inicial"
-            required
+            placeholder="0"
+            onKeyDown={(event) => {
+              if ([",", ".", "-", "+", "e", "E"].includes(event.key)) {
+                event.preventDefault();
+              }
+            }}
+            onChange={(event) => updateNewStockValue(event.target.value)}
             className="h-12 rounded-lg border border-input bg-background px-3 text-base"
           />
         </label>
@@ -109,25 +135,35 @@ export function StockAdjustForm({ product }: { product: ProductListItem }) {
       <div className="grid gap-3 rounded-lg border border-border bg-muted/40 p-4 md:grid-cols-3">
         <div>
           <p className="text-sm font-semibold text-muted-foreground">Stock actual</p>
-          <p className="text-2xl font-bold">{product.stockQuantity}</p>
+          <p className="text-2xl font-bold">
+            {formatStockQuantity(product.stockQuantity)}
+          </p>
         </div>
         <div>
           <p className="text-sm font-semibold text-muted-foreground">Nuevo stock</p>
           <p className="text-2xl font-bold">
-            {stockPreview.nextStock === null ? "-" : stockPreview.nextStock}
+            {stockPreview.nextStock === null
+              ? "-"
+              : formatStockQuantity(stockPreview.nextStock)}
           </p>
         </div>
         <div>
           <p className="text-sm font-semibold text-muted-foreground">Diferencia</p>
           <p className="text-2xl font-bold">
-            {stockPreview.difference === null ? "-" : stockPreview.difference}
+            {stockPreview.difference === null
+              ? "-"
+              : formatStockQuantity(stockPreview.difference)}
           </p>
         </div>
         <p className="font-semibold md:col-span-3">{stockPreview.message}</p>
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <Button type="submit" disabled={pending} className="h-14 gap-2 px-6 text-lg">
+        <Button
+          type="submit"
+          disabled={pending}
+          className="h-14 gap-2 bg-amber-600 px-6 text-lg text-white hover:bg-amber-700"
+        >
           <PackagePlus className="size-6" aria-hidden="true" />
           {pending ? "Actualizando..." : "Guardar ajuste de stock"}
         </Button>
@@ -135,6 +171,39 @@ export function StockAdjustForm({ product }: { product: ProductListItem }) {
           <p className="text-base font-semibold">{state.message}</p>
         ) : null}
       </div>
+
+      {confirmation ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/35 p-4">
+          <div className="w-full max-w-sm rounded-lg border border-border bg-card p-5 shadow-lg">
+            <p className="text-lg font-bold">Confirmar stock</p>
+            <p className="mt-2 text-sm font-semibold text-muted-foreground">
+              {product.name}
+            </p>
+            <p className="mt-4 rounded-lg bg-muted p-3 text-xl font-bold">
+              Nuevo stock: {formatStockQuantity(Number(confirmation.nextStock))}
+            </p>
+            <div className="mt-5 grid gap-2 sm:grid-cols-2">
+              <Button
+                type="button"
+                disabled={pending}
+                onClick={confirmStockAdjustment}
+                className="h-11 bg-emerald-700 px-4 text-white hover:bg-emerald-800"
+              >
+                Confirmar
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={pending}
+                onClick={() => setConfirmation(null)}
+                className="h-11 px-4"
+              >
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </form>
   );
 }

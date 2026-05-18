@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { getSupabaseServerClient } from "@/lib/supabase";
+import { sortProductsBySearchRank } from "@/lib/search-ranking";
 import {
   FORBIDDEN_ACTION_MESSAGE,
   isTenantRoleForbiddenError,
@@ -204,7 +205,14 @@ export async function searchQuoteProductsAction(
       return [];
     }
 
-    return ((data ?? []) as unknown as ProductRow[]).map(mapProduct);
+    return sortProductsBySearchRank(
+      ((data ?? []) as unknown as ProductRow[]).map((row) => ({
+        ...mapProduct(row),
+        barcode: row.barcode,
+        normalizedName: row.normalized_name,
+      })),
+      search
+    ).slice(0, 30);
   } catch {
     return [];
   }

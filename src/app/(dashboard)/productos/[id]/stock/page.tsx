@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { formatStockQuantity } from "@/lib/format";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { requireTenant } from "@/lib/tenant";
 
@@ -124,11 +125,15 @@ export default async function ProductStockPage({ params }: ProductStockPageProps
           <CardContent className="grid gap-3 md:grid-cols-3">
             <div className="rounded-lg border border-border p-4">
               <p className="text-base text-muted-foreground">Stock actual</p>
-              <p className="text-3xl font-bold">{product.stock_quantity}</p>
+              <p className="text-3xl font-bold">
+                {formatStockQuantity(product.stock_quantity)}
+              </p>
             </div>
             <div className="rounded-lg border border-border p-4">
               <p className="text-base text-muted-foreground">Stock minimo</p>
-              <p className="text-3xl font-bold">{product.min_stock}</p>
+              <p className="text-3xl font-bold">
+                {formatStockQuantity(product.min_stock)}
+              </p>
             </div>
             <div className="rounded-lg border border-border p-4">
               <p className="text-base text-muted-foreground">Estado</p>
@@ -175,7 +180,7 @@ export default async function ProductStockPage({ params }: ProductStockPageProps
                     ) : (
                       <ArrowUp className="size-6 text-emerald-700" aria-hidden="true" />
                     )}
-                    {movement.quantity}
+                    {formatStockQuantity(movement.quantity)}
                   </div>
                 </div>
               ))
