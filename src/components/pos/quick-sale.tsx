@@ -21,6 +21,7 @@ import {
   searchQuoteProductsAction,
 } from "@/app/(dashboard)/presupuestos/nuevo/actions";
 import { Button } from "@/components/ui/button";
+import { formatStockQuantity } from "@/lib/format";
 import type {
   QuoteCustomer,
   QuoteCustomerOption,
@@ -54,12 +55,6 @@ function formatMoney(value: number) {
     style: "currency",
     currency: "ARS",
     maximumFractionDigits: 2,
-  }).format(value));
-}
-
-function formatStock(value: number) {
-  return normalizeFormattedText(new Intl.NumberFormat("es-AR", {
-    maximumFractionDigits: 3,
   }).format(value));
 }
 
@@ -791,7 +786,7 @@ function ProductResult({
       <div>
         <p className="text-sm font-semibold text-muted-foreground">Stock</p>
         <p className="text-base font-bold xl:text-lg">
-          {formatStock(product.stockQuantity)} {product.unit}
+          {formatStockQuantity(product.stockQuantity)} {product.unit}
         </p>
       </div>
       <div>

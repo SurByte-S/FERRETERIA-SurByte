@@ -5,7 +5,6 @@ import {
   Edit3,
   History,
   ImageIcon,
-  PackagePlus,
   PackageSearch,
   Search,
   SlidersHorizontal,
@@ -20,9 +19,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { formatStockQuantity } from "@/lib/format";
 import { ProductEditForm } from "./product-edit-form";
 import type { ProductCatalogOption, ProductListItem } from "./product-types";
-import { StockAdjustForm } from "./stock-adjust-form";
+import { StockAdjustDetails } from "./stock-adjust-details";
 
 function formatMoney(value: number | null) {
   if (value === null) {
@@ -341,12 +341,16 @@ export function ProductsBrowser({
                 >
                   <div className="rounded-lg border border-border bg-background p-4">
                     <p className="text-base text-muted-foreground">Stock actual</p>
-                    <p className="mt-1 text-2xl font-bold">{product.stockQuantity}</p>
+                    <p className="mt-1 text-2xl font-bold">
+                      {formatStockQuantity(product.stockQuantity)}
+                    </p>
                   </div>
                   {mode === "administracion" ? (
                     <div className="rounded-lg border border-border bg-background p-4">
                       <p className="text-base text-muted-foreground">Stock minimo</p>
-                      <p className="mt-1 text-2xl font-bold">{product.minStock}</p>
+                      <p className="mt-1 text-2xl font-bold">
+                        {formatStockQuantity(product.minStock)}
+                      </p>
                     </div>
                   ) : null}
                   <div className={`rounded-lg border p-4 ${status.className}`}>
@@ -370,17 +374,7 @@ export function ProductsBrowser({
                         <ProductEditForm product={product} categories={categories} />
                       </details>
 
-                      <details className="group">
-                        <summary className="list-none">
-                          <Button asChild variant="outline" className="h-11 gap-2 px-4 text-base xl:h-14 xl:px-6 xl:text-lg">
-                            <span>
-                              <PackagePlus className="size-6" aria-hidden="true" />
-                              Ajustar stock
-                            </span>
-                          </Button>
-                        </summary>
-                        <StockAdjustForm product={product} />
-                      </details>
+                      <StockAdjustDetails product={product} />
                     </>
                   ) : null}
 

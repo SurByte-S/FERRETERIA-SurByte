@@ -277,7 +277,7 @@ export async function adjustProductStockAction(
 ): Promise<ProductActionState> {
   const productId = textValue(formData, "productId");
   const newStock = numberValue(textValue(formData, "newStock"));
-  const notes = textValue(formData, "notes");
+  const notes = textValue(formData, "notes") || "Ajuste manual de stock";
 
   if (!productId) {
     return {
@@ -293,10 +293,10 @@ export async function adjustProductStockAction(
     };
   }
 
-  if (!notes) {
+  if (!Number.isInteger(newStock) || newStock < 0) {
     return {
       ok: false,
-      message: "Escribi un motivo para ajustar el stock.",
+      message: "El stock debe ser un numero entero, sin coma ni decimales.",
     };
   }
 

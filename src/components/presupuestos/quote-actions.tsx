@@ -6,6 +6,7 @@ import { Printer, ShoppingCart } from "lucide-react";
 
 import { convertQuoteToSaleAction } from "@/app/(dashboard)/presupuestos/[id]/actions";
 import { Button } from "@/components/ui/button";
+import { formatStockQuantity } from "@/lib/format";
 
 const PAYMENT_METHODS = [
   "Efectivo",
@@ -179,8 +180,8 @@ export function ConvertQuoteButton({
           <ul className="mt-2 grid gap-1">
             {stockWarnings.slice(0, 5).map((item) => (
               <li key={`${item.sku ?? item.name}-${item.requestedQuantity}`}>
-                {item.name}: stock {item.currentStock}, pedido{" "}
-                {item.requestedQuantity}
+                {item.name}: stock {formatStockQuantity(item.currentStock)}, pedido{" "}
+                {formatStockQuantity(item.requestedQuantity)}
               </li>
             ))}
           </ul>

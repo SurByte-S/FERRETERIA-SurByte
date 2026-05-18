@@ -17,6 +17,7 @@ import type {
   QuoteProduct,
 } from "@/components/presupuestos/quote-types";
 import { Button } from "@/components/ui/button";
+import { formatStockQuantity } from "@/lib/format";
 
 const EMPTY_SEARCH_MESSAGE = "Busca un producto para empezar.";
 const SEARCH_PLACEHOLDER = "Codigo, codigo de barras o nombre del producto";
@@ -46,14 +47,6 @@ function formatMoney(value: number) {
       style: "currency",
       currency: "ARS",
       maximumFractionDigits: 2,
-    }).format(value)
-  );
-}
-
-function formatStock(value: number) {
-  return normalizeFormattedText(
-    new Intl.NumberFormat("es-AR", {
-      maximumFractionDigits: 3,
     }).format(value)
   );
 }
@@ -721,7 +714,10 @@ function ProductRow({
           Codigo: {product.code}
         </p>
       </div>
-      <InfoBlock label="Stock" value={`${formatStock(product.stockQuantity)} ${product.unit}`} />
+      <InfoBlock
+        label="Stock"
+        value={`${formatStockQuantity(product.stockQuantity)} ${product.unit}`}
+      />
       <div>
         <p className="text-sm font-bold text-muted-foreground">Precio</p>
         <p className="text-xl font-black text-primary">

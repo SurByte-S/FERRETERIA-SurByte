@@ -7,6 +7,7 @@ import type {
 } from "@/components/productos/product-types";
 import { PageHeader } from "@/components/shell/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { sortProductsBySearchRank } from "@/lib/search-ranking";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { requireTenant } from "@/lib/tenant";
 
@@ -28,6 +29,7 @@ type ProductSearchRow = {
   barcode: string | null;
   name: string;
   description: string | null;
+  normalized_name: string | null;
   unit: string;
   cost_with_tax: number | null;
   sale_price: number | null;
@@ -48,6 +50,7 @@ type ProductFallbackRow = {
   barcode: string | null;
   name: string;
   description: string | null;
+  normalized_name: string | null;
   unit: string;
   cost_with_tax: number | null;
   sale_price: number | null;
@@ -238,7 +241,13 @@ async function loadProducts({
 
       return {
         ok: true,
-        products: rows.map(mapRpcRow),
+        products: sortProductsBySearchRank(
+          rows.map((row) => ({
+            ...mapRpcRow(row),
+            normalizedName: row.normalized_name,
+          })),
+          code || name
+        ),
         categories,
         total,
         showing: Math.min(from + rows.length, total),
@@ -249,7 +258,7 @@ async function loadProducts({
     let query = supabase
       .from("products")
       .select(
-        "id,sku,barcode,name,description,unit,cost_with_tax,sale_price,stock_quantity,min_stock,active,image_url,category_id,brand_id,categories(name),brands(name)",
+        "id,sku,barcode,name,normalized_name,description,unit,cost_with_tax,sale_price,stock_quantity,min_stock,active,image_url,category_id,brand_id,categories(name),brands(name)",
         { count: "exact" }
       )
       .eq("tenant_id", tenant.id)
@@ -299,13 +308,16 @@ async function loadProducts({
     }
 
     const products = ((data ?? []) as unknown as ProductFallbackRow[]).map(
-      mapFallbackRow
+      (row) => ({
+        ...mapFallbackRow(row),
+        normalizedName: row.normalized_name,
+      })
     );
     const total = count ?? products.length;
 
     return {
       ok: true,
-      products,
+      products: sortProductsBySearchRank(products, code || name),
       categories,
       total,
       showing: Math.min(from + products.length, total),
