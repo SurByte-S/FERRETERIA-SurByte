@@ -71,7 +71,7 @@ No existe migracion `002` por un salto historico de numeracion. No renombrar mig
 - Cerrar caja.
 - Confirmar diferencia.
 
-Tambien esta disponible el archivo `CHECKLIST_PRUEBA_FERRETERIA.md` para ejecutar la prueba paso a paso.
+Tambien esta disponible el archivo `docs/checklists/CHECKLIST_PRUEBA_FERRETERIA.md` para ejecutar la prueba paso a paso.
 
 ## Estructura
 

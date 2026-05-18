@@ -26,4 +26,4 @@ El Excel tiene fórmulas con referencias externas a una hoja/libro llamado `BASE
 - `productos_incompletos_revision.csv`: productos que necesitan revisión por precio/costo faltante.
 - `001_initial_schema_supabase.sql`: esquema multi-tenant inicial.
 - `002_seed_categorias.sql`: categorías base sugeridas.
-- `PROMPTS_CODEX.md`: prompts iniciales para construir el proyecto.
+- `docs/historico/PROMPTS_CODEX.md`: prompts iniciales para construir el proyecto.
