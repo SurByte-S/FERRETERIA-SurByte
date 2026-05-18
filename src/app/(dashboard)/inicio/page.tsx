@@ -1,4 +1,4 @@
-import { QuickSale } from "@/components/pos/quick-sale";
+import { QuickSalePos } from "@/components/pos/quick-sale-pos";
 import type { QuoteCustomerOption } from "@/components/presupuestos/quote-types";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { requireTenant } from "@/lib/tenant";
@@ -27,7 +27,9 @@ export default async function InicioPage({
     loadCustomers(tenant.id, supabase),
   ]);
 
-  return <QuickSale initialSku={sku} customers={customers} cashStatus={cashStatus} />;
+  return (
+    <QuickSalePos initialSku={sku} customers={customers} cashStatus={cashStatus} />
+  );
 }
 
 async function loadCustomers(
