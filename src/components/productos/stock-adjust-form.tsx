@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useActionState, useEffect, useMemo, useState } from "react";
+import { startTransition, useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PackagePlus } from "lucide-react";
 
@@ -19,6 +19,7 @@ const initialState: ProductActionState = {
 
 export function StockAdjustForm({ product }: { product: ProductListItem }) {
   const router = useRouter();
+  const formRef = useRef<HTMLFormElement>(null);
   const [newStockValue, setNewStockValue] = useState(
     product.stockQuantity === 0 ? "" : String(product.stockQuantity)
   );
@@ -33,7 +34,25 @@ export function StockAdjustForm({ product }: { product: ProductListItem }) {
 
   useEffect(() => {
     if (state.ok) {
-      router.refresh();
+      const scrollContainer = formRef.current?.closest(".overflow-y-auto");
+
+      if (scrollContainer) {
+        scrollContainer.scrollTo({
+          top: 0,
+          behavior: "smooth",
+        });
+      } else {
+        window.scrollTo({
+          top: 0,
+          behavior: "smooth",
+        });
+      }
+
+      const refreshTimeout = window.setTimeout(() => {
+        router.refresh();
+      }, 250);
+
+      return () => window.clearTimeout(refreshTimeout);
     }
   }, [router, state.ok]);
   const stockPreview = useMemo(() => {
@@ -103,6 +122,7 @@ export function StockAdjustForm({ product }: { product: ProductListItem }) {
 
   return (
     <form
+      ref={formRef}
       action={submit}
       className="mt-4 grid gap-4 rounded-lg border border-border bg-background p-4"
     >
