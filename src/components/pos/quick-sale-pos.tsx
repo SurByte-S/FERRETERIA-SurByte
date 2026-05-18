@@ -8,7 +8,7 @@ import {
   getQuoteProductBySkuAction,
   saveQuoteAction,
   saveQuoteAndConvertToSaleAction,
-  searchQuoteProductsAction,
+  searchProductsForPosAction,
 } from "@/app/(dashboard)/presupuestos/nuevo/actions";
 import type {
   QuoteCustomer,
@@ -35,6 +35,8 @@ type SaleMode = "sale" | "quote";
 type CashStatus =
   | { open: true; openedAt: string; expectedCash: number }
   | { open: false };
+
+type SearchStatus = "idle" | "loading" | "results" | "empty" | "error";
 
 function normalizeFormattedText(value: string) {
   return value.replace(/[\s\u00a0\u202f]+/g, " ").trim();
@@ -79,6 +81,8 @@ export function QuickSalePos({
   const [search, setSearch] = useState(initialSku ?? "");
   const [mode, setMode] = useState<SaleMode>("sale");
   const [results, setResults] = useState<QuoteProduct[]>([]);
+  const [resultsTotal, setResultsTotal] = useState(0);
+  const [searchStatus, setSearchStatus] = useState<SearchStatus>("idle");
   const [lines, setLines] = useState<QuoteLine[]>([]);
   const [message, setMessage] = useState(EMPTY_SEARCH_MESSAGE);
   const [paymentMethod, setPaymentMethod] = useState(PAYMENT_METHODS[0]);
@@ -97,6 +101,11 @@ export function QuickSalePos({
   const isCashRegisterClosed = !isQuoteMode && cashStatus?.open === false;
   const visibleMessage =
     message && message !== EMPTY_SEARCH_MESSAGE ? message : "";
+  const resultCounter = getResultCounter({
+    status: searchStatus,
+    visibleCount: results.length,
+    total: resultsTotal,
+  });
   const actionHelp = getActionHelp({
     linesCount: lines.length,
     isCashRegisterClosed,
@@ -127,13 +136,26 @@ export function QuickSalePos({
 
     const timeoutId = window.setTimeout(() => {
       startTransition(async () => {
-        const found = await searchQuoteProductsAction(term, isQuoteMode);
+        setSearchStatus("loading");
+        setResults([]);
+        setResultsTotal(0);
+        const result = await searchProductsForPosAction(term, isQuoteMode);
 
-        setResults(found);
+        if (!result.ok) {
+          setResults([]);
+          setResultsTotal(0);
+          setSearchStatus("error");
+          setMessage(result.message ?? "No se pudieron buscar productos.");
+          return;
+        }
+
+        setResults(result.items);
+        setResultsTotal(result.total);
+        setSearchStatus(result.total > 0 ? "results" : "empty");
         setMessage(
-          found.length > 0
+          result.total > 0
             ? "Toca Agregar para sumarlo a la venta."
-            : "No encontramos ese producto."
+            : "No se encontraron productos."
         );
       });
     }, 250);
@@ -144,6 +166,8 @@ export function QuickSalePos({
   function changeMode(nextMode: SaleMode) {
     setMode(nextMode);
     setResults([]);
+    setResultsTotal(0);
+    setSearchStatus("idle");
     setMessage(
       nextMode === "quote"
         ? "Modo presupuesto: podes guardar sin cobrar."
@@ -157,6 +181,8 @@ export function QuickSalePos({
 
     if (!value.trim()) {
       setResults([]);
+      setResultsTotal(0);
+      setSearchStatus("idle");
       setMessage(EMPTY_SEARCH_MESSAGE);
     }
   }
@@ -166,12 +192,17 @@ export function QuickSalePos({
 
     if (!term) {
       setResults([]);
+      setResultsTotal(0);
+      setSearchStatus("idle");
       setMessage(EMPTY_SEARCH_MESSAGE);
       searchInputRef.current?.focus();
       return;
     }
 
     setMessage("Buscando productos...");
+    setSearchStatus("loading");
+    setResults([]);
+    setResultsTotal(0);
     startTransition(async () => {
       const exact = await getQuoteProductBySkuAction(term, isQuoteMode);
 
@@ -180,13 +211,23 @@ export function QuickSalePos({
         return;
       }
 
-      const found = await searchQuoteProductsAction(term, isQuoteMode);
+      const result = await searchProductsForPosAction(term, isQuoteMode);
 
-      setResults(found);
+      if (!result.ok) {
+        setResults([]);
+        setResultsTotal(0);
+        setSearchStatus("error");
+        setMessage(result.message ?? "No se pudieron buscar productos.");
+        return;
+      }
+
+      setResults(result.items);
+      setResultsTotal(result.total);
+      setSearchStatus(result.total > 0 ? "results" : "empty");
       setMessage(
-        found.length > 0
+        result.total > 0
           ? "Toca Agregar para sumarlo a la venta."
-          : "No encontramos ese producto."
+          : "No se encontraron productos."
       );
     });
   }
@@ -214,6 +255,8 @@ export function QuickSalePos({
     });
     setSearch("");
     setResults([]);
+    setResultsTotal(0);
+    setSearchStatus("idle");
     setMessage("Producto agregado a la venta.");
     window.setTimeout(() => searchInputRef.current?.focus(), 0);
   }
@@ -326,7 +369,7 @@ export function QuickSalePos({
   }
 
   return (
-    <div className="grid h-auto min-h-0 gap-3 bg-background lg:h-[calc(100vh-6.75rem)] lg:grid-rows-[auto_minmax(0,1fr)] lg:overflow-hidden">
+    <div className="grid h-auto min-h-0 gap-2 bg-background lg:h-[calc(100vh-5.75rem)] lg:grid-rows-[auto_minmax(0,1fr)] lg:overflow-hidden">
       <header className="grid shrink-0 gap-2 rounded-lg border border-border bg-card px-3 py-2 shadow-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
         <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
           <div className="min-w-0">
@@ -355,9 +398,9 @@ export function QuickSalePos({
         {!isQuoteMode && cashStatus ? <CashBadge cashStatus={cashStatus} /> : null}
       </header>
 
-      <main className="grid min-h-0 gap-3 lg:grid-cols-[minmax(0,1fr)_430px] xl:grid-cols-[minmax(0,1fr)_450px]">
+      <main className="grid min-h-0 gap-2 lg:grid-cols-[minmax(0,1fr)_clamp(360px,33vw,440px)]">
         <section className="grid min-h-0 overflow-hidden rounded-lg border border-border bg-card shadow-sm lg:grid-rows-[auto_minmax(0,1fr)]">
-          <div className="border-b border-border p-3">
+          <div className="border-b border-border p-2.5">
             <label className="grid gap-1">
               <span className="text-base font-black">Buscar producto</span>
               <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_150px]">
@@ -367,13 +410,13 @@ export function QuickSalePos({
                   onChange={(event) => handleSearchChange(event.target.value)}
                   onKeyDown={handleSearchKeyDown}
                   placeholder={SEARCH_PLACEHOLDER}
-                  className="h-12 w-full rounded-md border-2 border-input bg-background px-4 text-lg font-semibold outline-none focus:border-primary"
+                  className="h-11 w-full rounded-md border-2 border-input bg-background px-4 text-lg font-semibold outline-none focus:border-primary"
                 />
                 <Button
                   type="button"
                   onClick={runSearch}
                   disabled={isPending || !search.trim()}
-                  className="h-12 rounded-md text-lg font-black"
+                  className="h-11 rounded-md text-lg font-black"
                 >
                   Buscar
                 </Button>
@@ -396,7 +439,7 @@ export function QuickSalePos({
                 </p>
               </div>
               <p className="hidden rounded-md bg-muted px-2 py-1 text-sm font-bold text-muted-foreground sm:block">
-                {results.length} encontrados
+                {resultCounter}
               </p>
             </div>
 
@@ -409,23 +452,16 @@ export function QuickSalePos({
                       product={product}
                       onAdd={() => addProduct(product)}
                     />
-                  ))}
-                </div>
-              ) : (
-                <div className="rounded-md border border-dashed border-border bg-background p-4">
-                  <p className="text-lg font-black">
-                    Busca un producto para empezar.
-                  </p>
-                  <p className="mt-1 text-base font-semibold text-muted-foreground">
-                    Ejemplos: martillo, tornillo, cemento, 779...
-                  </p>
-                </div>
+                ))}
+              </div>
+            ) : (
+                <SearchStatePanel status={searchStatus} />
               )}
             </div>
           </div>
         </section>
 
-        <aside className="grid min-h-[500px] overflow-hidden rounded-lg border border-border bg-card shadow-sm lg:min-h-0 lg:grid-rows-[auto_minmax(0,1fr)_auto]">
+        <aside className="grid min-h-[500px] overflow-hidden rounded-lg border border-border bg-card shadow-sm lg:min-h-0 lg:grid-rows-[auto_minmax(140px,1fr)_auto]">
           <div className="border-b border-border bg-primary px-3 py-2 text-primary-foreground">
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -446,7 +482,7 @@ export function QuickSalePos({
             </div>
           </div>
 
-          <div className="min-h-0 overflow-y-auto bg-background p-3">
+          <div className="min-h-0 overflow-y-auto bg-background p-2.5">
             {lines.length === 0 ? (
               <div className="rounded-md border border-dashed border-border bg-card p-4">
                 <p className="text-lg font-black">No hay productos agregados.</p>
@@ -469,7 +505,7 @@ export function QuickSalePos({
             )}
           </div>
 
-          <div className="border-t-2 border-primary bg-card p-3">
+          <div className="border-t-2 border-primary bg-card p-2.5">
             {!isQuoteMode ? (
               <div className="mb-2 grid gap-2">
                 <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-2">
@@ -500,28 +536,31 @@ export function QuickSalePos({
               </div>
             ) : null}
 
-            <div className="mb-2 flex items-end justify-between gap-3">
-              <p className="text-sm font-black uppercase tracking-wide text-muted-foreground">
-                {isQuoteMode ? "Total presupuesto" : "Total"}
-              </p>
-              <p className="text-4xl font-black leading-none text-primary">
-                {formatMoney(total)}
-              </p>
-            </div>
+            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_170px] sm:items-end">
+              <div className="min-w-0">
+                <div className="flex items-end justify-between gap-3 sm:block">
+                  <p className="text-sm font-black uppercase tracking-wide text-muted-foreground">
+                    {isQuoteMode ? "Total presupuesto" : "Total"}
+                  </p>
+                  <p className="truncate text-4xl font-black leading-none text-primary">
+                    {formatMoney(total)}
+                  </p>
+                </div>
 
-            {actionHelp ? (
-              <p className="mb-2 rounded-md border border-yellow-500/40 bg-yellow-50 px-3 py-2 text-base font-bold text-yellow-950">
-                {actionHelp}
-              </p>
-            ) : null}
+                {actionHelp ? (
+                  <p className="mt-2 rounded-md border border-yellow-500/40 bg-yellow-50 px-3 py-2 text-sm font-bold text-yellow-950">
+                    {actionHelp}
+                  </p>
+                ) : null}
+              </div>
 
-            <div className="grid gap-2">
+              <div className="grid gap-2">
               {isQuoteMode ? (
                 <Button
                   type="button"
                   onClick={saveQuote}
                   disabled={isPending || lines.length === 0}
-                  className="h-14 text-xl font-black"
+                  className="h-12 min-h-12 text-lg font-black"
                 >
                   Guardar presupuesto
                 </Button>
@@ -536,7 +575,7 @@ export function QuickSalePos({
                       hasOutOfStockLines ||
                       isCashRegisterClosed
                     }
-                    className="h-14 text-xl font-black"
+                    className="h-12 min-h-12 text-lg font-black"
                   >
                     Cobrar venta
                   </Button>
@@ -545,14 +584,16 @@ export function QuickSalePos({
                     variant="outline"
                     onClick={saveQuote}
                     disabled={isPending || lines.length === 0}
-                    className="h-10 text-base font-bold"
+                    className="h-9 text-sm font-bold"
                   >
                     Guardar presupuesto
                   </Button>
                 </>
               )}
+              </div>
+            </div>
 
-              <details className="rounded-md border border-border bg-background">
+              <details className="mt-2 rounded-md border border-border bg-background">
                 <summary className="flex min-h-10 cursor-pointer items-center px-3 text-base font-black">
                   Cliente opcional
                 </summary>
@@ -616,7 +657,6 @@ export function QuickSalePos({
                   </Field>
                 </div>
               </details>
-            </div>
           </div>
         </aside>
       </main>
@@ -652,6 +692,82 @@ function getActionHelp({
   }
 
   return "";
+}
+
+function getResultCounter({
+  status,
+  visibleCount,
+  total,
+}: {
+  status: SearchStatus;
+  visibleCount: number;
+  total: number;
+}) {
+  if (status === "idle") {
+    return "Busca para ver productos";
+  }
+
+  if (status === "loading") {
+    return "Buscando...";
+  }
+
+  if (status === "empty") {
+    return "Sin resultados";
+  }
+
+  if (status === "error") {
+    return "Error de busqueda";
+  }
+
+  if (total > visibleCount) {
+    return `${visibleCount} de ${total} encontrados`;
+  }
+
+  return `${total} encontrado${total === 1 ? "" : "s"}`;
+}
+
+function SearchStatePanel({ status }: { status: SearchStatus }) {
+  if (status === "loading") {
+    return (
+      <div className="rounded-md border border-border bg-background p-4">
+        <p className="text-lg font-black">Buscando productos...</p>
+        <p className="mt-1 text-base font-semibold text-muted-foreground">
+          Espera un momento.
+        </p>
+      </div>
+    );
+  }
+
+  if (status === "empty") {
+    return (
+      <div className="rounded-md border border-dashed border-border bg-background p-4">
+        <p className="text-lg font-black">No se encontraron productos.</p>
+        <p className="mt-1 text-base font-semibold text-muted-foreground">
+          Proba con otro nombre, codigo o marca.
+        </p>
+      </div>
+    );
+  }
+
+  if (status === "error") {
+    return (
+      <div className="rounded-md border border-destructive/30 bg-destructive/10 p-4">
+        <p className="text-lg font-black">No se pudo buscar.</p>
+        <p className="mt-1 text-base font-semibold text-muted-foreground">
+          Revisa la conexion e intenta nuevamente.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-md border border-dashed border-border bg-background p-4">
+      <p className="text-lg font-black">Busca un producto para empezar.</p>
+      <p className="mt-1 text-base font-semibold text-muted-foreground">
+        Ejemplos: martillo, tornillo, cemento, 779...
+      </p>
+    </div>
+  );
 }
 
 function CashBadge({ cashStatus }: { cashStatus: CashStatus }) {
@@ -720,6 +836,11 @@ function ProductRow({
         <p className="font-mono text-sm font-semibold text-muted-foreground">
           Codigo: {product.code}
         </p>
+        {product.brand || product.category ? (
+          <p className="truncate text-sm font-semibold text-muted-foreground">
+            {[product.brand, product.category].filter(Boolean).join(" - ")}
+          </p>
+        ) : null}
       </div>
       <InfoBlock label="Stock" value={`${formatStock(product.stockQuantity)} ${product.unit}`} />
       <div>

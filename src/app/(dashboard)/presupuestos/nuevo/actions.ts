@@ -22,10 +22,19 @@ type ProductRow = {
   name: string;
   normalized_name: string;
   description: string | null;
+  brands?: { name: string | null } | null;
+  categories?: { name: string | null } | null;
   unit: string;
   sale_price: number | null;
   stock_quantity: number | null;
   min_stock: number | null;
+};
+
+export type PosProductSearchResult = {
+  ok: boolean;
+  items: QuoteProduct[];
+  total: number;
+  message?: string;
 };
 
 export type SaveQuoteResult = {
@@ -55,6 +64,8 @@ function mapProduct(row: ProductRow): QuoteProduct {
     code: row.barcode ?? row.sku,
     name: row.name,
     description: row.description ?? row.name,
+    brand: row.brands?.name ?? "",
+    category: row.categories?.name ?? "",
     unit: row.unit,
     price: row.sale_price ?? 0,
     stockQuantity: row.stock_quantity ?? 0,
@@ -196,6 +207,106 @@ export async function searchQuoteProductsAction(
     return ((data ?? []) as unknown as ProductRow[]).map(mapProduct);
   } catch {
     return [];
+  }
+}
+
+export async function searchProductsForPosAction(
+  rawSearch: string,
+  includeOutOfStock = false,
+  page = 1,
+  pageSize = 40
+): Promise<PosProductSearchResult> {
+  const search = cleanSearch(rawSearch);
+
+  if (!search) {
+    return {
+      ok: true,
+      items: [],
+      total: 0,
+    };
+  }
+
+  try {
+    const tenant = await requireTenantRole(["owner", "admin", "seller"]);
+    const supabase = getSupabaseServerClient();
+    const safeSearch = search.replace(/[%_]/g, "");
+    const from = Math.max(0, page - 1) * pageSize;
+    const to = from + Math.min(Math.max(pageSize, 1), 60) - 1;
+    const [matchingBrands, matchingCategories] = await Promise.all([
+      supabase
+        .from("brands")
+        .select("id")
+        .eq("tenant_id", tenant.id)
+        .eq("active", true)
+        .ilike("name", `%${safeSearch}%`),
+      supabase
+        .from("categories")
+        .select("id")
+        .eq("tenant_id", tenant.id)
+        .eq("active", true)
+        .ilike("name", `%${safeSearch}%`),
+    ]);
+    const brandIds = ((matchingBrands.data ?? []) as { id: string }[]).map(
+      (item) => item.id
+    );
+    const categoryIds = (
+      (matchingCategories.data ?? []) as { id: string }[]
+    ).map((item) => item.id);
+    const searchParts = [
+      `sku.ilike.%${safeSearch}%`,
+      `barcode.ilike.%${safeSearch}%`,
+      `name.ilike.%${safeSearch}%`,
+      `normalized_name.ilike.%${safeSearch}%`,
+      `description.ilike.%${safeSearch}%`,
+    ];
+
+    if (brandIds.length > 0) {
+      searchParts.push(`brand_id.in.(${brandIds.join(",")})`);
+    }
+
+    if (categoryIds.length > 0) {
+      searchParts.push(`category_id.in.(${categoryIds.join(",")})`);
+    }
+
+    let query = supabase
+      .from("products")
+      .select(
+        "id,sku,barcode,name,normalized_name,description,unit,sale_price,stock_quantity,min_stock,brands(name),categories(name)",
+        { count: "exact" }
+      )
+      .eq("tenant_id", tenant.id)
+      .eq("active", true)
+      .or(searchParts.join(","))
+      .order("name")
+      .range(from, to);
+
+    if (!includeOutOfStock) {
+      query = query.gt("stock_quantity", 0);
+    }
+
+    const { data, error, count } = await query;
+
+    if (error) {
+      return {
+        ok: false,
+        items: [],
+        total: 0,
+        message: "No se pudieron buscar productos. Revisa la conexion.",
+      };
+    }
+
+    return {
+      ok: true,
+      items: ((data ?? []) as unknown as ProductRow[]).map(mapProduct),
+      total: count ?? 0,
+    };
+  } catch {
+    return {
+      ok: false,
+      items: [],
+      total: 0,
+      message: "No se pudieron buscar productos. Intenta nuevamente.",
+    };
   }
 }
 

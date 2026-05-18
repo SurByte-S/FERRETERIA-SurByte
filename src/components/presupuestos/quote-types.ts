@@ -3,6 +3,8 @@ export type QuoteProduct = {
   code: string;
   name: string;
   description: string;
+  brand?: string;
+  category?: string;
   unit: string;
   price: number;
   stockQuantity: number;
