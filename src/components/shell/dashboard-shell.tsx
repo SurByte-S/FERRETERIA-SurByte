@@ -17,16 +17,16 @@ export function DashboardShell({
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="grid min-h-screen lg:h-screen lg:grid-cols-[168px_minmax(0,1fr)] 2xl:grid-cols-[180px_minmax(0,1fr)]">
-        <aside className="no-print border-b border-border bg-sidebar lg:h-screen lg:overflow-y-auto lg:border-b-0 lg:border-r">
+        <aside className="no-print border-b border-sidebar-border bg-sidebar lg:h-screen lg:overflow-y-auto lg:border-b-0 lg:border-r">
           <div className="flex min-h-full flex-col gap-2 p-2">
             <Link
               href="/inicio"
-              className="flex min-h-12 min-w-0 items-center gap-2 rounded-lg border border-border bg-card px-2 text-left transition-colors hover:border-primary/30 hover:bg-secondary/50"
+              className="flex min-h-12 min-w-0 items-center gap-2 rounded-lg border border-primary/15 bg-card px-2 text-left transition-colors hover:border-primary/30 hover:bg-secondary/60"
             >
               <BrandLogo
                 size="small"
                 showText={false}
-                imageClassName="size-8"
+                imageClassName="size-9"
               />
               <span className="min-w-0">
                 <span className="block truncate text-base font-bold">
@@ -38,7 +38,7 @@ export function DashboardShell({
               </span>
             </Link>
             <SidebarNav />
-            <div className="mt-auto grid gap-2 rounded-lg border border-border bg-card p-2">
+            <div className="mt-auto grid gap-2 rounded-lg border border-primary/15 bg-card p-2">
               <div className="min-w-0">
                 <p className="text-sm text-muted-foreground">Usuario</p>
                 <p
@@ -62,7 +62,7 @@ export function DashboardShell({
           </div>
         </aside>
         <main className="flex min-h-screen min-w-0 flex-col lg:h-screen">
-          <header className="no-print border-b border-border bg-card px-3 py-2 sm:px-4">
+          <header className="no-print border-b border-sidebar-border bg-card px-3 py-2 sm:px-4">
             <div className="flex items-center justify-between gap-4">
               <p className="text-lg font-bold text-primary">
                 {ferreteriaGuemesBrand.brandName}

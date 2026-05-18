@@ -11,11 +11,12 @@ export const ferreteriaGuemesBrand = {
 } as const;
 
 export const brandColors = {
-  primary: "#004A98",
-  primaryDark: "#003B7A",
-  accent: "#F6B800",
-  success: "#6BAA2C",
-  text: "#374151",
-  softBackground: "#F8FAFC",
-  border: "#E5E7EB",
+  primary: "#0057A8",
+  primaryDark: "#003E78",
+  secondary: "#23AEE6",
+  accent: "#B96B42",
+  success: "#12845B",
+  text: "#17324D",
+  softBackground: "#F6F9FC",
+  border: "#D9E3EE",
 } as const;

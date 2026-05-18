@@ -374,7 +374,7 @@ export function QuickSalePos({
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-1 rounded-md border border-border bg-background p-1">
+          <div className="grid min-w-[17.5rem] grid-cols-[minmax(7rem,1fr)_minmax(9.5rem,1fr)] gap-1 rounded-md border border-border bg-background p-1">
             <ModeButton
               active={mode === "sale"}
               label="Venta"
@@ -455,7 +455,7 @@ export function QuickSalePos({
         </section>
 
         <aside className="grid min-h-[500px] overflow-hidden rounded-lg border border-border bg-card shadow-sm lg:min-h-0 lg:grid-rows-[auto_minmax(140px,1fr)_auto]">
-          <div className="border-b border-border bg-primary px-3 py-2 text-primary-foreground">
+          <div className="border-b border-accent/40 bg-primary px-3 py-2 text-primary-foreground">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h2 className="text-xl font-black leading-tight">
@@ -498,7 +498,7 @@ export function QuickSalePos({
             )}
           </div>
 
-          <div className="border-t-2 border-primary bg-card p-2.5">
+          <div className="border-t-2 border-accent bg-card p-2.5">
             {!isQuoteMode ? (
               <div className="mb-2 grid gap-2">
                 <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-2">
@@ -529,7 +529,13 @@ export function QuickSalePos({
               </div>
             ) : null}
 
-            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_170px] sm:items-end">
+            <div
+              className={
+                isQuoteMode
+                  ? "grid gap-2"
+                  : "grid gap-2 sm:grid-cols-[minmax(0,1fr)_170px] sm:items-end"
+              }
+            >
               <div className="min-w-0">
                 <div className="flex items-end justify-between gap-3 sm:block">
                   <p className="text-sm font-black uppercase tracking-wide text-muted-foreground">
@@ -541,7 +547,7 @@ export function QuickSalePos({
                 </div>
 
                 {actionHelp ? (
-                  <p className="mt-2 rounded-md border border-yellow-500/40 bg-yellow-50 px-3 py-2 text-sm font-bold text-yellow-950">
+                  <p className="mt-2 rounded-md border border-accent/40 bg-accent/10 px-3 py-2 text-sm font-bold text-accent-foreground">
                     {actionHelp}
                   </p>
                 ) : null}
@@ -553,7 +559,7 @@ export function QuickSalePos({
                   type="button"
                   onClick={saveQuote}
                   disabled={isPending || lines.length === 0}
-                  className="h-12 min-h-12 text-lg font-black"
+                  className="h-12 min-h-12 w-full px-4 text-lg font-black"
                 >
                   Guardar presupuesto
                 </Button>
@@ -769,7 +775,7 @@ function CashBadge({ cashStatus }: { cashStatus: CashStatus }) {
       className={
         cashStatus.open
           ? "flex items-center justify-between gap-3 rounded-md border border-emerald-500/40 bg-emerald-50 px-3 py-2 text-emerald-900"
-          : "flex items-center justify-between gap-3 rounded-md border border-yellow-500/40 bg-yellow-50 px-3 py-2 text-yellow-950"
+          : "flex items-center justify-between gap-3 rounded-md border border-accent/40 bg-accent/10 px-3 py-2 text-accent-foreground"
       }
     >
       <div>
@@ -805,7 +811,7 @@ function ModeButton({
       type="button"
       variant={active ? "default" : "ghost"}
       onClick={onClick}
-      className="h-9 px-4 text-base font-black"
+      className="h-9 min-w-0 px-4 text-base font-black"
       aria-pressed={active}
     >
       {label}

@@ -27,7 +27,7 @@ export function SidebarNav() {
               className={cn(
                 "h-10 justify-start gap-2 px-2 text-sm",
                 active
-                  ? "bg-primary font-semibold text-primary-foreground"
+                  ? "border-l-4 border-l-accent bg-primary pl-1.5 font-bold text-primary-foreground shadow-sm"
                   : "text-muted-foreground hover:bg-secondary hover:text-primary"
               )}
             >
