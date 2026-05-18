@@ -6,11 +6,13 @@ import { Button } from "@/components/ui/button";
 export function PageHeader({
   title,
   description,
+  eyebrow = "Mostrador",
   backHref,
   backLabel = "Volver",
 }: {
   title: string;
-  description: string;
+  description?: string;
+  eyebrow?: string;
   backHref?: string;
   backLabel?: string;
 }) {
@@ -24,15 +26,19 @@ export function PageHeader({
           </Link>
         </Button>
       ) : null}
-      <p className="mb-2 text-base font-medium text-muted-foreground">
-        Mostrador
-      </p>
+      {eyebrow ? (
+        <p className="mb-2 text-base font-medium text-muted-foreground">
+          {eyebrow}
+        </p>
+      ) : null}
       <h1 className="text-3xl font-bold leading-tight tracking-normal sm:text-4xl">
         {title}
       </h1>
-      <p className="mt-3 text-lg leading-8 text-muted-foreground">
-        {description}
-      </p>
+      {description ? (
+        <p className="mt-3 text-lg leading-8 text-muted-foreground">
+          {description}
+        </p>
+      ) : null}
     </header>
   );
 }

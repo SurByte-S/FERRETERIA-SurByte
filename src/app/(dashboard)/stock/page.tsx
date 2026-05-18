@@ -3,8 +3,8 @@ import Link from "next/link";
 
 import { ProductPriceForm } from "@/components/productos/product-price-form";
 import { StockAdjustDetails } from "@/components/productos/stock-adjust-details";
+import { StockSearchScrollAnchor } from "@/components/productos/stock-search-scroll-anchor";
 import type { ProductListItem } from "@/components/productos/product-types";
-import { PageHeader } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -142,22 +142,9 @@ export default async function StockPage({ searchParams }: StockPageProps) {
 
   return (
     <>
-      <PageHeader
-        title="Stock"
-        description="Busca un producto para ver cuanto hay, ajustar stock o cambiar precio."
-        backHref="/inicio"
-        backLabel="Volver a vender"
-      />
-
       {result.ok ? (
         <div className="grid gap-4 xl:gap-5">
           <Card>
-            <CardHeader>
-              <CardTitle>Buscar producto</CardTitle>
-              <CardDescription>
-                Codigo, barra, nombre o descripcion.
-              </CardDescription>
-            </CardHeader>
             <CardContent>
               <form className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto_auto]" action="/stock">
                 {onlyOutOfStock ? (
@@ -192,30 +179,33 @@ export default async function StockPage({ searchParams }: StockPageProps) {
                   Buscar
                 </Button>
               </form>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Button asChild variant="outline" className="h-10 px-3 text-sm xl:h-11 xl:px-4 xl:text-base">
-                  <Link href={buildStockHref({ q, onlyWithStock: false })}>
-                    Ver todos
-                  </Link>
-                </Button>
-                <Button asChild variant="outline" className="h-10 px-3 text-sm xl:h-11 xl:px-4 xl:text-base">
-                  <Link href={buildStockHref({ q, onlyOutOfStock: true })}>
-                    Ver faltantes
-                  </Link>
-                </Button>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap gap-2">
+                  <Button asChild variant="outline" className="h-10 px-3 text-sm xl:h-11 xl:px-4 xl:text-base">
+                    <Link href={buildStockHref({ q, onlyWithStock: false })}>
+                      Ver todos
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline" className="h-10 px-3 text-sm xl:h-11 xl:px-4 xl:text-base">
+                    <Link href={buildStockHref({ q, onlyOutOfStock: true })}>
+                      Ver faltantes
+                    </Link>
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm font-semibold text-muted-foreground xl:text-base">
+                  <span>
+                    {onlyWithStock
+                      ? `Productos con stock: ${result.products.length}`
+                      : `Productos encontrados: ${result.products.length}`}
+                  </span>
+                  <span>Productos sin stock: {result.outOfStockCount}</span>
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-lg font-bold">
-              {onlyWithStock
-                ? `Productos con stock: ${result.products.length}`
-                : `Productos encontrados: ${result.products.length}`}
-            </p>
-            <p className="text-base font-semibold text-muted-foreground">
-              Productos sin stock: {result.outOfStockCount}
-            </p>
+          <div>
+            <StockSearchScrollAnchor enabled={q.length > 0} />
           </div>
 
           {result.products.length === 0 ? (
@@ -230,7 +220,7 @@ export default async function StockPage({ searchParams }: StockPageProps) {
               </CardHeader>
             </Card>
           ) : (
-            <div className="grid gap-4">
+            <div className="grid gap-2">
               {result.products.map((product) => (
                 <StockProductCard
                   key={product.id}
@@ -270,33 +260,34 @@ function StockProductCard({
 
   return (
     <Card>
-      <CardHeader className="gap-4">
-        <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_160px_150px] xl:items-start 2xl:grid-cols-[minmax(0,1fr)_180px_160px]">
+      <CardHeader className="gap-2 p-3">
+        <div className="grid gap-2 xl:grid-cols-[minmax(0,1fr)_150px_150px] xl:items-stretch 2xl:grid-cols-[minmax(0,1fr)_170px_160px]">
           <div className="min-w-0">
-            <p className="mb-2 font-mono text-base text-muted-foreground">
+            <p className="mb-1 font-mono text-sm text-muted-foreground">
               Codigo: {product.code}
             </p>
-            <CardTitle className="truncate text-xl xl:text-2xl">{product.name}</CardTitle>
-            <CardDescription className="mt-2 truncate">
+            <CardTitle className="truncate text-lg xl:text-xl">{product.name}</CardTitle>
+            <CardDescription className="mt-1 truncate text-sm">
               {product.description}
             </CardDescription>
           </div>
-          <div className="rounded-lg border border-border bg-background p-3 xl:p-4">
-            <p className="text-base text-muted-foreground">Precio</p>
-            <p className="mt-1 text-xl font-bold xl:text-2xl">
+          <div className="flex min-h-20 flex-col justify-between rounded-lg border border-border bg-background p-2 xl:p-3">
+            <p className="text-sm text-muted-foreground">Precio</p>
+            <p className="mt-1 text-lg font-bold xl:text-xl">
               {formatMoney(product.salePrice)}
             </p>
+            <p className="text-sm font-semibold text-transparent">Disponible</p>
           </div>
-          <div className={`rounded-lg border p-3 xl:p-4 ${status.className}`}>
-            <p className="text-base">Stock</p>
-            <p className="mt-1 text-xl font-bold xl:text-2xl">
+          <div className={`flex min-h-20 flex-col justify-between rounded-lg border p-2 xl:p-3 ${status.className}`}>
+            <p className="text-sm">Stock</p>
+            <p className="mt-1 text-lg font-bold xl:text-xl">
               {formatStockQuantity(product.stockQuantity)} {product.unit}
             </p>
             <p className="text-sm font-semibold">{status.label}</p>
           </div>
         </div>
       </CardHeader>
-      <CardContent className="grid gap-3">
+      <CardContent className="flex flex-col gap-2 p-3 pt-0 sm:flex-row sm:flex-wrap sm:items-start">
         {canAdjustStock ? (
           <StockAdjustDetails product={product} />
         ) : null}
@@ -304,7 +295,11 @@ function StockProductCard({
         {canEditPrice ? (
           <details>
             <summary className="list-none">
-              <Button asChild variant="outline" className="h-11 gap-2 px-4 text-base xl:h-14 xl:px-6 xl:text-lg">
+              <Button
+                asChild
+                variant="outline"
+                className="h-10 gap-2 border-sky-200 bg-sky-50 px-3 text-sm text-sky-900 hover:bg-sky-100 xl:h-11 xl:px-4 xl:text-base"
+              >
                 <span>
                   <Edit3 className="size-6" aria-hidden="true" />
                   Cambiar precio

@@ -26,7 +26,7 @@ export function StockAdjustDetails({ product }: { product: ProductListItem }) {
   return (
     <details onToggle={handleToggle}>
       <summary className="list-none">
-        <Button asChild className="h-11 gap-2 px-4 text-base xl:h-14 xl:px-6 xl:text-lg">
+        <Button asChild className="h-10 gap-2 px-3 text-sm xl:h-11 xl:px-4 xl:text-base">
           <span>
             <PackagePlus className="size-6" aria-hidden="true" />
             Ajustar stock
