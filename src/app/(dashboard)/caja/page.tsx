@@ -1,7 +1,8 @@
-import { Clock, WalletCards } from "lucide-react";
+import Link from "next/link";
+import { ArrowLeft, Clock } from "lucide-react";
 
 import { OpenCashForm, CloseCashForm } from "@/components/caja/cash-forms";
-import { PageHeader } from "@/components/shell/page-header";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -113,12 +114,17 @@ export default async function CajaPage() {
 
   return (
     <>
-      <PageHeader
-        title="Caja"
-        description="Abri caja, controla ventas de la sesion y registra el cierre diario."
-        backHref="/inicio"
-        backLabel="Volver al inicio"
-      />
+      <header className="mb-6 flex flex-wrap items-center gap-3">
+        <Button asChild variant="outline" className="h-10 gap-2 px-4 text-sm">
+          <Link href="/inicio">
+            <ArrowLeft className="size-4" aria-hidden="true" />
+            Volver al inicio
+          </Link>
+        </Button>
+        <h1 className="text-3xl font-bold leading-tight tracking-normal sm:text-4xl">
+          Caja
+        </h1>
+      </header>
 
       {openSessionResult.error || historyResult.error || salesResult.error ? (
         <Card className="border-destructive/40">
@@ -131,15 +137,14 @@ export default async function CajaPage() {
         </Card>
       ) : openSession ? (
         <div className="grid gap-6">
-          <Card className="border-primary/40">
+          <Card className="border-emerald-500/60">
             <CardHeader>
-              <div className="mb-2 flex size-14 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <WalletCards className="size-7" aria-hidden="true" />
+              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <CardTitle>Caja abierta</CardTitle>
+                <CardDescription>
+                  Abierta el {formatDate(openSession.opened_at)}
+                </CardDescription>
               </div>
-              <CardTitle>Caja abierta</CardTitle>
-              <CardDescription>
-                Abierta el {formatDate(openSession.opened_at)}
-              </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4 md:grid-cols-4">
               <Metric label="Monto inicial" value={formatMoney(openSession.opening_amount)} />
@@ -153,7 +158,6 @@ export default async function CajaPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Total por forma de pago</CardTitle>
-                <CardDescription>Ventas asociadas a esta caja abierta.</CardDescription>
               </CardHeader>
               <CardContent className="grid gap-3">
                 {Object.keys(summary.totalsByMethod).length === 0 ? (
@@ -177,9 +181,6 @@ export default async function CajaPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Cerrar caja</CardTitle>
-                <CardDescription>
-                  Contá el efectivo real antes de cerrar.
-                </CardDescription>
               </CardHeader>
               <CardContent>
                 <CloseCashForm
@@ -194,11 +195,8 @@ export default async function CajaPage() {
         </div>
       ) : (
         <div className="grid gap-6">
-          <Card>
+          <Card className="border-red-500/60">
             <CardHeader>
-              <div className="mb-2 flex size-14 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <WalletCards className="size-7" aria-hidden="true" />
-              </div>
               <CardTitle>No hay caja abierta</CardTitle>
               <CardDescription>
                 Podes vender igual, pero esas ventas quedaran sin caja asociada.
@@ -228,46 +226,60 @@ function Metric({ label, value }: { label: string; value: string }) {
 function CashHistory({ sessions }: { sessions: CashSessionRow[] }) {
   return (
     <Card>
-      <CardHeader>
-        <div className="mb-2 flex size-12 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-          <Clock className="size-6" aria-hidden="true" />
-        </div>
-        <CardTitle>Historial de cierres</CardTitle>
-        <CardDescription>Ultimas cajas abiertas y cerradas.</CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-3">
-        {sessions.length === 0 ? (
-          <p className="text-base text-muted-foreground">
-            Todavia no hay cierres de caja.
-          </p>
-        ) : (
-          sessions.map((session) => (
-            <div
-              key={session.id}
-              className="grid gap-3 rounded-lg border border-border p-3 2xl:grid-cols-[minmax(0,1fr)_auto] 2xl:p-4"
-            >
-              <div>
-                <p className="text-sm text-muted-foreground">
-                  Apertura: {formatDate(session.opened_at)}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Cierre: {formatDate(session.closed_at)}
-                </p>
-                <p className="text-xl font-bold">
-                  {session.status === "open" ? "Abierta" : "Cerrada"}
-                </p>
-                {session.notes ? <p>Nota: {session.notes}</p> : null}
-              </div>
-              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-                <Metric label="Inicial" value={formatMoney(session.opening_amount)} />
-                <Metric label="Esperado" value={formatMoney(session.expected_cash_amount)} />
-                <Metric label="Contado" value={formatMoney(session.counted_cash_amount)} />
-                <Metric label="Diferencia" value={formatMoney(session.difference_amount)} />
-              </div>
+      <details>
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+              <Clock className="size-5" aria-hidden="true" />
             </div>
-          ))
-        )}
-      </CardContent>
+            <div className="min-w-0">
+              <CardTitle className="text-base">Historial de cierres</CardTitle>
+              <CardDescription>
+                {sessions.length === 0
+                  ? "Sin cierres registrados"
+                  : `${sessions.length} registro${sessions.length === 1 ? "" : "s"}`}
+              </CardDescription>
+            </div>
+          </div>
+          <span className="shrink-0 text-sm font-semibold text-muted-foreground">
+            Ver
+          </span>
+        </summary>
+
+        <CardContent className="grid gap-3">
+          {sessions.length === 0 ? (
+            <p className="text-base text-muted-foreground">
+              Todavia no hay cierres de caja.
+            </p>
+          ) : (
+            sessions.map((session) => (
+              <div
+                key={session.id}
+                className="grid gap-3 rounded-lg border border-border p-3 2xl:grid-cols-[minmax(0,1fr)_auto] 2xl:p-4"
+              >
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    Apertura: {formatDate(session.opened_at)}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Cierre: {formatDate(session.closed_at)}
+                  </p>
+                  <p className="text-xl font-bold">
+                    {session.status === "open" ? "Abierta" : "Cerrada"}
+                  </p>
+                  {session.notes ? <p>Nota: {session.notes}</p> : null}
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                  <Metric label="Inicial" value={formatMoney(session.opening_amount)} />
+                  <Metric label="Esperado" value={formatMoney(session.expected_cash_amount)} />
+                  <Metric label="Contado" value={formatMoney(session.counted_cash_amount)} />
+                  <Metric label="Diferencia" value={formatMoney(session.difference_amount)} />
+                </div>
+              </div>
+            ))
+          )}
+        </CardContent>
+      </details>
     </Card>
   );
 }

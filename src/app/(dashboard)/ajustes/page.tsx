@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PackagePlus } from "lucide-react";
 
 import { adminGroupItems } from "@/components/shell/nav-items";
 import { PageHeader } from "@/components/shell/page-header";
@@ -12,6 +13,17 @@ import {
 } from "@/components/ui/card";
 
 export default function AjustesPage() {
+  const visibleItems = adminGroupItems.filter(
+    (item) => item.href !== "/ajustes/configuracion"
+  );
+  const quickStockItem = {
+    title: "Carga rapida de stock",
+    href: "/stock",
+    icon: PackagePlus,
+    description: "Buscar productos y ajustar cantidades rapidamente.",
+  };
+  const items = [...visibleItems, quickStockItem];
+
   return (
     <>
       <PageHeader
@@ -25,9 +37,9 @@ export default function AjustesPage() {
         aria-label="Solo encargado"
         className="grid max-w-4xl gap-4 md:grid-cols-2"
       >
-        {adminGroupItems.map((item, index) => {
+        {items.map((item, index) => {
           const Icon = item.icon;
-          const actionLabel = index === 0 ? "Ver" : "Editar";
+          const actionLabel = index === 0 ? "Ver" : "Abrir";
 
           return (
             <Card key={item.href}>

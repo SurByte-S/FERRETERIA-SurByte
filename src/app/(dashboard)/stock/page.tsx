@@ -220,7 +220,7 @@ export default async function StockPage({ searchParams }: StockPageProps) {
               </CardHeader>
             </Card>
           ) : (
-            <div className="grid gap-2">
+            <div className="grid gap-1">
               {result.products.map((product) => (
                 <StockProductCard
                   key={product.id}
@@ -259,62 +259,66 @@ function StockProductCard({
   const status = stockStatus(product);
 
   return (
-    <Card>
-      <CardHeader className="gap-2 p-3">
-        <div className="grid gap-2 xl:grid-cols-[minmax(0,1fr)_150px_150px] xl:items-stretch 2xl:grid-cols-[minmax(0,1fr)_170px_160px]">
-          <div className="min-w-0">
-            <p className="mb-1 font-mono text-sm text-muted-foreground">
-              Codigo: {product.code}
-            </p>
-            <CardTitle className="truncate text-lg xl:text-xl">{product.name}</CardTitle>
-            <CardDescription className="mt-1 truncate text-sm">
-              {product.description}
-            </CardDescription>
-          </div>
-          <div className="flex min-h-20 flex-col justify-between rounded-lg border border-border bg-background p-2 xl:p-3">
-            <p className="text-sm text-muted-foreground">Precio</p>
-            <p className="mt-1 text-lg font-bold xl:text-xl">
-              {formatMoney(product.salePrice)}
-            </p>
-            <p className="text-sm font-semibold text-transparent">Disponible</p>
-          </div>
-          <div className={`flex min-h-20 flex-col justify-between rounded-lg border p-2 xl:p-3 ${status.className}`}>
-            <p className="text-sm">Stock</p>
-            <p className="mt-1 text-lg font-bold xl:text-xl">
-              {formatStockQuantity(product.stockQuantity)} {product.unit}
-            </p>
-            <p className="text-sm font-semibold">{status.label}</p>
-          </div>
+    <Card className="px-2 py-1.5">
+      <div className="grid gap-1.5 xl:grid-cols-[minmax(0,1fr)_130px_130px_130px_130px] xl:items-center 2xl:grid-cols-[minmax(0,1fr)_140px_140px_140px_140px]">
+        <div className="min-w-0">
+          <p className="font-mono text-[10px] leading-none text-muted-foreground">
+            Codigo: {product.code}
+          </p>
+          <p className="truncate text-sm font-semibold leading-tight">
+            {product.name}
+          </p>
+          <p className="truncate text-[11px] leading-tight text-muted-foreground">
+            {product.description}
+          </p>
         </div>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-2 p-3 pt-0 sm:flex-row sm:flex-wrap sm:items-start">
+
         {canAdjustStock ? (
-          <StockAdjustDetails product={product} />
+          <div className="grid min-h-[42px] rounded-md border border-border bg-background p-1 [&_details]:h-full [&_summary]:h-full [&_[data-slot=button]]:h-full [&_[data-slot=button]]:w-full [&_[data-slot=button]]:gap-1 [&_[data-slot=button]]:px-2 [&_[data-slot=button]]:text-xs [&_svg]:size-3.5">
+            <StockAdjustDetails product={product} />
+          </div>
         ) : null}
 
         {canEditPrice ? (
-          <details>
-            <summary className="list-none">
-              <Button
-                asChild
-                variant="outline"
-                className="h-10 gap-2 border-sky-200 bg-sky-50 px-3 text-sm text-sky-900 hover:bg-sky-100 xl:h-11 xl:px-4 xl:text-base"
-              >
-                <span>
-                  <Edit3 className="size-6" aria-hidden="true" />
-                  Cambiar precio
-                </span>
-              </Button>
-            </summary>
-            <ProductPriceForm
-              productId={product.id}
-              sku={product.sku}
-              name={product.name}
-              salePrice={product.salePrice}
-            />
-          </details>
+          <div className="grid min-h-[42px] rounded-md border border-border bg-background p-1 [&_details]:h-full [&_summary]:h-full [&_[data-slot=button]]:h-full [&_[data-slot=button]]:w-full [&_[data-slot=button]]:gap-1 [&_[data-slot=button]]:px-2 [&_[data-slot=button]]:text-xs [&_svg]:size-3.5">
+            <details className="h-full min-w-0">
+              <summary className="list-none">
+                <Button
+                  asChild
+                  variant="outline"
+                  className="border-sky-200 bg-sky-50 text-sky-900 hover:bg-sky-100"
+                >
+                  <span>
+                    <Edit3 aria-hidden="true" />
+                    Cambiar precio
+                  </span>
+                </Button>
+              </summary>
+              <ProductPriceForm
+                productId={product.id}
+                sku={product.sku}
+                name={product.name}
+                salePrice={product.salePrice}
+              />
+            </details>
+          </div>
         ) : null}
-      </CardContent>
+
+        <div className="grid min-h-[42px] rounded-md border border-border bg-background px-2 py-1">
+          <p className="text-[10px] leading-none text-muted-foreground">Precio</p>
+          <p className="truncate text-sm font-bold leading-tight">
+            {formatMoney(product.salePrice)}
+          </p>
+        </div>
+
+        <div className={`grid min-h-[42px] rounded-md border px-2 py-1 ${status.className}`}>
+          <p className="text-[10px] leading-none">Stock</p>
+          <p className="truncate text-sm font-bold leading-tight">
+            {formatStockQuantity(product.stockQuantity)} {product.unit}
+          </p>
+          <p className="text-[10px] font-semibold leading-none">{status.label}</p>
+        </div>
+      </div>
     </Card>
   );
 }

@@ -11,8 +11,8 @@ export function SidebarNav() {
   const pathname = usePathname();
 
   return (
-    <nav aria-label="Navegacion principal" className="grid gap-2">
-      <div className="grid gap-1.5">
+    <nav aria-label="Navegacion principal" className="grid gap-1.5">
+      <div className="grid gap-1">
         {navigationItems.map((item) => {
           const Icon = item.icon;
           const active =
@@ -34,8 +34,18 @@ export function SidebarNav() {
             >
               <Link href={item.href} aria-current={active ? "page" : undefined}>
                 <Icon className="size-5 shrink-0" aria-hidden="true" />
-                <span className="max-w-full overflow-hidden whitespace-nowrap transition-all duration-150 lg:max-w-0 lg:opacity-0 lg:group-hover:max-w-[160px] lg:group-hover:opacity-100">
-                  {item.title}
+                <span className="max-w-full overflow-hidden whitespace-nowrap transition-all duration-150 lg:max-w-0 lg:opacity-0 lg:group-hover:max-w-[175px] lg:group-hover:opacity-100">
+                  <span className="block truncate leading-tight">
+                    {item.title}
+                  </span>
+                  <span
+                    className={cn(
+                      "block truncate text-xs font-medium leading-tight",
+                      active ? "text-primary-foreground/80" : "text-muted-foreground"
+                    )}
+                  >
+                   
+                  </span>
                 </span>
               </Link>
             </Button>

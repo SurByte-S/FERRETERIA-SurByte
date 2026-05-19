@@ -35,16 +35,12 @@ export function OpenCashForm() {
         />
       </label>
 
-      <label className="grid gap-2 text-base font-semibold">
-        <span>Nota opcional</span>
-        <input
-          name="notes"
-          placeholder="Ej: apertura turno mañana"
-          className="h-12 rounded-lg border border-input bg-background px-3 text-base"
-        />
-      </label>
 
-      <Button type="submit" disabled={pending} className="h-14 gap-2 px-6 text-lg">
+      <Button
+        type="submit"
+        disabled={pending}
+        className="h-14 gap-2 bg-emerald-700 px-6 text-lg text-white hover:bg-emerald-800"
+      >
         <UnlockKeyhole className="size-6" aria-hidden="true" />
         {pending ? "Abriendo..." : "Abrir caja"}
       </Button>
@@ -106,16 +102,11 @@ export function CloseCashForm({
         />
       </label>
 
-      <label className="grid gap-2 text-base font-semibold">
-        <span>Nota opcional</span>
-        <input
-          name="notes"
-          placeholder="Ej: cierre sin diferencia"
-          className="h-12 rounded-lg border border-input bg-background px-3 text-base"
-        />
-      </label>
-
-      <Button type="submit" disabled={pending} className="h-14 gap-2 px-6 text-lg">
+      <Button
+        type="submit"
+        disabled={pending}
+        className="h-14 gap-2 bg-red-700 px-6 text-lg text-white hover:bg-red-800"
+      >
         <LockKeyhole className="size-6" aria-hidden="true" />
         {pending ? "Cerrando..." : "Cerrar caja"}
       </Button>

@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -22,6 +29,7 @@ import { formatStockQuantity } from "@/lib/format";
 const EMPTY_SEARCH_MESSAGE = "Busca un producto para empezar.";
 const SEARCH_PLACEHOLDER = "Codigo, codigo de barras o nombre del producto";
 const CASH_REGISTER_CLOSED_MESSAGE = "Para vender necesitas abrir la caja.";
+const INSUFFICIENT_STOCK_MESSAGE = "No hay stock suficiente. Disponible:";
 
 const PAYMENT_METHODS = [
   "Efectivo",
@@ -53,6 +61,10 @@ function formatMoney(value: number) {
   );
 }
 
+function getInsufficientStockMessage(stockQuantity: number) {
+  return `${INSUFFICIENT_STOCK_MESSAGE} ${formatStockQuantity(stockQuantity)}`;
+}
+
 export function QuickSalePos({
   initialSku,
   customers,
@@ -77,6 +89,7 @@ export function QuickSalePos({
   const [resultsTotal, setResultsTotal] = useState(0);
   const [searchStatus, setSearchStatus] = useState<SearchStatus>("idle");
   const [lines, setLines] = useState<QuoteLine[]>([]);
+  const linesRef = useRef<QuoteLine[]>([]);
   const [message, setMessage] = useState(EMPTY_SEARCH_MESSAGE);
   const [paymentMethod, setPaymentMethod] = useState(PAYMENT_METHODS[0]);
   const paidAmount = ""; // se mantiene la variable para usar total en registro de venta
@@ -107,6 +120,43 @@ export function QuickSalePos({
   });
 
   useEffect(() => {
+    linesRef.current = lines;
+  }, [lines]);
+
+  const addProduct = useCallback((product: QuoteProduct) => {
+    if (product.stockQuantity < 1) {
+      setMessage(getInsufficientStockMessage(product.stockQuantity));
+      return;
+    }
+
+    const existing = linesRef.current.find((line) => line.sku === product.sku);
+
+    if (existing?.quantity >= product.stockQuantity) {
+      setMessage(getInsufficientStockMessage(product.stockQuantity));
+      return;
+    }
+
+    setLines((current) =>
+      existing
+        ? current.map((line) =>
+            line.sku === product.sku
+              ? {
+                  ...line,
+                  quantity: Math.min(line.quantity + 1, product.stockQuantity),
+                }
+              : line
+          )
+        : [...current, { ...product, quantity: 1 }]
+    );
+    setSearch("");
+    setResults([]);
+    setResultsTotal(0);
+    setSearchStatus("idle");
+    setMessage("Producto agregado a la venta.");
+    window.setTimeout(() => searchInputRef.current?.focus(), 0);
+  }, []);
+
+  useEffect(() => {
     if (!initialSku) {
       return;
     }
@@ -118,7 +168,7 @@ export function QuickSalePos({
         addProduct(product);
       }
     });
-  }, [initialSku, isQuoteMode]);
+  }, [addProduct, initialSku, isQuoteMode]);
 
   useEffect(() => {
     const term = search.trim();
@@ -146,9 +196,7 @@ export function QuickSalePos({
         setResultsTotal(result.total);
         setSearchStatus(result.total > 0 ? "results" : "empty");
         setMessage(
-          result.total > 0
-            ? "Toca Agregar para sumarlo a la venta."
-            : "No se encontraron productos."
+          result.total > 0 ? "" : "No se encontraron productos."
         );
       });
     }, 250);
@@ -218,9 +266,7 @@ export function QuickSalePos({
       setResultsTotal(result.total);
       setSearchStatus(result.total > 0 ? "results" : "empty");
       setMessage(
-        result.total > 0
-          ? "Toca Agregar para sumarlo a la venta."
-          : "No se encontraron productos."
+        result.total > 0 ? "" : "No se encontraron productos."
       );
     });
   }
@@ -232,32 +278,26 @@ export function QuickSalePos({
     }
   }
 
-  function addProduct(product: QuoteProduct) {
-    setLines((current) => {
-      const existing = current.find((line) => line.sku === product.sku);
-
-      if (existing) {
-        return current.map((line) =>
-          line.sku === product.sku
-            ? { ...line, quantity: line.quantity + 1 }
-            : line
-        );
-      }
-
-      return [...current, { ...product, quantity: 1 }];
-    });
-    setSearch("");
-    setResults([]);
-    setResultsTotal(0);
-    setSearchStatus("idle");
-    setMessage("Producto agregado a la venta.");
-    window.setTimeout(() => searchInputRef.current?.focus(), 0);
-  }
-
   function incrementLineQuantity(sku: string) {
+    const selectedLine = lines.find((line) => line.sku === sku);
+
+    if (!selectedLine) {
+      return;
+    }
+
+    if (selectedLine.quantity >= selectedLine.stockQuantity) {
+      setMessage(getInsufficientStockMessage(selectedLine.stockQuantity));
+      return;
+    }
+
     setLines((current) =>
       current.map((line) =>
-        line.sku === sku ? { ...line, quantity: line.quantity + 1 } : line
+        line.sku === sku
+          ? {
+              ...line,
+              quantity: Math.min(line.quantity + 1, line.stockQuantity),
+            }
+          : line
       )
     );
   }
@@ -369,9 +409,6 @@ export function QuickSalePos({
             <h1 className="text-xl font-black leading-tight text-primary">
               Mostrador
             </h1>
-            <p className="text-sm font-semibold text-muted-foreground">
-              Busca, agrega y cobra.
-            </p>
           </div>
 
           <div className="grid min-w-[16rem] grid-cols-[minmax(6rem,1fr)_minmax(8rem,1fr)] gap-1 rounded-md border border-border bg-background p-1">
@@ -427,13 +464,12 @@ export function QuickSalePos({
             <div className="flex items-center justify-between gap-3 px-3 py-2">
               <div>
                 <h2 className="text-xl font-black">Productos</h2>
-                <p className="text-sm font-semibold text-muted-foreground">
-                  Toca Agregar para sumarlo a la venta.
-                </p>
               </div>
-              <p className="hidden rounded-md bg-muted px-2 py-1 text-sm font-bold text-muted-foreground sm:block">
-                {resultCounter}
-              </p>
+              {resultCounter ? (
+                <p className="hidden rounded-md bg-muted px-2 py-1 text-sm font-bold text-muted-foreground sm:block">
+                  {resultCounter}
+                </p>
+              ) : null}
             </div>
 
             <div className="min-h-0 overflow-y-auto px-3 pb-3">
@@ -461,13 +497,13 @@ export function QuickSalePos({
                 <h2 className="text-xl font-black leading-tight">
                   {isQuoteMode ? "Presupuesto actual" : "Venta actual"}
                 </h2>
-                <p className="text-sm font-semibold opacity-90">
-                  {lines.length === 0
-                    ? "Agrega productos desde la izquierda."
-                    : `${lines.length} producto${
-                        lines.length === 1 ? "" : "s"
-                      } agregado${lines.length === 1 ? "" : "s"}.`}
-                </p>
+                {lines.length > 0 ? (
+                  <p className="text-sm font-semibold opacity-90">
+                    {`${lines.length} producto${
+                      lines.length === 1 ? "" : "s"
+                    } agregado${lines.length === 1 ? "" : "s"}.`}
+                  </p>
+                ) : null}
               </div>
               <p className="rounded-md bg-primary-foreground/15 px-2 py-1 text-sm font-black">
                 Ticket
@@ -479,9 +515,6 @@ export function QuickSalePos({
             {lines.length === 0 ? (
               <div className="rounded-md border border-dashed border-border bg-card p-4">
                 <p className="text-lg font-black">No hay productos agregados.</p>
-                <p className="mt-1 text-base font-semibold text-muted-foreground">
-                  Busca un producto a la izquierda y toca Agregar.
-                </p>
               </div>
             ) : (
               <div className="grid gap-2">
@@ -691,7 +724,7 @@ function getResultCounter({
   total: number;
 }) {
   if (status === "idle") {
-    return "Busca para ver productos";
+    return "";
   }
 
   if (status === "loading") {
@@ -750,9 +783,6 @@ function SearchStatePanel({ status }: { status: SearchStatus }) {
   return (
     <div className="rounded-md border border-dashed border-border bg-background p-4">
       <p className="text-lg font-black">Busca un producto para empezar.</p>
-      <p className="mt-1 text-base font-semibold text-muted-foreground">
-        Ejemplos: martillo, tornillo, cemento, 779...
-      </p>
     </div>
   );
 }
@@ -769,7 +799,7 @@ function CashBadge({ cashStatus }: { cashStatus: CashStatus }) {
       <div>
         <p className="text-base font-black">
           {cashStatus.open
-            ? "Caja abierta - listo para cobrar"
+            ? "Caja abierta"
             : "Caja cerrada - no se puede cobrar"}
         </p>
         {cashStatus.open ? (

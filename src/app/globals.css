@@ -127,6 +127,12 @@
   html {
     @apply font-sans;
   }
+
+  @media (min-width: 768px) {
+    html {
+      font-size: 14px;
+    }
+  }
 }
 
 .print-document {
