@@ -1,0 +1,20 @@
+{
+  "archivo": "C:\\Users\\exe\\Desktop\\PROYECTOS\\FERRETERIA-SurByte\\data\\imports\\errores\\productos_desde_foto_presupuesto_9035.csv",
+  "modo": "dry-run",
+  "tenant_id": "1814cfc6-3dd3-4594-81c2-4e1c66ece6a0",
+  "estado": "dry_run_ok",
+  "total_filas": 36,
+  "productos_nuevos": 36,
+  "productos_actualizados": 0,
+  "productos_con_error": 0,
+  "duplicados_sku": [],
+  "duplicados_codigo": [],
+  "conflictos": [],
+  "errores_por_fila": [],
+  "import_batch_id": null,
+  "insertados": 0,
+  "actualizados": 0,
+  "fecha_inicio": "2026-05-19T20:50:59.057Z",
+  "fecha_fin": "2026-05-19T20:51:00.232Z",
+  "error_fatal": null
+}

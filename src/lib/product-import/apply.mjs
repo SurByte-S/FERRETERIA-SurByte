@@ -16,6 +16,28 @@ function lowerKey(value) {
   return String(value ?? "").trim().toLowerCase();
 }
 
+export async function validateTenantExists(supabase, tenantId) {
+  const cleanTenantId = String(tenantId ?? "").trim();
+
+  if (!cleanTenantId) {
+    throw new Error("El tenant_id no existe en public.tenants: ");
+  }
+
+  const { data, error } = await supabase
+    .from("tenants")
+    .select("id")
+    .eq("id", cleanTenantId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`No se pudo validar tenant_id en public.tenants: ${error.message}`);
+  }
+
+  if (!data) {
+    throw new Error(`El tenant_id no existe en public.tenants: ${cleanTenantId}`);
+  }
+}
+
 export async function loadExistingProducts(supabase, tenantId) {
   const products = [];
   let from = 0;
@@ -75,7 +97,8 @@ async function loadCatalogMap(supabase, table, tenantId) {
 }
 
 async function ensureCatalogItems(supabase, table, tenantId, names) {
-  const current = await loadCatalogMap(supabase, table, tenantId);
+  const cleanTenantId = String(tenantId ?? "").trim();
+  const current = await loadCatalogMap(supabase, table, cleanTenantId);
   const missing = Array.from(
     new Set(
       names
@@ -85,10 +108,14 @@ async function ensureCatalogItems(supabase, table, tenantId, names) {
     )
   );
 
+  console.log(
+    `[import-productos] ${table}: cantidad a crear=${missing.length} | tenant_id=${cleanTenantId}`
+  );
+
   for (const items of chunk(missing)) {
     const { error } = await supabase.from(table).upsert(
       items.map((name, index) => ({
-        tenant_id: tenantId,
+        tenant_id: cleanTenantId,
         name,
         active: true,
         ...(table === "categories"
@@ -103,7 +130,7 @@ async function ensureCatalogItems(supabase, table, tenantId, names) {
     }
   }
 
-  return loadCatalogMap(supabase, table, tenantId);
+  return loadCatalogMap(supabase, table, cleanTenantId);
 }
 
 function mapProductRow(row, tenantId, importBatchId, categoryMap, brandMap, includeStock) {
@@ -139,16 +166,21 @@ function mapProductRow(row, tenantId, importBatchId, categoryMap, brandMap, incl
 }
 
 export async function applyImportPlan({ supabase, plan }) {
+  const tenantId = String(plan.tenantId ?? "").trim();
+
+  await validateTenantExists(supabase, tenantId);
+  console.log(`[import-productos] tenant_id usado en importacion real=${tenantId}`);
+
   const categoryMap = await ensureCatalogItems(
     supabase,
     "categories",
-    plan.tenantId,
+    tenantId,
     plan.rows.map((row) => row.categoriaSugerida)
   );
   const brandMap = await ensureCatalogItems(
     supabase,
     "brands",
-    plan.tenantId,
+    tenantId,
     plan.rows
       .map((row) => row.marcaSugerida)
       .filter((name) => name !== DEFAULT_BRAND)
@@ -157,7 +189,7 @@ export async function applyImportPlan({ supabase, plan }) {
   const { data: batch, error: batchError } = await supabase
     .from("import_batches")
     .insert({
-      tenant_id: plan.tenantId,
+      tenant_id: tenantId,
       source_name: plan.sourceName,
       total_rows: plan.totalRows,
       valid_rows: plan.rows.length,
@@ -176,7 +208,7 @@ export async function applyImportPlan({ supabase, plan }) {
   let updated = 0;
 
   const inserts = plan.newRows.map((row) =>
-    mapProductRow(row, plan.tenantId, batchId, categoryMap, brandMap, true)
+    mapProductRow(row, tenantId, batchId, categoryMap, brandMap, true)
   );
 
   for (const insertChunk of chunk(inserts)) {
@@ -192,7 +224,7 @@ export async function applyImportPlan({ supabase, plan }) {
   for (const row of plan.updateRows) {
     const payload = mapProductRow(
       row,
-      plan.tenantId,
+      tenantId,
       batchId,
       categoryMap,
       brandMap,
@@ -207,7 +239,7 @@ export async function applyImportPlan({ supabase, plan }) {
         ...payload,
         updated_at: new Date().toISOString(),
       })
-      .eq("tenant_id", plan.tenantId)
+      .eq("tenant_id", tenantId)
       .eq("sku", row.sku);
 
     if (error) {

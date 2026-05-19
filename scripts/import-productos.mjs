@@ -9,7 +9,11 @@ import {
 } from "node:fs";
 import { basename, dirname, extname, join, resolve } from "node:path";
 
-import { applyImportPlan, loadExistingProducts } from "../src/lib/product-import/apply.mjs";
+import {
+  applyImportPlan,
+  loadExistingProducts,
+  validateTenantExists,
+} from "../src/lib/product-import/apply.mjs";
 import { parseCsvText, validateRequiredHeaders } from "../src/lib/product-import/parse.mjs";
 import { buildImportPlan } from "../src/lib/product-import/plan.mjs";
 import { buildImportReport } from "../src/lib/product-import/report.mjs";
@@ -164,6 +168,11 @@ async function processFile({ filePath, supabase, tenantId, dryRun }) {
       throw new Error(`Faltan columnas obligatorias: ${missingHeaders.join(", ")}.`);
     }
 
+    await validateTenantExists(supabase, tenantId);
+    console.log(
+      `[import-productos] tenant_id usado por ${dryRun ? "dry-run" : "importacion real"}=${tenantId}`
+    );
+
     const validation = validateRows(parsed.rows);
     const existingProducts = await loadExistingProducts(supabase, tenantId);
     plan = buildImportPlan({
@@ -225,11 +234,13 @@ async function main() {
 
   const options = parseArgs(process.argv.slice(2));
   const env = loadEnv();
-  const tenantId = env.NEXT_PUBLIC_DEFAULT_TENANT_ID;
+  const tenantId = String(env.NEXT_PUBLIC_DEFAULT_TENANT_ID ?? "").trim();
 
   if (!tenantId) {
     throw new Error("Falta NEXT_PUBLIC_DEFAULT_TENANT_ID en .env.local o .env.");
   }
+
+  console.log(`[import-productos] tenant_id configurado=${tenantId}`);
 
   const files = listInputFiles(options);
 

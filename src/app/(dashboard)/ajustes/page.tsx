@@ -18,9 +18,9 @@ export default function AjustesPage() {
   );
   const quickStockItem = {
     title: "Carga rapida de stock",
-    href: "/stock",
+    href: "/stock/carga-rapida",
     icon: PackagePlus,
-    description: "Buscar productos y ajustar cantidades rapidamente.",
+    description: "Subir un CSV para sumar cantidades al stock.",
   };
   const items = [...visibleItems, quickStockItem];
 

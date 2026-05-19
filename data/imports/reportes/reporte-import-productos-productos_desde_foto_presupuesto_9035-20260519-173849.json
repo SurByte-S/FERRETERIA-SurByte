@@ -1,0 +1,20 @@
+{
+  "archivo": "C:\\Users\\exe\\Desktop\\PROYECTOS\\FERRETERIA-SurByte\\data\\imports\\productos\\productos_desde_foto_presupuesto_9035.csv",
+  "modo": "real",
+  "tenant_id": "00000000-0000-4000-8000-000000000000",
+  "estado": "error",
+  "total_filas": 36,
+  "productos_nuevos": 36,
+  "productos_actualizados": 0,
+  "productos_con_error": 0,
+  "duplicados_sku": [],
+  "duplicados_codigo": [],
+  "conflictos": [],
+  "errores_por_fila": [],
+  "import_batch_id": null,
+  "insertados": 0,
+  "actualizados": 0,
+  "fecha_inicio": "2026-05-19T20:38:48.272Z",
+  "fecha_fin": "2026-05-19T20:38:49.495Z",
+  "error_fatal": "No se pudieron crear categories: insert or update on table \"categories\" violates foreign key constraint \"categories_tenant_id_fkey\""
+}
