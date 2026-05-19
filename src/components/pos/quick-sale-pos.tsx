@@ -28,8 +28,12 @@ import { formatStockQuantity } from "@/lib/format";
 
 const EMPTY_SEARCH_MESSAGE = "Busca un producto para empezar.";
 const SEARCH_PLACEHOLDER = "Codigo, codigo de barras o nombre del producto";
+const SEARCH_HELP_TEXT =
+  "Podes buscar por codigo, nombre, marca o medida. Ej: llave 3/4, cano 110, tornillo 8x1.";
 const CASH_REGISTER_CLOSED_MESSAGE = "Para vender necesitas abrir la caja.";
 const INSUFFICIENT_STOCK_MESSAGE = "No hay stock suficiente. Disponible:";
+const PAGE_SIZE_OPTIONS = [20, 40, 80] as const;
+const DEFAULT_PAGE_SIZE = 40;
 
 const PAYMENT_METHODS = [
   "Efectivo",
@@ -76,6 +80,7 @@ export function QuickSalePos({
 }) {
   const router = useRouter();
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const latestSearchRequestRef = useRef(0);
   const [customer, setCustomer] = useState<QuoteCustomer>({
     id: "",
     name: "",
@@ -87,6 +92,8 @@ export function QuickSalePos({
   const [mode, setMode] = useState<SaleMode>("sale");
   const [results, setResults] = useState<QuoteProduct[]>([]);
   const [resultsTotal, setResultsTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
   const [searchStatus, setSearchStatus] = useState<SearchStatus>("idle");
   const [lines, setLines] = useState<QuoteLine[]>([]);
   const linesRef = useRef<QuoteLine[]>([]);
@@ -107,8 +114,14 @@ export function QuickSalePos({
   const isCashRegisterClosed = !isQuoteMode && cashStatus?.open === false;
   const visibleMessage =
     message && message !== EMPTY_SEARCH_MESSAGE ? message : "";
+  const totalPages = Math.max(1, Math.ceil(resultsTotal / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const resultStart = resultsTotal === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const resultEnd = Math.min(currentPage * pageSize, resultsTotal);
   const resultCounter = getResultCounter({
     status: searchStatus,
+    start: resultStart,
+    end: resultEnd,
     visibleCount: results.length,
     total: resultsTotal,
   });
@@ -122,6 +135,59 @@ export function QuickSalePos({
   useEffect(() => {
     linesRef.current = lines;
   }, [lines]);
+
+  const runProductSearch = useCallback(
+    ({
+      term,
+      nextPage,
+      nextPageSize,
+      showMessage = false,
+    }: {
+      term: string;
+      nextPage: number;
+      nextPageSize: number;
+      showMessage?: boolean;
+    }) => {
+      const requestId = latestSearchRequestRef.current + 1;
+      latestSearchRequestRef.current = requestId;
+      setSearchStatus("loading");
+
+      if (showMessage) {
+        setMessage("Buscando productos...");
+      }
+
+      startTransition(async () => {
+        const result = await searchProductsForPosAction(
+          term,
+          isQuoteMode,
+          nextPage,
+          nextPageSize
+        );
+
+        if (latestSearchRequestRef.current !== requestId) {
+          return;
+        }
+
+        if (!result.ok) {
+          setResults([]);
+          setResultsTotal(0);
+          setSearchStatus("error");
+          setMessage(result.message ?? "No se pudieron buscar productos.");
+          return;
+        }
+
+        setResults(result.items);
+        setResultsTotal(result.total);
+        setSearchStatus(result.total > 0 ? "results" : "empty");
+        setMessage(
+          result.total > 0
+            ? ""
+            : "No encontramos productos. Proba buscar por menos palabras o por codigo."
+        );
+      });
+    },
+    [isQuoteMode, startTransition]
+  );
 
   const addProduct = useCallback((product: QuoteProduct) => {
     if (product.stockQuantity < 1) {
@@ -151,7 +217,9 @@ export function QuickSalePos({
     setSearch("");
     setResults([]);
     setResultsTotal(0);
+    setPage(1);
     setSearchStatus("idle");
+    latestSearchRequestRef.current += 1;
     setMessage("Producto agregado a la venta.");
     window.setTimeout(() => searchInputRef.current?.focus(), 0);
   }, []);
@@ -173,41 +241,22 @@ export function QuickSalePos({
   useEffect(() => {
     const term = search.trim();
 
-    if (!term) {
-      return;
-    }
-
     const timeoutId = window.setTimeout(() => {
-      startTransition(async () => {
-        setSearchStatus("loading");
-        setResults([]);
-        setResultsTotal(0);
-        const result = await searchProductsForPosAction(term, isQuoteMode);
-
-        if (!result.ok) {
-          setResults([]);
-          setResultsTotal(0);
-          setSearchStatus("error");
-          setMessage(result.message ?? "No se pudieron buscar productos.");
-          return;
-        }
-
-        setResults(result.items);
-        setResultsTotal(result.total);
-        setSearchStatus(result.total > 0 ? "results" : "empty");
-        setMessage(
-          result.total > 0 ? "" : "No se encontraron productos."
-        );
+      runProductSearch({
+        term,
+        nextPage: page,
+        nextPageSize: pageSize,
       });
     }, 250);
 
     return () => window.clearTimeout(timeoutId);
-  }, [search, isQuoteMode, startTransition]);
+  }, [page, pageSize, runProductSearch, search]);
 
   function changeMode(nextMode: SaleMode) {
     setMode(nextMode);
     setResults([]);
     setResultsTotal(0);
+    setPage(1);
     setSearchStatus("idle");
     setMessage(
       nextMode === "quote"
@@ -219,40 +268,51 @@ export function QuickSalePos({
 
   function handleSearchChange(value: string) {
     setSearch(value);
-
-    if (!value.trim()) {
-      setResults([]);
-      setResultsTotal(0);
-      setSearchStatus("idle");
-      setMessage(EMPTY_SEARCH_MESSAGE);
-    }
+    setPage(1);
   }
 
   function runSearch() {
     const term = search.trim();
+    const nextPage = 1;
+    setPage(nextPage);
 
     if (!term) {
-      setResults([]);
-      setResultsTotal(0);
-      setSearchStatus("idle");
-      setMessage(EMPTY_SEARCH_MESSAGE);
+      runProductSearch({
+        term,
+        nextPage,
+        nextPageSize: pageSize,
+        showMessage: true,
+      });
       searchInputRef.current?.focus();
       return;
     }
 
+    const requestId = latestSearchRequestRef.current + 1;
+    latestSearchRequestRef.current = requestId;
     setMessage("Buscando productos...");
     setSearchStatus("loading");
-    setResults([]);
-    setResultsTotal(0);
     startTransition(async () => {
       const exact = await getQuoteProductBySkuAction(term, isQuoteMode);
+
+      if (latestSearchRequestRef.current !== requestId) {
+        return;
+      }
 
       if (exact) {
         addProduct(exact);
         return;
       }
 
-      const result = await searchProductsForPosAction(term, isQuoteMode);
+      const result = await searchProductsForPosAction(
+        term,
+        isQuoteMode,
+        nextPage,
+        pageSize
+      );
+
+      if (latestSearchRequestRef.current !== requestId) {
+        return;
+      }
 
       if (!result.ok) {
         setResults([]);
@@ -266,7 +326,9 @@ export function QuickSalePos({
       setResultsTotal(result.total);
       setSearchStatus(result.total > 0 ? "results" : "empty");
       setMessage(
-        result.total > 0 ? "" : "No se encontraron productos."
+        result.total > 0
+          ? ""
+          : "No encontramos productos. Proba buscar por menos palabras o por codigo."
       );
     });
   }
@@ -276,6 +338,22 @@ export function QuickSalePos({
       event.preventDefault();
       runSearch();
     }
+  }
+
+  function goToPage(nextPage: number) {
+    setPage(Math.min(Math.max(nextPage, 1), totalPages));
+  }
+
+  function changePageSize(value: string) {
+    const nextPageSize = Number(value);
+    setPageSize(
+      PAGE_SIZE_OPTIONS.includes(
+        nextPageSize as (typeof PAGE_SIZE_OPTIONS)[number]
+      )
+        ? nextPageSize
+        : DEFAULT_PAGE_SIZE
+    );
+    setPage(1);
   }
 
   function incrementLineQuantity(sku: string) {
@@ -445,12 +523,15 @@ export function QuickSalePos({
                 <Button
                   type="button"
                   onClick={runSearch}
-                  disabled={isPending || !search.trim()}
+                  disabled={isPending}
                   className="h-10 rounded-md text-base font-black"
                 >
                   Buscar
                 </Button>
               </div>
+              <span className="text-sm font-semibold text-muted-foreground">
+                {SEARCH_HELP_TEXT}
+              </span>
             </label>
 
             {visibleMessage ? (
@@ -461,15 +542,69 @@ export function QuickSalePos({
           </div>
 
           <div className="grid min-h-[240px] grid-rows-[auto_minmax(0,1fr)] overflow-hidden">
-            <div className="flex items-center justify-between gap-3 px-3 py-2">
-              <div>
+            <div className="grid gap-2 px-3 py-2 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
+              <div className="min-w-0">
                 <h2 className="text-xl font-black">Productos</h2>
-              </div>
-              {resultCounter ? (
-                <p className="hidden rounded-md bg-muted px-2 py-1 text-sm font-bold text-muted-foreground sm:block">
+                <p className="text-sm font-bold text-muted-foreground">
                   {resultCounter}
                 </p>
-              ) : null}
+                <p className="text-sm font-bold text-muted-foreground">
+                  Pagina {currentPage} de {totalPages}
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="flex items-center gap-2 text-sm font-bold text-muted-foreground">
+                  Por pagina
+                  <select
+                    value={pageSize}
+                    onChange={(event) => changePageSize(event.target.value)}
+                    className="h-9 rounded-md border border-input bg-background px-2 text-sm font-black text-foreground"
+                  >
+                    {PAGE_SIZE_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => goToPage(1)}
+                  disabled={isPending || currentPage <= 1}
+                  className="h-9 px-3 text-sm font-bold"
+                >
+                  Primera
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => goToPage(currentPage - 1)}
+                  disabled={isPending || currentPage <= 1}
+                  className="h-9 px-3 text-sm font-bold"
+                >
+                  Anterior
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => goToPage(currentPage + 1)}
+                  disabled={isPending || currentPage >= totalPages}
+                  className="h-9 px-3 text-sm font-bold"
+                >
+                  Siguiente
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => goToPage(totalPages)}
+                  disabled={isPending || currentPage >= totalPages}
+                  className="h-9 px-3 text-sm font-bold"
+                >
+                  Ultima
+                </Button>
+              </div>
             </div>
 
             <div className="min-h-0 overflow-y-auto px-3 pb-3">
@@ -716,10 +851,14 @@ function getActionHelp({
 
 function getResultCounter({
   status,
+  start,
+  end,
   visibleCount,
   total,
 }: {
   status: SearchStatus;
+  start: number;
+  end: number;
   visibleCount: number;
   total: number;
 }) {
@@ -732,18 +871,18 @@ function getResultCounter({
   }
 
   if (status === "empty") {
-    return "Sin resultados";
+    return "Mostrando 0 de 0 productos";
   }
 
   if (status === "error") {
     return "Error de busqueda";
   }
 
-  if (total > visibleCount) {
-    return `${visibleCount} de ${total} encontrados`;
+  if (total === 0 || visibleCount === 0) {
+    return "Mostrando 0 de 0 productos";
   }
 
-  return `${total} encontrado${total === 1 ? "" : "s"}`;
+  return `Mostrando ${start}-${end} de ${total} productos`;
 }
 
 function SearchStatePanel({ status }: { status: SearchStatus }) {
@@ -761,9 +900,9 @@ function SearchStatePanel({ status }: { status: SearchStatus }) {
   if (status === "empty") {
     return (
       <div className="rounded-md border border-dashed border-border bg-background p-4">
-        <p className="text-lg font-black">No se encontraron productos.</p>
+        <p className="text-lg font-black">No encontramos productos.</p>
         <p className="mt-1 text-base font-semibold text-muted-foreground">
-          Proba con otro nombre, codigo o marca.
+          Proba buscar por menos palabras o por codigo.
         </p>
       </div>
     );

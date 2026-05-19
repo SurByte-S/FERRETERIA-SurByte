@@ -1,4 +1,4 @@
-"use server";
+﻿"use server";
 
 import { revalidatePath } from "next/cache";
 
@@ -31,10 +31,30 @@ type ProductRow = {
   min_stock: number | null;
 };
 
+type PosProductSearchRow = {
+  id: string;
+  sku: string;
+  barcode: string | null;
+  name: string;
+  normalized_name: string;
+  description: string | null;
+  unit: string;
+  sale_price: number | null;
+  stock_quantity: number | null;
+  min_stock: number | null;
+  category_name: string | null;
+  brand_name: string | null;
+  rank: number;
+  score: number;
+  total_count?: number;
+};
+
 export type PosProductSearchResult = {
   ok: boolean;
   items: QuoteProduct[];
   total: number;
+  page: number;
+  pageSize: number;
   message?: string;
 };
 
@@ -54,10 +74,13 @@ const PAYMENT_METHODS = [
 ];
 
 const CASH_REGISTER_CLOSED_MESSAGE =
-  "Caja cerrada. Abrí caja antes de registrar ventas.";
+  "Caja cerrada. AbrÃ­ caja antes de registrar ventas.";
 
 const STOCK_NOT_ENOUGH_MESSAGE =
-  "Stock insuficiente. Revisá las cantidades antes de vender.";
+  "Stock insuficiente. RevisÃ¡ las cantidades antes de vender.";
+
+const POS_PAGE_SIZE_OPTIONS = [20, 40, 80] as const;
+const DEFAULT_POS_PAGE_SIZE = 40;
 
 function mapProduct(row: ProductRow): QuoteProduct {
   return {
@@ -75,11 +98,37 @@ function mapProduct(row: ProductRow): QuoteProduct {
   };
 }
 
+function mapPosProduct(row: PosProductSearchRow): QuoteProduct {
+  return {
+    sku: row.sku,
+    code: row.barcode ?? row.sku,
+    name: row.name,
+    description: row.description ?? row.name,
+    brand: row.brand_name ?? "",
+    category: row.category_name ?? "",
+    unit: row.unit,
+    price: row.sale_price ?? 0,
+    stockQuantity: row.stock_quantity ?? 0,
+    minStock: row.min_stock ?? 0,
+    availableForSale: (row.stock_quantity ?? 0) > 0,
+  };
+}
+
 function cleanSearch(value: string) {
   return value
     .trim()
-    .replace(/[^\p{L}\p{N}\s.-]/gu, " ")
+    .replace(/["'`]/g, " ")
+    .replace(/[^\p{L}\p{N}\s./*,-]/gu, " ")
+    .replace(/(\d)\s*(x|X|por|\*)\s*(\d)/g, "$1 x $3")
     .replace(/\s+/g, " ");
+}
+
+function clampPosPageSize(pageSize: number) {
+  return POS_PAGE_SIZE_OPTIONS.includes(
+    pageSize as (typeof POS_PAGE_SIZE_OPTIONS)[number]
+  )
+    ? pageSize
+    : DEFAULT_POS_PAGE_SIZE;
 }
 
 function getSaveQuoteErrorMessage(message?: string) {
@@ -225,35 +274,52 @@ export async function searchProductsForPosAction(
   pageSize = 40
 ): Promise<PosProductSearchResult> {
   const search = cleanSearch(rawSearch);
-
-  if (!search) {
-    return {
-      ok: true,
-      items: [],
-      total: 0,
-    };
-  }
+  const safePage = Math.max(Number(page) || 1, 1);
+  const safePageSize = clampPosPageSize(Number(pageSize) || DEFAULT_POS_PAGE_SIZE);
+  const offset = (safePage - 1) * safePageSize;
 
   try {
     const tenant = await requireTenantRole(["owner", "admin", "seller"]);
     const supabase = getSupabaseServerClient();
+    const rpcResult = await supabase.rpc("search_pos_products", {
+      p_tenant_id: tenant.id,
+      p_query: search,
+      p_limit: safePageSize,
+      p_offset: offset,
+      p_include_out_of_stock: includeOutOfStock,
+    });
+
+    if (!rpcResult.error) {
+      const rows = (rpcResult.data ?? []) as PosProductSearchRow[];
+
+      return {
+        ok: true,
+        items: rows.map(mapPosProduct),
+        total: Number(rows[0]?.total_count ?? 0),
+        page: safePage,
+        pageSize: safePageSize,
+      };
+    }
+
     const safeSearch = search.replace(/[%_]/g, "");
-    const from = Math.max(0, page - 1) * pageSize;
-    const to = from + Math.min(Math.max(pageSize, 1), 60) - 1;
-    const [matchingBrands, matchingCategories] = await Promise.all([
-      supabase
-        .from("brands")
-        .select("id")
-        .eq("tenant_id", tenant.id)
-        .eq("active", true)
-        .ilike("name", `%${safeSearch}%`),
-      supabase
-        .from("categories")
-        .select("id")
-        .eq("tenant_id", tenant.id)
-        .eq("active", true)
-        .ilike("name", `%${safeSearch}%`),
-    ]);
+    const from = offset;
+    const to = from + safePageSize - 1;
+    const [matchingBrands, matchingCategories] = safeSearch
+      ? await Promise.all([
+          supabase
+            .from("brands")
+            .select("id")
+            .eq("tenant_id", tenant.id)
+            .eq("active", true)
+            .ilike("name", `%${safeSearch}%`),
+          supabase
+            .from("categories")
+            .select("id")
+            .eq("tenant_id", tenant.id)
+            .eq("active", true)
+            .ilike("name", `%${safeSearch}%`),
+        ])
+      : [{ data: [] }, { data: [] }];
     const brandIds = ((matchingBrands.data ?? []) as { id: string }[]).map(
       (item) => item.id
     );
@@ -284,9 +350,12 @@ export async function searchProductsForPosAction(
       )
       .eq("tenant_id", tenant.id)
       .eq("active", true)
-      .or(searchParts.join(","))
       .order("name")
       .range(from, to);
+
+    if (searchParts.length > 0 && safeSearch) {
+      query = query.or(searchParts.join(","));
+    }
 
     if (!includeOutOfStock) {
       query = query.gt("stock_quantity", 0);
@@ -299,20 +368,33 @@ export async function searchProductsForPosAction(
         ok: false,
         items: [],
         total: 0,
+        page: safePage,
+        pageSize: safePageSize,
         message: "No se pudieron buscar productos. Revisa la conexion.",
       };
     }
 
     return {
       ok: true,
-      items: ((data ?? []) as unknown as ProductRow[]).map(mapProduct),
+      items: sortProductsBySearchRank(
+        ((data ?? []) as unknown as ProductRow[]).map((row) => ({
+          ...mapProduct(row),
+          barcode: row.barcode,
+          normalizedName: row.normalized_name,
+        })),
+        search
+      ),
       total: count ?? 0,
+      page: safePage,
+      pageSize: safePageSize,
     };
   } catch {
     return {
       ok: false,
       items: [],
       total: 0,
+      page: safePage,
+      pageSize: safePageSize,
       message: "No se pudieron buscar productos. Intenta nuevamente.",
     };
   }
