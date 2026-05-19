@@ -131,7 +131,7 @@ export function QuickSalePos({
 
     const existing = linesRef.current.find((line) => line.sku === product.sku);
 
-    if (existing?.quantity >= product.stockQuantity) {
+    if (existing && existing.quantity >= product.stockQuantity) {
       setMessage(getInsufficientStockMessage(product.stockQuantity));
       return;
     }
