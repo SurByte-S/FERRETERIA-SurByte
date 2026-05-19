@@ -17,25 +17,25 @@ export function PageHeader({
   backLabel?: string;
 }) {
   return (
-    <header className="mb-6 max-w-4xl">
+    <header className="mb-4 max-w-4xl">
       {backHref ? (
-        <Button asChild variant="outline" className="mb-4 h-12 gap-2 px-5 text-base">
+        <Button asChild variant="outline" className="mb-3 h-9 gap-1.5 px-3 text-sm">
           <Link href={backHref}>
-            <ArrowLeft className="size-5" aria-hidden="true" />
+            <ArrowLeft className="size-4" aria-hidden="true" />
             {backLabel}
           </Link>
         </Button>
       ) : null}
       {eyebrow ? (
-        <p className="mb-2 text-base font-medium text-muted-foreground">
+        <p className="mb-1.5 text-sm font-medium text-muted-foreground">
           {eyebrow}
         </p>
       ) : null}
-      <h1 className="text-3xl font-bold leading-tight tracking-normal sm:text-4xl">
+      <h1 className="text-2xl font-bold leading-tight tracking-normal sm:text-3xl">
         {title}
       </h1>
       {description ? (
-        <p className="mt-3 text-lg leading-8 text-muted-foreground">
+        <p className="mt-2 text-base leading-6 text-muted-foreground">
           {description}
         </p>
       ) : null}

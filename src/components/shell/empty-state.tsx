@@ -20,16 +20,16 @@ export function EmptyState({
   return (
     <Card className="max-w-3xl">
       <CardHeader>
-        <div className="mb-2 flex size-14 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-          <Icon className="size-7" aria-hidden="true" />
+        <div className="mb-1.5 flex size-11 items-center justify-center rounded-md bg-primary text-primary-foreground">
+          <Icon className="size-5" aria-hidden="true" />
         </div>
         <CardTitle>{title}</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <p className="text-lg leading-8 text-muted-foreground">{text}</p>
-        <Button asChild className="h-12 gap-2 px-5 text-base">
+      <CardContent className="space-y-4">
+        <p className="text-base leading-6 text-muted-foreground">{text}</p>
+        <Button asChild className="h-9 gap-1.5 px-3 text-sm">
           <Link href={actionHref}>
-            <Icon className="size-5" aria-hidden="true" />
+            <Icon className="size-4" aria-hidden="true" />
             {actionLabel}
           </Link>
         </Button>
