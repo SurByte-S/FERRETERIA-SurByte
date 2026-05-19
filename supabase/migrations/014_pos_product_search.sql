@@ -223,8 +223,8 @@ as $$
     counted.score desc,
     counted.name asc,
     counted.sku asc
-  limit params.limit_value
-  offset params.offset_value;
+  limit (select limit_value from params)
+  offset (select offset_value from params);
 $$;
 
 revoke execute on function public.search_pos_products(uuid, text, int, int, boolean) from public;
