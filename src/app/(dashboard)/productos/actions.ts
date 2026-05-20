@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 
-import { normalizeName, parseBoolean, parseNullableNumber } from "@/lib/csv/productos";
+import { requireUser } from "@/lib/auth/session";
+import { normalizeName, parseBoolean } from "@/lib/csv/productos";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import {
   FORBIDDEN_ACTION_MESSAGE,
@@ -14,6 +15,8 @@ export type ProductActionState = {
   ok: boolean;
   message: string;
 };
+
+type CatalogTable = "brands" | "suppliers";
 
 const errorState = {
   ok: false,
@@ -34,6 +37,38 @@ function numberValue(value: string) {
   return Number(value.replace(",", "."));
 }
 
+function nonNegativeNumberValue({
+  fieldName,
+  label,
+  nullable = false,
+  fallback,
+  formData,
+}: {
+  fieldName: string;
+  label: string;
+  nullable?: boolean;
+  fallback?: number;
+  formData: FormData;
+}) {
+  const text = textValue(formData, fieldName);
+
+  if (!text && nullable) {
+    return null;
+  }
+
+  if (!text && typeof fallback === "number") {
+    return fallback;
+  }
+
+  const value = numberValue(text);
+
+  if (!Number.isFinite(value) || value < 0) {
+    throw new Error(`${label} debe ser un numero mayor o igual a 0.`);
+  }
+
+  return value;
+}
+
 function stockErrorMessage(message?: string) {
   if (message?.includes("STOCK_NOTE_REQUIRED")) {
     return "Escribi un motivo para ajustar el stock.";
@@ -50,38 +85,40 @@ function stockErrorMessage(message?: string) {
   return "No se pudo ajustar el stock. Revisa la conexion y las migraciones.";
 }
 
-async function ensureBrand(tenantId: string, name: string) {
-  if (!name) {
+async function validateTenantCatalogId({
+  fieldName,
+  label,
+  table,
+  tenantId,
+}: {
+  fieldName: string;
+  label: string;
+  table: CatalogTable;
+  tenantId: string;
+}) {
+  const id = fieldName.trim();
+
+  if (!id) {
     return null;
   }
 
+  if (!isUuid(id)) {
+    throw new Error(`${label} no es valido.`);
+  }
+
   const supabase = getSupabaseServerClient();
-  const { data: existing, error: existingError } = await supabase
-    .from("brands")
+  const { data, error } = await supabase
+    .from(table)
     .select("id")
     .eq("tenant_id", tenantId)
-    .ilike("name", name)
+    .eq("id", id)
     .maybeSingle();
 
-  if (existingError) {
-    throw new Error("No se pudo revisar la marca.");
+  if (error || !data) {
+    throw new Error(`${label} no pertenece a esta ferreteria.`);
   }
 
-  if (existing) {
-    return (existing as { id: string }).id;
-  }
-
-  const { data: created, error: createError } = await supabase
-    .from("brands")
-    .insert({ tenant_id: tenantId, name, active: true })
-    .select("id")
-    .single();
-
-  if (createError) {
-    throw new Error("No se pudo crear la marca.");
-  }
-
-  return (created as { id: string }).id;
+  return id;
 }
 
 async function uploadProductImage({
@@ -135,10 +172,9 @@ export async function updateProductAction(
   const currentSku = textValue(formData, "currentSku");
   const nextSku = textValue(formData, "sku");
   const name = textValue(formData, "name");
+  const description = textValue(formData, "description");
   const barcode = textValue(formData, "barcode");
   const unit = textValue(formData, "unit") || "unidad";
-  const categoryId = textValue(formData, "categoryId");
-  const brandName = textValue(formData, "brand");
   const imageFile = formData.get("image");
   let imageUrl = textValue(formData, "currentImageUrl");
 
@@ -152,7 +188,58 @@ export async function updateProductAction(
   try {
     const tenant = await requireTenantRole(["owner", "admin"]);
     const supabase = getSupabaseServerClient();
-    const brandId = await ensureBrand(tenant.id, brandName);
+    const [
+      costWithoutTax,
+      costWithTax,
+      taxRate,
+      salePrice,
+      minStock,
+    ] = [
+      nonNegativeNumberValue({
+        fieldName: "costWithoutTax",
+        label: "Costo sin IVA",
+        nullable: true,
+        formData,
+      }),
+      nonNegativeNumberValue({
+        fieldName: "cost",
+        label: "Costo con IVA",
+        nullable: true,
+        formData,
+      }),
+      nonNegativeNumberValue({
+        fieldName: "taxRate",
+        label: "IVA",
+        fallback: 0,
+        formData,
+      }),
+      nonNegativeNumberValue({
+        fieldName: "salePrice",
+        label: "Precio de venta",
+        nullable: true,
+        formData,
+      }),
+      nonNegativeNumberValue({
+        fieldName: "minStock",
+        label: "Stock minimo",
+        fallback: 0,
+        formData,
+      }),
+    ];
+    const [brandId, supplierId] = await Promise.all([
+      validateTenantCatalogId({
+        fieldName: textValue(formData, "brandId"),
+        label: "La marca",
+        table: "brands",
+        tenantId: tenant.id,
+      }),
+      validateTenantCatalogId({
+        fieldName: textValue(formData, "supplierId"),
+        label: "El proveedor",
+        table: "suppliers",
+        tenantId: tenant.id,
+      }),
+    ]);
 
     if (imageFile instanceof File && imageFile.size > 0) {
       imageUrl = await uploadProductImage({
@@ -168,14 +255,16 @@ export async function updateProductAction(
         sku: nextSku,
         barcode: barcode || null,
         name,
-        description: name,
+        description: description || name,
         normalized_name: normalizeName(name),
-        category_id: categoryId || null,
         brand_id: brandId,
+        supplier_id: supplierId,
         unit,
-        cost_with_tax: parseNullableNumber(textValue(formData, "cost")),
-        sale_price: parseNullableNumber(textValue(formData, "salePrice")),
-        min_stock: parseNullableNumber(textValue(formData, "minStock")) ?? 0,
+        cost_without_tax: costWithoutTax,
+        cost_with_tax: costWithTax,
+        sale_price: salePrice,
+        tax_rate: taxRate,
+        min_stock: minStock,
         active: parseBoolean(textValue(formData, "active")),
         image_url: imageUrl || null,
       })
@@ -206,6 +295,198 @@ export async function updateProductAction(
       ok: false,
       message:
         error instanceof Error ? `Necesitan revisión. ${error.message}` : errorState.message,
+    };
+  }
+}
+
+export async function createProductAction(
+  _previousState: ProductActionState,
+  formData: FormData
+): Promise<ProductActionState> {
+  const name = textValue(formData, "name");
+  const sku = textValue(formData, "sku");
+  const barcode = textValue(formData, "barcode");
+  const description = textValue(formData, "description");
+  const unit = textValue(formData, "unit") || "unidad";
+  const active = textValue(formData, "active") === "true";
+
+  if (!name) {
+    return {
+      ok: false,
+      message: "El nombre es obligatorio.",
+    };
+  }
+
+  if (!sku) {
+    return {
+      ok: false,
+      message: "El SKU o codigo interno es obligatorio.",
+    };
+  }
+
+  try {
+    const [tenant, user] = await Promise.all([
+      requireTenantRole(["owner", "admin"]),
+      requireUser(),
+    ]);
+    const supabase = getSupabaseServerClient();
+    const [
+      brandId,
+      supplierId,
+      costWithoutTax,
+      costWithTax,
+      taxRate,
+      salePrice,
+      stockQuantity,
+      minStock,
+    ] = await Promise.all([
+      validateTenantCatalogId({
+        fieldName: textValue(formData, "brandId"),
+        label: "La marca",
+        table: "brands",
+        tenantId: tenant.id,
+      }),
+      validateTenantCatalogId({
+        fieldName: textValue(formData, "supplierId"),
+        label: "El proveedor",
+        table: "suppliers",
+        tenantId: tenant.id,
+      }),
+      nonNegativeNumberValue({
+        fieldName: "costWithoutTax",
+        label: "Costo sin IVA",
+        nullable: true,
+        formData,
+      }),
+      nonNegativeNumberValue({
+        fieldName: "costWithTax",
+        label: "Costo con IVA",
+        nullable: true,
+        formData,
+      }),
+      nonNegativeNumberValue({
+        fieldName: "taxRate",
+        label: "IVA",
+        fallback: 0,
+        formData,
+      }),
+      nonNegativeNumberValue({
+        fieldName: "salePrice",
+        label: "Precio venta",
+        nullable: true,
+        formData,
+      }),
+      nonNegativeNumberValue({
+        fieldName: "stockQuantity",
+        label: "Stock inicial",
+        fallback: 0,
+        formData,
+      }),
+      nonNegativeNumberValue({
+        fieldName: "minStock",
+        label: "Stock minimo",
+        fallback: 0,
+        formData,
+      }),
+    ]);
+    const { data: existingSku, error: skuError } = await supabase
+      .from("products")
+      .select("id")
+      .eq("tenant_id", tenant.id)
+      .eq("sku", sku)
+      .maybeSingle();
+
+    if (skuError) {
+      return {
+        ok: false,
+        message: "No se pudo revisar si el SKU ya existe.",
+      };
+    }
+
+    if (existingSku) {
+      return {
+        ok: false,
+        message: "Ya existe un producto con ese SKU en esta ferreteria.",
+      };
+    }
+
+    const cleanTaxRate = taxRate ?? 0;
+    const cleanStockQuantity = stockQuantity ?? 0;
+    const cleanMinStock = minStock ?? 0;
+    const finalCostWithTax =
+      costWithTax ??
+      (costWithoutTax === null ? null : costWithoutTax * (1 + cleanTaxRate / 100));
+    const { data: product, error: insertError } = await supabase
+      .from("products")
+      .insert({
+        tenant_id: tenant.id,
+        sku,
+        barcode: barcode || null,
+        name,
+        normalized_name: normalizeName(name),
+        description: description || name,
+        brand_id: brandId,
+        supplier_id: supplierId,
+        unit,
+        cost_without_tax: costWithoutTax,
+        cost_with_tax: finalCostWithTax,
+        sale_price: salePrice,
+        tax_rate: cleanTaxRate,
+        stock_quantity: cleanStockQuantity,
+        min_stock: cleanMinStock,
+        active,
+      })
+      .select("id")
+      .single();
+
+    if (insertError || !product) {
+      return {
+        ok: false,
+        message: "No se pudo crear el producto.",
+      };
+    }
+
+    if (cleanStockQuantity > 0) {
+      const { error: movementError } = await supabase
+        .from("inventory_movements")
+        .insert({
+          tenant_id: tenant.id,
+          product_id: (product as { id: string }).id,
+          movement_type: "initial",
+          quantity: cleanStockQuantity,
+          unit_cost: finalCostWithTax,
+          notes: "Stock inicial al crear producto",
+          created_by: user.id,
+        });
+
+      if (movementError) {
+        return {
+          ok: false,
+          message:
+            "Producto creado, pero no se pudo registrar el movimiento inicial.",
+        };
+      }
+    }
+
+    revalidatePath("/stock");
+    revalidatePath("/productos");
+
+    return {
+      ok: true,
+      message: "Producto creado correctamente.",
+    };
+  } catch (error) {
+    if (isTenantRoleForbiddenError(error)) {
+      return {
+        ok: false,
+        message: FORBIDDEN_ACTION_MESSAGE,
+      };
+    }
+
+    return {
+      ok: false,
+      message:
+        error instanceof Error ? error.message : "No se pudo crear el producto.",
     };
   }
 }
@@ -267,6 +548,199 @@ export async function updateProductPriceAction(
     return {
       ok: false,
       message: "No se pudo actualizar el precio.",
+    };
+  }
+}
+
+export async function updateProductStockCommercialAction(
+  _previousState: ProductActionState,
+  formData: FormData
+): Promise<ProductActionState> {
+  const productId = textValue(formData, "productId");
+
+  if (!isUuid(productId)) {
+    return {
+      ok: false,
+      message: "No se encontro el producto.",
+    };
+  }
+
+  try {
+    const tenant = await requireTenantRole(["owner", "admin"]);
+    const [
+      costWithoutTax,
+      costWithTax,
+      taxRate,
+      salePrice,
+      minStock,
+    ] = [
+      nonNegativeNumberValue({
+        fieldName: "costWithoutTax",
+        label: "Costo sin IVA",
+        nullable: true,
+        formData,
+      }),
+      nonNegativeNumberValue({
+        fieldName: "costWithTax",
+        label: "Costo con IVA",
+        nullable: true,
+        formData,
+      }),
+      nonNegativeNumberValue({
+        fieldName: "taxRate",
+        label: "IVA",
+        fallback: 0,
+        formData,
+      }),
+      nonNegativeNumberValue({
+        fieldName: "salePrice",
+        label: "Precio de venta",
+        nullable: true,
+        formData,
+      }),
+      nonNegativeNumberValue({
+        fieldName: "minStock",
+        label: "Stock minimo",
+        fallback: 0,
+        formData,
+      }),
+    ];
+    const supabase = getSupabaseServerClient();
+    const [brandId, supplierId] = await Promise.all([
+      validateTenantCatalogId({
+        fieldName: textValue(formData, "brandId"),
+        label: "La marca",
+        table: "brands",
+        tenantId: tenant.id,
+      }),
+      validateTenantCatalogId({
+        fieldName: textValue(formData, "supplierId"),
+        label: "El proveedor",
+        table: "suppliers",
+        tenantId: tenant.id,
+      }),
+    ]);
+    const { data, error } = await supabase
+      .from("products")
+      .update({
+        brand_id: brandId,
+        supplier_id: supplierId,
+        cost_without_tax: costWithoutTax,
+        cost_with_tax: costWithTax,
+        tax_rate: taxRate,
+        sale_price: salePrice,
+        min_stock: minStock,
+      })
+      .eq("tenant_id", tenant.id)
+      .eq("id", productId)
+      .select("id")
+      .maybeSingle();
+
+    if (error || !data) {
+      return {
+        ok: false,
+        message: "No se pudo guardar la gestion del producto.",
+      };
+    }
+
+    revalidatePath("/productos");
+    revalidatePath("/stock");
+    revalidatePath(`/productos/${productId}/stock`);
+
+    return {
+      ok: true,
+      message: "Datos del producto actualizados.",
+    };
+  } catch (error) {
+    if (isTenantRoleForbiddenError(error)) {
+      return {
+        ok: false,
+        message: FORBIDDEN_ACTION_MESSAGE,
+      };
+    }
+
+    return {
+      ok: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "No se pudo guardar la gestion del producto.",
+    };
+  }
+}
+
+export async function deactivateProductAction(
+  _previousState: ProductActionState,
+  formData: FormData
+): Promise<ProductActionState> {
+  const productId = textValue(formData, "productId");
+
+  if (!isUuid(productId)) {
+    return {
+      ok: false,
+      message: "No se encontro el producto.",
+    };
+  }
+
+  try {
+    await requireUser();
+    const tenant = await requireTenantRole(["owner", "admin"]);
+    const supabase = getSupabaseServerClient();
+    const { data: product, error: productError } = await supabase
+      .from("products")
+      .select("id")
+      .eq("tenant_id", tenant.id)
+      .eq("id", productId)
+      .maybeSingle();
+
+    if (productError) {
+      return {
+        ok: false,
+        message: "No se pudo validar el producto.",
+      };
+    }
+
+    if (!product) {
+      return {
+        ok: false,
+        message: "El producto no existe para esta ferreteria.",
+      };
+    }
+
+    const { error } = await supabase
+      .from("products")
+      .update({
+        active: false,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("tenant_id", tenant.id)
+      .eq("id", productId);
+
+    if (error) {
+      return {
+        ok: false,
+        message: "No se pudo eliminar el producto.",
+      };
+    }
+
+    revalidatePath("/stock");
+    revalidatePath("/productos");
+
+    return {
+      ok: true,
+      message: "Producto eliminado. El historial se conserva.",
+    };
+  } catch (error) {
+    if (isTenantRoleForbiddenError(error)) {
+      return {
+        ok: false,
+        message: FORBIDDEN_ACTION_MESSAGE,
+      };
+    }
+
+    return {
+      ok: false,
+      message: "No se pudo eliminar el producto.",
     };
   }
 }

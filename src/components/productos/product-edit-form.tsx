@@ -16,11 +16,13 @@ const initialState: ProductActionState = {
 };
 
 export function ProductEditForm({
+  brands,
   product,
-  categories,
+  suppliers,
 }: {
+  brands: ProductCatalogOption[];
   product: ProductListItem;
-  categories: ProductCatalogOption[];
+  suppliers: ProductCatalogOption[];
 }) {
   const [state, formAction, pending] = useActionState(
     updateProductAction,
@@ -37,35 +39,52 @@ export function ProductEditForm({
         <Field label="Nombre">
           <input name="name" defaultValue={product.name} required className="h-12 rounded-lg border border-input bg-background px-3 text-base" />
         </Field>
-        <Field label="Código/SKU">
+        <Field label="Codigo/SKU">
           <input name="sku" defaultValue={product.sku} required className="h-12 rounded-lg border border-input bg-background px-3 text-base" />
         </Field>
-        <Field label="Código de barra">
+        <Field label="Codigo de barra">
           <input name="barcode" defaultValue={product.barcode} className="h-12 rounded-lg border border-input bg-background px-3 text-base" />
         </Field>
-        <Field label="Precio de venta">
-          <input name="salePrice" defaultValue={product.salePrice ?? ""} inputMode="decimal" className="h-12 rounded-lg border border-input bg-background px-3 text-base" />
+        <label className="grid gap-2 text-base font-semibold md:col-span-2">
+          <span>Descripcion</span>
+          <textarea name="description" defaultValue={product.description} rows={3} className="rounded-lg border border-input bg-background px-3 py-2 text-base" />
+        </label>
+        <Field label="Unidad">
+          <input name="unit" defaultValue={product.unit} className="h-12 rounded-lg border border-input bg-background px-3 text-base" />
         </Field>
-        <Field label="Costo">
-          <input name="cost" defaultValue={product.cost ?? ""} inputMode="decimal" className="h-12 rounded-lg border border-input bg-background px-3 text-base" />
-        </Field>
-        <Field label="Categoría">
-          <select name="categoryId" defaultValue={product.categoryId} className="h-12 rounded-lg border border-input bg-background px-3 text-base">
-            <option value="">Sin categoría</option>
-            {categories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
+        <Field label="Marca">
+          <select name="brandId" defaultValue={product.brandId} className="h-12 rounded-lg border border-input bg-background px-3 text-base">
+            <option value="">Sin marca</option>
+            {brands.map((brand) => (
+              <option key={brand.id} value={brand.id}>
+                {brand.name}
               </option>
             ))}
           </select>
         </Field>
-        <Field label="Marca">
-          <input name="brand" defaultValue={product.brand} className="h-12 rounded-lg border border-input bg-background px-3 text-base" />
+        <Field label="Proveedor">
+          <select name="supplierId" defaultValue={product.supplierId} className="h-12 rounded-lg border border-input bg-background px-3 text-base">
+            <option value="">Sin proveedor</option>
+            {suppliers.map((supplier) => (
+              <option key={supplier.id} value={supplier.id}>
+                {supplier.name}
+              </option>
+            ))}
+          </select>
         </Field>
-        <Field label="Unidad">
-          <input name="unit" defaultValue={product.unit} className="h-12 rounded-lg border border-input bg-background px-3 text-base" />
+        <Field label="Costo sin IVA">
+          <input name="costWithoutTax" defaultValue={product.costWithoutTax ?? ""} inputMode="decimal" className="h-12 rounded-lg border border-input bg-background px-3 text-base" />
         </Field>
-        <Field label="Stock mínimo">
+        <Field label="IVA %">
+          <input name="taxRate" defaultValue={product.taxRate} inputMode="decimal" className="h-12 rounded-lg border border-input bg-background px-3 text-base" />
+        </Field>
+        <Field label="Costo con IVA">
+          <input name="cost" defaultValue={product.costWithTax ?? ""} inputMode="decimal" className="h-12 rounded-lg border border-input bg-background px-3 text-base" />
+        </Field>
+        <Field label="Precio de venta">
+          <input name="salePrice" defaultValue={product.salePrice ?? ""} inputMode="decimal" className="h-12 rounded-lg border border-input bg-background px-3 text-base" />
+        </Field>
+        <Field label="Stock minimo">
           <input name="minStock" defaultValue={product.minStock} inputMode="decimal" className="h-12 rounded-lg border border-input bg-background px-3 text-base" />
         </Field>
         <Field label="Stock actual">

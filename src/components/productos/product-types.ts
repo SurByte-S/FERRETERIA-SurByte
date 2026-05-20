@@ -9,8 +9,13 @@ export type ProductListItem = {
   categoryId: string;
   brand: string;
   brandId: string;
+  supplier: string;
+  supplierId: string;
   unit: string;
   cost: number | null;
+  costWithoutTax: number | null;
+  costWithTax: number | null;
+  taxRate: number;
   salePrice: number | null;
   stockQuantity: number;
   minStock: number;

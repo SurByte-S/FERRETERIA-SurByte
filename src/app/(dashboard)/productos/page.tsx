@@ -31,8 +31,10 @@ type ProductSearchRow = {
   description: string | null;
   normalized_name: string | null;
   unit: string;
+  cost_without_tax: number | null;
   cost_with_tax: number | null;
   sale_price: number | null;
+  tax_rate: number | null;
   stock_quantity: number | null;
   min_stock: number | null;
   active: boolean;
@@ -52,16 +54,20 @@ type ProductFallbackRow = {
   description: string | null;
   normalized_name: string | null;
   unit: string;
+  cost_without_tax: number | null;
   cost_with_tax: number | null;
   sale_price: number | null;
+  tax_rate: number | null;
   stock_quantity: number | null;
   min_stock: number | null;
   active: boolean;
   image_url: string | null;
   category_id: string | null;
   brand_id: string | null;
+  supplier_id: string | null;
   categories: { name: string } | null;
   brands: { name: string } | null;
+  suppliers: { name: string } | null;
 };
 
 type CatalogRow = {
@@ -76,7 +82,7 @@ export default async function ProductosPage({ searchParams }: ProductsPageProps)
   const categoryId = (params.categoria ?? "").trim();
   const mode = params.modo === "administracion" ? "administracion" : "mostrador";
   const page = Math.max(Number(params.page ?? "1") || 1, 1);
-  const result = await loadProducts({ code, name, categoryId, page });
+  const result = await loadProducts({ code, name, categoryId, mode, page });
 
   return (
     <>
@@ -90,7 +96,9 @@ export default async function ProductosPage({ searchParams }: ProductsPageProps)
       {result.ok ? (
         <ProductsBrowser
           products={result.products}
+          brands={result.brands}
           categories={result.categories}
+          suppliers={result.suppliers}
           code={code}
           name={name}
           categoryId={categoryId}
@@ -120,6 +128,8 @@ export default async function ProductosPage({ searchParams }: ProductsPageProps)
 }
 
 function mapRpcRow(row: ProductSearchRow): ProductListItem {
+  const stockQuantity = row.stock_quantity ?? 0;
+
   return {
     id: row.id,
     sku: row.sku,
@@ -131,10 +141,15 @@ function mapRpcRow(row: ProductSearchRow): ProductListItem {
     categoryId: row.category_id ?? "",
     brand: row.brand_name ?? "",
     brandId: row.brand_id ?? "",
+    supplier: "",
+    supplierId: "",
     unit: row.unit,
     cost: row.cost_with_tax,
+    costWithoutTax: null,
+    costWithTax: row.cost_with_tax,
+    taxRate: 21,
     salePrice: row.sale_price,
-    stockQuantity: row.stock_quantity ?? 0,
+    stockQuantity,
     minStock: row.min_stock ?? 0,
     active: row.active,
     imageUrl: row.image_url ?? "",
@@ -142,6 +157,8 @@ function mapRpcRow(row: ProductSearchRow): ProductListItem {
 }
 
 function mapFallbackRow(row: ProductFallbackRow): ProductListItem {
+  const stockQuantity = row.stock_quantity ?? 0;
+
   return {
     id: row.id,
     sku: row.sku,
@@ -153,10 +170,15 @@ function mapFallbackRow(row: ProductFallbackRow): ProductListItem {
     categoryId: row.category_id ?? "",
     brand: row.brands?.name ?? "",
     brandId: row.brand_id ?? "",
+    supplier: row.suppliers?.name ?? "",
+    supplierId: row.supplier_id ?? "",
     unit: row.unit,
     cost: row.cost_with_tax,
+    costWithoutTax: row.cost_without_tax,
+    costWithTax: row.cost_with_tax,
+    taxRate: row.tax_rate ?? 21,
     salePrice: row.sale_price,
-    stockQuantity: row.stock_quantity ?? 0,
+    stockQuantity,
     minStock: row.min_stock ?? 0,
     active: row.active,
     imageUrl: row.image_url ?? "",
@@ -167,17 +189,21 @@ async function loadProducts({
   code,
   name,
   categoryId,
+  mode,
   page,
 }: {
   code: string;
   name: string;
   categoryId: string;
+  mode: "mostrador" | "administracion";
   page: number;
 }): Promise<
   | {
       ok: true;
       products: ProductListItem[];
+      brands: ProductCatalogOption[];
       categories: ProductCatalogOption[];
+      suppliers: ProductCatalogOption[];
       total: number;
       showing: number;
       lowStockCount: number;
@@ -189,37 +215,60 @@ async function loadProducts({
     const supabase = getSupabaseServerClient();
     const from = 0;
     const to = page * PAGE_SIZE - 1;
-    const categoriesResult = await supabase
-      .from("categories")
-      .select("id,name")
-      .eq("tenant_id", tenant.id)
-      .eq("active", true)
-      .order("name");
+    const [categoriesResult, brandsResult, suppliersResult] = await Promise.all([
+      supabase
+        .from("categories")
+        .select("id,name")
+        .eq("tenant_id", tenant.id)
+        .eq("active", true)
+        .order("name"),
+      supabase
+        .from("brands")
+        .select("id,name")
+        .eq("tenant_id", tenant.id)
+        .eq("active", true)
+        .order("name"),
+      supabase
+        .from("suppliers")
+        .select("id,name")
+        .eq("tenant_id", tenant.id)
+        .order("name"),
+    ]);
     const lowStockResult = await supabase
       .from("low_stock_products")
       .select("id", { count: "exact", head: true })
       .eq("tenant_id", tenant.id);
     const lowStockCount = lowStockResult.count ?? 0;
 
-    if (categoriesResult.error) {
+    if (categoriesResult.error || brandsResult.error || suppliersResult.error) {
       return {
         ok: false,
-        message: "No se pudieron cargar las categorias. Revisa la conexion a Supabase.",
+        message: "No se pudieron cargar las opciones. Revisa la conexion a Supabase.",
       };
     }
 
+    const brands = ((brandsResult.data ?? []) as CatalogRow[]).map((item) => ({
+      id: item.id,
+      name: item.name,
+    }));
     const categories = ((categoriesResult.data ?? []) as CatalogRow[]).map(
       (item) => ({
         id: item.id,
         name: item.name,
       })
     );
+    const suppliers = ((suppliersResult.data ?? []) as CatalogRow[]).map((item) => ({
+      id: item.id,
+      name: item.name,
+    }));
 
     if (name.length === 1 && !code && !categoryId) {
       return {
         ok: true,
         products: [],
+        brands,
         categories,
+        suppliers,
         total: 0,
         showing: 0,
         lowStockCount,
@@ -235,7 +284,7 @@ async function loadProducts({
       page_offset: 0,
     });
 
-    if (!rpcResult.error) {
+    if (mode !== "administracion" && !rpcResult.error) {
       const rows = (rpcResult.data ?? []) as ProductSearchRow[];
       const total = Number(rows[0]?.total_count ?? 0);
 
@@ -248,7 +297,9 @@ async function loadProducts({
           })),
           code || name
         ),
+        brands,
         categories,
+        suppliers,
         total,
         showing: Math.min(from + rows.length, total),
         lowStockCount,
@@ -258,7 +309,7 @@ async function loadProducts({
     let query = supabase
       .from("products")
       .select(
-        "id,sku,barcode,name,normalized_name,description,unit,cost_with_tax,sale_price,stock_quantity,min_stock,active,image_url,category_id,brand_id,categories(name),brands(name)",
+        "id,sku,barcode,name,normalized_name,description,unit,cost_without_tax,cost_with_tax,sale_price,tax_rate,stock_quantity,min_stock,active,image_url,category_id,brand_id,supplier_id,categories(name),brands(name),suppliers(name)",
         { count: "exact" }
       )
       .eq("tenant_id", tenant.id)
@@ -318,7 +369,9 @@ async function loadProducts({
     return {
       ok: true,
       products: sortProductsBySearchRank(products, code || name),
+      brands,
       categories,
+      suppliers,
       total,
       showing: Math.min(from + products.length, total),
       lowStockCount,

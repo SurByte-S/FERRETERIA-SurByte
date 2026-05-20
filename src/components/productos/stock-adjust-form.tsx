@@ -74,7 +74,6 @@ export function StockAdjustForm({
     }
 
     const difference = nextStock - product.stockQuantity;
-
     if (difference > 0) {
       return {
         nextStock,
@@ -136,6 +135,7 @@ export function StockAdjustForm({
       <input type="hidden" name="productId" value={product.id} />
       <input type="hidden" name="notes" value="Ajuste manual de stock" />
 
+      <h3 className="text-base font-bold">Stock</h3>
       <div className="grid gap-4 md:max-w-xs">
         <label className="grid gap-2 text-base font-semibold">
           <span>Stock final</span>
@@ -180,6 +180,12 @@ export function StockAdjustForm({
             {stockPreview.difference === null
               ? "-"
               : formatStockQuantity(stockPreview.difference)}
+          </p>
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-muted-foreground">Stock minimo</p>
+          <p className="text-2xl font-bold">
+            {formatStockQuantity(product.minStock)}
           </p>
         </div>
         <p className="font-semibold md:col-span-3">{stockPreview.message}</p>

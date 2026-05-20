@@ -106,7 +106,9 @@ function stockStatus(product: ProductListItem) {
 
 export function ProductsBrowser({
   products,
+  brands,
   categories,
+  suppliers,
   code,
   name,
   categoryId,
@@ -117,7 +119,9 @@ export function ProductsBrowser({
   mode,
 }: {
   products: ProductListItem[];
+  brands: ProductCatalogOption[];
   categories: ProductCatalogOption[];
+  suppliers: ProductCatalogOption[];
   code: string;
   name: string;
   categoryId: string;
@@ -371,10 +375,19 @@ export function ProductsBrowser({
                             </span>
                           </Button>
                         </summary>
-                        <ProductEditForm product={product} categories={categories} />
+                        <ProductEditForm
+                          product={product}
+                          brands={brands}
+                          suppliers={suppliers}
+                        />
                       </details>
 
-                      <StockAdjustDetails product={product} />
+                      <StockAdjustDetails
+                        product={product}
+                        brands={brands}
+                        canEditPrice={mode === "administracion"}
+                        suppliers={suppliers}
+                      />
                     </>
                   ) : null}
 
