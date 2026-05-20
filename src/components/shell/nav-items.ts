@@ -1,5 +1,6 @@
 import {
   Boxes,
+  ChartColumn,
   ClipboardList,
   History,
   LayoutGrid,
@@ -30,10 +31,10 @@ export const navigationItems = [
     description: "Datos de clientes y cuenta corriente",
   },
   {
-    title: "Ventas",
+    title: "Estadísticas",
     href: "/ventas",
-    icon: ShoppingCart,
-    description: "Ventas realizadas e impresion de comprobantes",
+    icon: ChartColumn,
+    description: "Ventas por día, caja y resumen del negocio.",
   },
   {
     title: "Presupuestos",
@@ -81,10 +82,10 @@ export const historyItems = [
     description: "Datos de clientes y cuenta corriente",
   },
   {
-    title: "Ventas realizadas",
+    title: "Estadísticas",
     href: "/ventas",
-    icon: ShoppingCart,
-    description: "Ventas realizadas e impresion de comprobantes",
+    icon: ChartColumn,
+    description: "Ventas por día, caja y resumen del negocio.",
   },
   {
     title: "Presupuestos guardados",
