@@ -17,7 +17,13 @@ const initialState: ProductActionState = {
   message: "",
 };
 
-export function StockAdjustForm({ product }: { product: ProductListItem }) {
+export function StockAdjustForm({
+  product,
+  onAdjusted,
+}: {
+  product: ProductListItem;
+  onAdjusted?: () => void;
+}) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const [newStockValue, setNewStockValue] = useState(
@@ -50,11 +56,12 @@ export function StockAdjustForm({ product }: { product: ProductListItem }) {
 
       const refreshTimeout = window.setTimeout(() => {
         router.refresh();
+        onAdjusted?.();
       }, 250);
 
       return () => window.clearTimeout(refreshTimeout);
     }
-  }, [router, state.ok]);
+  }, [onAdjusted, router, state.ok]);
   const stockPreview = useMemo(() => {
     const nextStock = Number(newStockValue);
 
@@ -182,9 +189,9 @@ export function StockAdjustForm({ product }: { product: ProductListItem }) {
         <Button
           type="submit"
           disabled={pending}
-          className="h-14 gap-2 bg-amber-600 px-6 text-lg text-white hover:bg-amber-700"
+          className="h-11 gap-2 bg-amber-600 px-4 text-base text-white hover:bg-amber-700"
         >
-          <PackagePlus className="size-6" aria-hidden="true" />
+          <PackagePlus className="size-5" aria-hidden="true" />
           {pending ? "Actualizando..." : "Guardar ajuste de stock"}
         </Button>
         {state.message ? (
@@ -193,8 +200,8 @@ export function StockAdjustForm({ product }: { product: ProductListItem }) {
       </div>
 
       {confirmation ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/35 p-4">
-          <div className="w-full max-w-sm rounded-lg border border-border bg-card p-5 shadow-lg">
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 p-4">
+          <div className="w-full max-w-md rounded-lg border border-border bg-card p-5 shadow-lg">
             <p className="text-lg font-bold">Confirmar stock</p>
             <p className="mt-2 text-sm font-semibold text-muted-foreground">
               {product.name}
@@ -207,7 +214,7 @@ export function StockAdjustForm({ product }: { product: ProductListItem }) {
                 type="button"
                 disabled={pending}
                 onClick={confirmStockAdjustment}
-                className="h-11 bg-emerald-700 px-4 text-white hover:bg-emerald-800"
+                className="h-10 bg-emerald-700 px-4 text-base text-white hover:bg-emerald-800"
               >
                 Confirmar
               </Button>
@@ -216,7 +223,7 @@ export function StockAdjustForm({ product }: { product: ProductListItem }) {
                 variant="outline"
                 disabled={pending}
                 onClick={() => setConfirmation(null)}
-                className="h-11 px-4"
+                className="h-10 px-4 text-base"
               >
                 Cancelar
               </Button>

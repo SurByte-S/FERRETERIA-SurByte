@@ -274,7 +274,7 @@ function StockProductCard({
         </div>
 
         {canAdjustStock ? (
-          <div className="grid min-h-[42px] rounded-md border border-border bg-background p-1 [&_details]:h-full [&_summary]:h-full [&_[data-slot=button]]:h-full [&_[data-slot=button]]:w-full [&_[data-slot=button]]:gap-1 [&_[data-slot=button]]:px-2 [&_[data-slot=button]]:text-xs [&_svg]:size-3.5">
+          <div className="grid min-h-[42px] rounded-md border border-border bg-background p-1">
             <StockAdjustDetails product={product} />
           </div>
         ) : null}
