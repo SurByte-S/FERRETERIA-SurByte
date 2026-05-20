@@ -52,6 +52,24 @@ export function DashboardShell({
                 </Link>
               </Button>
 
+              <nav
+                aria-label="Enlaces legales"
+                className="grid grid-cols-2 gap-1 overflow-hidden rounded-md border border-primary/10 bg-card p-1 text-xs font-semibold text-muted-foreground transition-opacity duration-150 lg:opacity-0 lg:group-hover:opacity-100"
+              >
+                <Link
+                  href="/terminos-y-condiciones"
+                  className="rounded px-1.5 py-1 text-center transition-colors hover:bg-secondary hover:text-primary"
+                >
+                  Términos
+                </Link>
+                <Link
+                  href="/politica-de-privacidad"
+                  className="rounded px-1.5 py-1 text-center transition-colors hover:bg-secondary hover:text-primary"
+                >
+                  Privacidad
+                </Link>
+              </nav>
+
               <div className="grid gap-1 rounded-md border border-primary/15 bg-card p-1.5 overflow-hidden">
                 <div className="min-w-0 overflow-hidden">
                   <p className="text-xs text-muted-foreground transition-opacity duration-150 lg:opacity-0 lg:group-hover:opacity-100">
