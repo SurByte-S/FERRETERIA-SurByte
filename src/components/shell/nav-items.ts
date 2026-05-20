@@ -24,6 +24,24 @@ export const navigationItems = [
     description: "Abrir y cerrar caja diaria",
   },
   {
+    title: "Clientes",
+    href: "/clientes",
+    icon: Users,
+    description: "Datos de clientes y cuenta corriente",
+  },
+  {
+    title: "Ventas",
+    href: "/ventas",
+    icon: ShoppingCart,
+    description: "Ventas realizadas e impresion de comprobantes",
+  },
+  {
+    title: "Presupuestos",
+    href: "/presupuestos",
+    icon: ClipboardList,
+    description: "Presupuestos guardados",
+  },
+  {
     title: "Stock",
     href: "/stock",
     icon: Boxes,

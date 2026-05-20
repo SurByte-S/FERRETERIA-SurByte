@@ -50,6 +50,14 @@ $$;
 create index if not exists idx_products_pos_tenant_active_stock
 on public.products (tenant_id, active, stock_quantity);
 
+create index if not exists idx_products_pos_tenant_sku
+on public.products (tenant_id, sku);
+
+create index if not exists idx_products_pos_tenant_barcode
+on public.products (tenant_id, barcode);
+
+drop index if exists public.idx_products_pos_search_trgm;
+
 create index if not exists idx_products_pos_search_trgm
 on public.products
 using gin (
@@ -61,6 +69,10 @@ using gin (
     coalesce(description, '')
   ) gin_trgm_ops
 );
+
+create index if not exists idx_products_pos_normalized_name_trgm
+on public.products
+using gin (lower(coalesce(normalized_name, name)) gin_trgm_ops);
 
 drop function if exists public.search_pos_products(uuid, text, int, int, boolean);
 
@@ -117,22 +129,18 @@ as $$
       p.min_stock,
       c.name as category_name,
       b.name as brand_name,
-      public.normalize_product_search_text(p.sku) as n_sku,
-      public.normalize_product_search_text(p.barcode) as n_barcode,
-      public.normalize_product_search_text(p.name) as n_name,
-      public.normalize_product_search_text(p.normalized_name) as n_normalized_name,
-      public.normalize_product_search_text(p.description) as n_description,
-      public.normalize_product_search_text(c.name) as n_category,
-      public.normalize_product_search_text(b.name) as n_brand,
-      public.normalize_product_search_text(
-        coalesce(p.sku, '') || ' ' ||
-        coalesce(p.barcode, '') || ' ' ||
-        coalesce(p.name, '') || ' ' ||
-        coalesce(p.normalized_name, '') || ' ' ||
-        coalesce(p.description, '') || ' ' ||
-        coalesce(c.name, '') || ' ' ||
-        coalesce(b.name, '')
-      ) as haystack
+      lower(coalesce(p.sku, '')) as n_sku,
+      lower(coalesce(p.barcode, '')) as n_barcode,
+      lower(coalesce(p.normalized_name, p.name, '')) as n_name,
+      lower(unaccent(coalesce(c.name, ''))) as n_category,
+      lower(unaccent(coalesce(b.name, ''))) as n_brand,
+      trim(
+        lower(coalesce(p.sku, '')) || ' ' ||
+        lower(coalesce(p.barcode, '')) || ' ' ||
+        lower(coalesce(p.normalized_name, p.name, '')) || ' ' ||
+        lower(unaccent(coalesce(c.name, ''))) || ' ' ||
+        lower(unaccent(coalesce(b.name, '')))
+      ) as search_text
     from public.products p
     left join public.categories c on c.id = p.category_id and c.tenant_id = p.tenant_id
     left join public.brands b on b.id = p.brand_id and b.tenant_id = p.tenant_id
@@ -147,24 +155,28 @@ as $$
       case
         when params.q is null then 8
         when base.n_sku = params.q or base.n_barcode = params.q then 1
-        when base.n_name = params.q or base.n_normalized_name = params.q then 2
-        when base.n_name like params.q || '%' or base.n_normalized_name like params.q || '%' then 3
+        when base.n_name = params.q then 2
+        when base.n_name like params.q || '%' then 3
         when array_length(terms.tokens, 1) > 0 and not exists (
           select 1
           from unnest(terms.tokens) as token
-          where base.haystack not like '%' || token || '%'
+          where base.search_text not like '%' || token || '%'
         ) then 4
         when array_length(terms.tokens, 1) > 0 and exists (
           select 1
           from unnest(terms.tokens) as token
-          where base.haystack like '%' || token || '%'
+          where base.search_text like '%' || token || '%'
         ) then 5
         when base.n_category like '%' || params.q || '%' then 6
         else 7
       end as rank,
       case
         when params.q is null then 0::numeric
-        else similarity(base.haystack, params.q)::numeric
+        else (
+          select count(*)::numeric
+          from unnest(terms.tokens) as token
+          where base.search_text like '%' || token || '%'
+        )
       end as score
     from base
     cross join params
@@ -173,9 +185,8 @@ as $$
       or base.n_sku = params.q
       or base.n_barcode = params.q
       or base.n_name = params.q
-      or base.n_normalized_name = params.q
       or base.n_name like params.q || '%'
-      or base.n_normalized_name like params.q || '%'
+      or base.n_name like '%' || params.q || '%'
       or base.n_category like '%' || params.q || '%'
       or base.n_brand like '%' || params.q || '%'
       or (
@@ -183,7 +194,7 @@ as $$
         and not exists (
           select 1
           from unnest(terms.tokens) as token
-          where base.haystack not like '%' || token || '%'
+          where base.search_text not like '%' || token || '%'
         )
       )
       or (
@@ -191,10 +202,13 @@ as $$
         and exists (
           select 1
           from unnest(terms.tokens) as token
-          where base.haystack like '%' || token || '%'
+          where base.search_text like '%' || token || '%'
         )
       )
-      or similarity(base.haystack, params.q) >= 0.18
+      or (
+        length(params.q) >= 4
+        and base.n_name % params.q
+      )
   ),
   counted as (
     select matched.*, count(*) over() as total_count
