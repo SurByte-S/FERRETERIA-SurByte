@@ -16,6 +16,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { requireTenant } from "@/lib/tenant";
 
@@ -35,28 +36,41 @@ type SaleRow = {
   customers: { name: string } | null;
 };
 
-type RangeDays = 7 | 15 | 30;
+type RangeOption = "today" | "7" | "15" | "30" | "month";
 
 type DateRange = {
-  days: RangeDays;
   end: string;
+  key: RangeOption;
+  label: string;
   start: string;
 };
 
 type DailySale = {
+  average: number;
   count: number;
   date: Date;
   dateKey: string;
-  label: string;
+  dayName: string;
   paid: number;
+  pending: number;
   shortDate: string;
   total: number;
 };
 
-const RANGE_OPTIONS: { days: RangeDays; label: string }[] = [
-  { days: 7, label: "Últimos 7 días" },
-  { days: 15, label: "Últimos 15 días" },
-  { days: 30, label: "Últimos 30 días" },
+type SalesSummary = {
+  averageTicket: number;
+  byPaymentMethod: Record<string, number>;
+  pending: number;
+  totalPaid: number;
+  totalSold: number;
+};
+
+const RANGE_OPTIONS: { key: RangeOption; label: string }[] = [
+  { key: "today", label: "Hoy" },
+  { key: "7", label: "Últimos 7 días" },
+  { key: "15", label: "Últimos 15 días" },
+  { key: "30", label: "Últimos 30 días" },
+  { key: "month", label: "Este mes" },
 ];
 
 function formatMoney(value: number) {
@@ -67,11 +81,26 @@ function formatMoney(value: number) {
   }).format(value);
 }
 
+function formatPercent(value: number) {
+  return new Intl.NumberFormat("es-AR", {
+    maximumFractionDigits: 0,
+    style: "percent",
+  }).format(value);
+}
+
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("es-AR", {
     dateStyle: "short",
     timeStyle: "short",
   }).format(new Date(value));
+}
+
+function formatDayDate(date: Date) {
+  return new Intl.DateTimeFormat("es-AR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(date);
 }
 
 function formatDateKey(date: Date) {
@@ -82,30 +111,10 @@ function formatDateKey(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
-function getRangeFromSearchParams(range?: string): DateRange {
-  const parsedRange = Number(range);
-  const days: RangeDays =
-    parsedRange === 15 || parsedRange === 30 ? parsedRange : 7;
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
-  start.setDate(start.getDate() - (days - 1));
-
-  const end = new Date();
-  end.setHours(23, 59, 59, 999);
-
-  return {
-    days,
-    start: start.toISOString(),
-    end: end.toISOString(),
-  };
-}
-
-function dayLabel(date: Date) {
+function dayName(date: Date) {
   return new Intl.DateTimeFormat("es-AR", {
-    weekday: "short",
-  })
-    .format(date)
-    .replace(".", "");
+    weekday: "long",
+  }).format(date);
 }
 
 function shortDate(date: Date) {
@@ -115,22 +124,62 @@ function shortDate(date: Date) {
   }).format(date);
 }
 
+function normalizeRange(value?: string): RangeOption {
+  if (
+    value === "today" ||
+    value === "15" ||
+    value === "30" ||
+    value === "month"
+  ) {
+    return value;
+  }
+
+  return "7";
+}
+
+function getRangeFromSearchParams(range?: string): DateRange {
+  const key = normalizeRange(range);
+  const end = new Date();
+  end.setHours(23, 59, 59, 999);
+
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+
+  if (key === "month") {
+    start.setDate(1);
+  } else if (key !== "today") {
+    start.setDate(start.getDate() - (Number(key) - 1));
+  }
+
+  return {
+    end: end.toISOString(),
+    key,
+    label: RANGE_OPTIONS.find((option) => option.key === key)?.label ?? "Últimos 7 días",
+    start: start.toISOString(),
+  };
+}
+
 function buildDailySales(sales: SaleRow[], range: DateRange) {
   const startDate = new Date(range.start);
-  const days: DailySale[] = Array.from({ length: range.days }, (_, index) => {
-    const date = new Date(startDate);
-    date.setDate(startDate.getDate() + index);
+  const endDate = new Date(range.end);
+  const days: DailySale[] = [];
+  const cursor = new Date(startDate);
 
-    return {
+  while (cursor <= endDate) {
+    days.push({
+      average: 0,
       count: 0,
-      date,
-      dateKey: formatDateKey(date),
-      label: dayLabel(date),
+      date: new Date(cursor),
+      dateKey: formatDateKey(cursor),
+      dayName: dayName(cursor),
       paid: 0,
-      shortDate: shortDate(date),
+      pending: 0,
+      shortDate: shortDate(cursor),
       total: 0,
-    };
-  });
+    });
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
   const byKey = new Map(days.map((day) => [day.dateKey, day]));
 
   for (const sale of sales) {
@@ -141,37 +190,44 @@ function buildDailySales(sales: SaleRow[], range: DateRange) {
       continue;
     }
 
+    const total = Number(sale.total ?? 0);
+    const paid = Number(sale.paid_amount ?? 0);
+
     day.count += 1;
-    day.total += Number(sale.total ?? 0);
-    day.paid += Number(sale.paid_amount ?? 0);
+    day.total += total;
+    day.paid += paid;
+    day.pending += Math.max(total - paid, 0);
   }
 
-  return days;
+  return days.map((day) => ({
+    ...day,
+    average: day.count > 0 ? day.total / day.count : 0,
+  }));
 }
 
 function normalizePaymentMethod(value: string | null) {
   return value?.trim() || "Sin forma de pago";
 }
 
-function getBarHeight(total: number, max: number) {
+function getBarWidth(total: number, max: number) {
   if (total <= 0 || max <= 0) {
     return 0;
   }
 
-  return Math.max((total / max) * 100, 12);
+  return Math.max((total / max) * 100, 10);
 }
 
-function summarizeSales(sales: SaleRow[]) {
+function summarizeSales(sales: SaleRow[]): SalesSummary {
   const totalSold = sales.reduce((sum, sale) => sum + Number(sale.total ?? 0), 0);
   const totalPaid = sales.reduce(
     (sum, sale) => sum + Number(sale.paid_amount ?? 0),
     0
   );
-  const pending = sales.reduce(
-    (sum, sale) =>
-      sum + Math.max(Number(sale.total ?? 0) - Number(sale.paid_amount ?? 0), 0),
-    0
-  );
+  const pending = sales.reduce((sum, sale) => {
+    const total = Number(sale.total ?? 0);
+    const paid = Number(sale.paid_amount ?? 0);
+    return sum + Math.max(total - paid, 0);
+  }, 0);
   const averageTicket = sales.length > 0 ? totalSold / sales.length : 0;
   const byPaymentMethod = sales.reduce<Record<string, number>>((acc, sale) => {
     const method = normalizePaymentMethod(sale.payment_method);
@@ -192,19 +248,29 @@ function MetricCard({
   description,
   title,
   value,
+  tone = "default",
 }: {
   description: string;
   title: string;
   value: string;
+  tone?: "default" | "paid" | "pending";
 }) {
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-xl font-bold">{title}</CardTitle>
-        <CardDescription className="text-base">{description}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <p className="text-4xl font-bold leading-tight text-primary">{value}</p>
+    <Card
+      className={cn(
+        "min-h-36",
+        tone === "paid" && "border-emerald-500/30 bg-emerald-50",
+        tone === "pending" && "border-destructive/30 bg-destructive/5"
+      )}
+    >
+      <CardContent className="p-4 xl:p-5">
+        <p className="text-lg font-bold text-foreground">{title}</p>
+        <p className="mt-3 text-3xl font-bold leading-tight text-primary xl:text-4xl">
+          {value}
+        </p>
+        <p className="mt-3 text-base font-medium text-muted-foreground">
+          {description}
+        </p>
       </CardContent>
     </Card>
   );
@@ -212,27 +278,144 @@ function MetricCard({
 
 function Notice({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex gap-3 rounded-lg border border-border bg-secondary p-4 text-base font-semibold text-secondary-foreground">
-      <AlertTriangle className="mt-0.5 size-6 shrink-0 text-primary" aria-hidden="true" />
+    <div className="flex gap-3 rounded-md border border-border bg-secondary p-4 text-lg font-semibold text-secondary-foreground">
+      <AlertTriangle
+        className="mt-0.5 size-6 shrink-0 text-primary"
+        aria-hidden="true"
+      />
       <p>{children}</p>
     </div>
   );
 }
 
-function RangeFilters({ activeRange }: { activeRange: RangeDays }) {
+function RangeFilters({ activeRange }: { activeRange: RangeOption }) {
   return (
-    <nav aria-label="Rango de estadísticas" className="flex flex-wrap gap-3">
+    <nav aria-label="Período de estadísticas" className="flex flex-wrap gap-3">
       {RANGE_OPTIONS.map((option) => (
         <Button
-          key={option.days}
+          key={option.key}
           asChild
-          variant={activeRange === option.days ? "default" : "outline"}
-          className="h-14 px-5 text-lg"
+          variant={activeRange === option.key ? "default" : "outline"}
+          className="h-13 px-5 text-lg xl:h-14"
         >
-          <Link href={`/ventas?range=${option.days}`}>{option.label}</Link>
+          <Link href={`/ventas?range=${option.key}`}>{option.label}</Link>
         </Button>
       ))}
     </nav>
+  );
+}
+
+function SummaryCards({
+  salesCount,
+  summary,
+}: {
+  salesCount: number;
+  summary: SalesSummary;
+}) {
+  return (
+    <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <MetricCard
+        title="Total vendido"
+        description="Ventas registradas en el período"
+        value={formatMoney(summary.totalSold)}
+      />
+      <MetricCard
+        title="Total cobrado"
+        description="Dinero registrado como pagado"
+        tone="paid"
+        value={formatMoney(summary.totalPaid)}
+      />
+      <MetricCard
+        title="Pendiente de cobro"
+        description="Importe que falta cobrar"
+        tone="pending"
+        value={formatMoney(summary.pending)}
+      />
+      <MetricCard
+        title="Cantidad de ventas"
+        description="Operaciones registradas"
+        value={String(salesCount)}
+      />
+      <MetricCard
+        title="Promedio por venta"
+        description="Total vendido dividido por ventas"
+        value={formatMoney(summary.averageTicket)}
+      />
+    </section>
+  );
+}
+
+function DailySalesTable({ days }: { days: DailySale[] }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-2xl">Ventas por día</CardTitle>
+        <CardDescription className="text-base">
+          Planilla diaria para comparar ventas, cobros y pendientes.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="overflow-x-auto rounded-md border border-border">
+          <table className="w-full min-w-[900px] border-collapse text-left">
+            <thead className="bg-muted/70">
+              <tr className="border-b border-border">
+                <th className="px-4 py-4 text-base font-bold text-foreground">
+                  Fecha
+                </th>
+                <th className="px-4 py-4 text-base font-bold text-foreground">
+                  Día
+                </th>
+                <th className="px-4 py-4 text-right text-base font-bold text-foreground">
+                  Cantidad de ventas
+                </th>
+                <th className="px-4 py-4 text-right text-base font-bold text-foreground">
+                  Total vendido
+                </th>
+                <th className="px-4 py-4 text-right text-base font-bold text-foreground">
+                  Total cobrado
+                </th>
+                <th className="px-4 py-4 text-right text-base font-bold text-foreground">
+                  Pendiente
+                </th>
+                <th className="px-4 py-4 text-right text-base font-bold text-foreground">
+                  Promedio por venta
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {days.map((day) => (
+                <tr
+                  key={day.dateKey}
+                  className="border-b border-border last:border-b-0 even:bg-muted/25"
+                >
+                  <td className="px-4 py-4 text-base font-semibold text-foreground">
+                    {formatDayDate(day.date)}
+                  </td>
+                  <td className="px-4 py-4 text-base capitalize text-foreground">
+                    {day.dayName}
+                  </td>
+                  <td className="px-4 py-4 text-right text-base font-bold text-foreground">
+                    {day.count}
+                  </td>
+                  <td className="px-4 py-4 text-right text-base font-bold text-foreground">
+                    {formatMoney(day.total)}
+                  </td>
+                  <td className="px-4 py-4 text-right text-base font-bold text-emerald-800">
+                    {formatMoney(day.paid)}
+                  </td>
+                  <td className="px-4 py-4 text-right text-base font-bold text-destructive">
+                    {formatMoney(day.pending)}
+                  </td>
+                  <td className="px-4 py-4 text-right text-base font-bold text-foreground">
+                    {formatMoney(day.average)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -242,46 +425,48 @@ function DailySalesChart({ days }: { days: DailySale[] }) {
   return (
     <Card className="border-primary/30">
       <CardHeader>
-        <div className="mb-2 flex size-14 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-          <BarChart3 className="size-8" aria-hidden="true" />
+        <div className="mb-2 flex size-12 items-center justify-center rounded-md bg-primary text-primary-foreground">
+          <BarChart3 className="size-7" aria-hidden="true" />
         </div>
-        <CardTitle className="text-2xl">Ventas por día</CardTitle>
+        <CardTitle className="text-2xl">Gráfico simple de ventas por día</CardTitle>
         <CardDescription className="text-base">
-          Cada barra muestra cuanto se vendio y cuantas ventas hubo en ese dia.
+          La barra más larga es el día que más vendió.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <div
-          aria-label="Gráfico de barras de ventas por día"
-          className="grid gap-4"
+          aria-label="Gráfico simple de ventas por día"
+          className="grid gap-3"
           role="list"
         >
           {days.map((day) => {
-            const width = getBarHeight(day.total, maxTotal);
+            const width = getBarWidth(day.total, maxTotal);
 
             return (
               <div
                 key={day.dateKey}
                 role="listitem"
-                className="grid gap-2 rounded-lg border border-border bg-background p-3"
+                className="grid gap-2 rounded-md border border-border bg-background p-3"
               >
-                <div className="grid gap-1 sm:grid-cols-[96px_minmax(0,1fr)_180px] sm:items-center">
+                <div className="grid gap-3 md:grid-cols-[170px_minmax(0,1fr)_180px] md:items-center">
                   <div>
-                    <p className="text-xl font-bold capitalize text-primary">
-                      {day.label}
+                    <p className="text-lg font-bold capitalize text-foreground">
+                      {day.dayName}
                     </p>
-                    <p className="text-lg font-semibold">{day.shortDate}</p>
+                    <p className="text-base font-semibold text-muted-foreground">
+                      {day.shortDate} - {day.count} venta
+                      {day.count === 1 ? "" : "s"}
+                    </p>
                   </div>
-
-                  <div className="min-h-12 rounded-lg bg-muted p-1">
+                  <div className="min-h-11 rounded-md bg-muted p-1">
                     <div
-                      aria-label={`${day.label} ${day.shortDate}: ${formatMoney(
-                        day.total
-                      )}, ${day.count} ventas`}
+                      aria-label={`${day.shortDate}: ${formatMoney(day.total)}, ${
+                        day.count
+                      } ventas`}
                       className={
                         day.total > 0
-                          ? "flex h-10 items-center rounded-md bg-primary px-3 text-primary-foreground"
-                          : "flex h-10 items-center rounded-md border border-dashed border-border bg-card px-3 text-muted-foreground"
+                          ? "flex h-9 items-center rounded-md bg-primary px-3 text-primary-foreground"
+                          : "flex h-9 items-center rounded-md border border-dashed border-border bg-card px-3 text-muted-foreground"
                       }
                       style={{ width: day.total > 0 ? `${width}%` : "100%" }}
                     >
@@ -290,13 +475,9 @@ function DailySalesChart({ days }: { days: DailySale[] }) {
                       </span>
                     </div>
                   </div>
-
-                  <div className="sm:text-right">
-                    <p className="text-2xl font-bold">{formatMoney(day.total)}</p>
-                    <p className="text-lg font-semibold text-muted-foreground">
-                      {day.count} venta{day.count === 1 ? "" : "s"}
-                    </p>
-                  </div>
+                  <p className="text-right text-2xl font-bold text-foreground">
+                    {formatMoney(day.total)}
+                  </p>
                 </div>
               </div>
             );
@@ -307,8 +488,14 @@ function DailySalesChart({ days }: { days: DailySale[] }) {
   );
 }
 
-function PaymentSummary({ byPaymentMethod }: { byPaymentMethod: Record<string, number> }) {
-  const entries = Object.entries(byPaymentMethod);
+function PaymentSummary({
+  byPaymentMethod,
+  totalSold,
+}: {
+  byPaymentMethod: Record<string, number>;
+  totalSold: number;
+}) {
+  const entries = Object.entries(byPaymentMethod).sort(([, a], [, b]) => b - a);
   const max = Math.max(...entries.map(([, total]) => total), 0);
 
   return (
@@ -316,82 +503,63 @@ function PaymentSummary({ byPaymentMethod }: { byPaymentMethod: Record<string, n
       <CardHeader>
         <CardTitle className="text-2xl">Resumen por forma de pago</CardTitle>
         <CardDescription className="text-base">
-          Importes agrupados segun la forma de pago registrada.
+          Total vendido agrupado por forma de pago.
         </CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-4">
-        {entries.length === 0 ? (
-          <p className="text-lg text-muted-foreground">
-            No hay formas de pago para mostrar en este periodo.
-          </p>
-        ) : (
-          entries.map(([method, total]) => {
-            const width = max > 0 ? Math.max((total / max) * 100, 8) : 0;
+      <CardContent>
+        <div className="overflow-x-auto rounded-md border border-border">
+          <table className="w-full min-w-[680px] border-collapse text-left">
+            <thead className="bg-muted/70">
+              <tr className="border-b border-border">
+                <th className="px-4 py-4 text-base font-bold text-foreground">
+                  Forma de pago
+                </th>
+                <th className="px-4 py-4 text-right text-base font-bold text-foreground">
+                  Total
+                </th>
+                <th className="px-4 py-4 text-right text-base font-bold text-foreground">
+                  Porcentaje del total
+                </th>
+                <th className="px-4 py-4 text-base font-bold text-foreground">
+                  Barra
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {entries.map(([method, total]) => {
+                const percent = totalSold > 0 ? total / totalSold : 0;
+                const width = getBarWidth(total, max);
 
-            return (
-              <div key={method} className="grid gap-2">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-xl font-bold">{method}</p>
-                  <p className="text-2xl font-bold text-primary">
-                    {formatMoney(total)}
-                  </p>
-                </div>
-                <div className="h-5 rounded-full bg-muted">
-                  <div
-                    className="h-5 rounded-full bg-primary"
-                    style={{ width: `${width}%` }}
-                  />
-                </div>
-              </div>
-            );
-          })
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function AccountingSummary({
-  averageTicket,
-  pending,
-  totalPaid,
-  totalSold,
-}: {
-  averageTicket: number;
-  pending: number;
-  totalPaid: number;
-  totalSold: number;
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-2xl">Resumen contable simple</CardTitle>
-        <CardDescription className="text-base">
-          Pendiente de cobro es plata vendida pero todavia no cobrada completamente.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-4">
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <SmallMetric label="Ventas del periodo" value={formatMoney(totalSold)} />
-          <SmallMetric label="Total cobrado" value={formatMoney(totalPaid)} />
-          <SmallMetric label="Pendiente de cobro" value={formatMoney(pending)} />
-          <SmallMetric label="Ticket promedio" value={formatMoney(averageTicket)} />
+                return (
+                  <tr
+                    key={method}
+                    className="border-b border-border last:border-b-0 even:bg-muted/25"
+                  >
+                    <td className="px-4 py-4 text-base font-bold text-foreground">
+                      {method}
+                    </td>
+                    <td className="px-4 py-4 text-right text-base font-bold text-foreground">
+                      {formatMoney(total)}
+                    </td>
+                    <td className="px-4 py-4 text-right text-base font-bold text-foreground">
+                      {formatPercent(percent)}
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="h-7 rounded-md bg-muted p-1">
+                        <div
+                          className="h-5 rounded bg-primary"
+                          style={{ width: `${width}%` }}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
-        <Notice>
-          Ganancia real pendiente: para calcular ganancia real falta cargar el costo
-          de compra de cada producto. No se muestra rentabilidad estimada.
-        </Notice>
       </CardContent>
     </Card>
-  );
-}
-
-function SmallMetric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg border border-border bg-background p-4">
-      <p className="text-lg font-semibold text-muted-foreground">{label}</p>
-      <p className="mt-2 text-2xl font-bold text-primary">{value}</p>
-    </div>
   );
 }
 
@@ -399,74 +567,104 @@ function LatestSales({ sales }: { sales: SaleRow[] }) {
   return (
     <Card>
       <CardHeader>
-        <div className="mb-2 flex size-14 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-          <ReceiptText className="size-8" aria-hidden="true" />
+        <div className="mb-2 flex size-12 items-center justify-center rounded-md bg-primary text-primary-foreground">
+          <ReceiptText className="size-7" aria-hidden="true" />
         </div>
-        <CardTitle className="text-2xl">Ultimas ventas</CardTitle>
+        <CardTitle className="text-2xl">Últimas ventas</CardTitle>
         <CardDescription className="text-base">
-          Detalle simple de las ventas del periodo seleccionado.
+          Ventas recientes del período seleccionado.
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {sales.length === 0 ? (
-          <p className="text-lg font-semibold text-muted-foreground">
-            No hay ventas en este periodo.
-          </p>
-        ) : (
-          <div className="grid gap-3">
-            {sales.slice(0, 20).map((sale) => {
-              const pending = Math.max(
-                Number(sale.total ?? 0) - Number(sale.paid_amount ?? 0),
-                0
-              );
+        <div className="overflow-x-auto rounded-md border border-border">
+          <table className="w-full min-w-[1040px] border-collapse text-left">
+            <thead className="bg-muted/70">
+              <tr className="border-b border-border">
+                <th className="px-4 py-4 text-base font-bold text-foreground">
+                  Fecha
+                </th>
+                <th className="px-4 py-4 text-base font-bold text-foreground">
+                  Nº venta
+                </th>
+                <th className="px-4 py-4 text-base font-bold text-foreground">
+                  Cliente
+                </th>
+                <th className="px-4 py-4 text-base font-bold text-foreground">
+                  Forma de pago
+                </th>
+                <th className="px-4 py-4 text-right text-base font-bold text-foreground">
+                  Total
+                </th>
+                <th className="px-4 py-4 text-right text-base font-bold text-foreground">
+                  Pagado
+                </th>
+                <th className="px-4 py-4 text-right text-base font-bold text-foreground">
+                  Pendiente
+                </th>
+                <th className="px-4 py-4 text-right text-base font-bold text-foreground">
+                  Acciones
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {sales.slice(0, 20).map((sale) => {
+                const pending = Math.max(
+                  Number(sale.total ?? 0) - Number(sale.paid_amount ?? 0),
+                  0
+                );
 
-              return (
-                <div
-                  key={sale.id}
-                  className="grid gap-3 rounded-lg border border-border bg-background p-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center"
-                >
-                  <div className="min-w-0">
-                    <p className="text-base font-semibold text-muted-foreground">
+                return (
+                  <tr
+                    key={sale.id}
+                    className="border-b border-border last:border-b-0 even:bg-muted/25"
+                  >
+                    <td className="px-4 py-4 text-base font-semibold text-foreground">
                       {formatDate(sale.created_at)}
-                    </p>
-                    <h2 className="mt-1 text-2xl font-bold">
-                      Venta #{sale.sale_number}
-                    </h2>
-                    <p className="text-lg">
-                      Cliente: {sale.customers?.name ?? "Sin cliente"}
-                    </p>
-                    <p className="text-lg">
-                      Pago: {normalizePaymentMethod(sale.payment_method)}
-                    </p>
-                    <p className="text-lg font-semibold">
-                      Total: {formatMoney(sale.total)} | Pagado:{" "}
-                      {formatMoney(sale.paid_amount)} | Pendiente:{" "}
+                    </td>
+                    <td className="px-4 py-4 text-base font-bold text-foreground">
+                      #{sale.sale_number}
+                    </td>
+                    <td className="px-4 py-4 text-base text-foreground">
+                      {sale.customers?.name ?? "Sin cliente"}
+                    </td>
+                    <td className="px-4 py-4 text-base text-foreground">
+                      {normalizePaymentMethod(sale.payment_method)}
+                    </td>
+                    <td className="px-4 py-4 text-right text-base font-bold text-foreground">
+                      {formatMoney(sale.total)}
+                    </td>
+                    <td className="px-4 py-4 text-right text-base font-bold text-emerald-800">
+                      {formatMoney(sale.paid_amount)}
+                    </td>
+                    <td className="px-4 py-4 text-right text-base font-bold text-destructive">
                       {formatMoney(pending)}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2 xl:justify-end">
-                    <Button asChild className="h-12 gap-2 px-5 text-lg">
-                      <Link href={`/ventas/${sale.id}`}>
-                        <Eye className="size-5" aria-hidden="true" />
-                        Ver
-                      </Link>
-                    </Button>
-                    <Button
-                      asChild
-                      variant="outline"
-                      className="h-12 gap-2 px-5 text-lg"
-                    >
-                      <Link href={`/ventas/${sale.id}`}>
-                        <Printer className="size-5" aria-hidden="true" />
-                        Imprimir
-                      </Link>
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="flex justify-end gap-2">
+                        <Button asChild className="h-11 gap-2 px-4 text-base">
+                          <Link href={`/ventas/${sale.id}`}>
+                            <Eye className="size-5" aria-hidden="true" />
+                            Ver
+                          </Link>
+                        </Button>
+                        <Button
+                          asChild
+                          variant="outline"
+                          className="h-11 gap-2 px-4 text-base"
+                        >
+                          <Link href={`/ventas/${sale.id}`}>
+                            <Printer className="size-5" aria-hidden="true" />
+                            Imprimir
+                          </Link>
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </CardContent>
     </Card>
   );
@@ -495,19 +693,21 @@ export default async function VentasPage({ searchParams }: VentasPageProps) {
   return (
     <>
       <PageHeader
-        title="Estadísticas"
-        description="Ventas por día, caja y resumen simple del negocio."
+        title="Estadísticas de ventas"
+        description="Resumen de ventas, cobros y movimientos del negocio."
         backHref="/inicio"
         backLabel="Volver al inicio"
       />
 
       <div className="grid gap-5">
-        <RangeFilters activeRange={range.days} />
+        <RangeFilters activeRange={range.key} />
 
         {salesResult.error ? (
           <Card className="border-destructive/40">
             <CardHeader>
-              <CardTitle className="text-2xl">No se pudieron cargar las estadísticas</CardTitle>
+              <CardTitle className="text-2xl">
+                No se pudieron cargar las estadísticas
+              </CardTitle>
               <CardDescription className="text-lg">
                 Revisá la conexión a Supabase.
               </CardDescription>
@@ -515,45 +715,25 @@ export default async function VentasPage({ searchParams }: VentasPageProps) {
           </Card>
         ) : null}
 
+        <SummaryCards salesCount={sales.length} summary={summary} />
+
         {hasNoSales ? (
-          <Notice>No hay ventas en este periodo.</Notice>
+          <Notice>
+            No hay ventas en este período. Probá elegir otro rango de fechas.
+          </Notice>
         ) : null}
 
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <MetricCard
-            title="Total vendido"
-            description="Suma de todas las ventas del periodo."
-            value={formatMoney(summary.totalSold)}
-          />
-          <MetricCard
-            title="Cantidad de ventas"
-            description="Operaciones registradas."
-            value={String(sales.length)}
-          />
-          <MetricCard
-            title="Ticket promedio"
-            description="Promedio vendido por operacion."
-            value={formatMoney(summary.averageTicket)}
-          />
-          <MetricCard
-            title="Total cobrado"
-            description="Dinero registrado como pagado."
-            value={formatMoney(summary.totalPaid)}
-          />
-        </section>
-
-        <DailySalesChart days={dailySales} />
-
-        <PaymentSummary byPaymentMethod={summary.byPaymentMethod} />
-
-        <AccountingSummary
-          averageTicket={summary.averageTicket}
-          pending={summary.pending}
-          totalPaid={summary.totalPaid}
-          totalSold={summary.totalSold}
-        />
-
-        <LatestSales sales={sales} />
+        {!salesResult.error && !hasNoSales ? (
+          <>
+            <DailySalesTable days={dailySales} />
+            <DailySalesChart days={dailySales} />
+            <PaymentSummary
+              byPaymentMethod={summary.byPaymentMethod}
+              totalSold={summary.totalSold}
+            />
+            <LatestSales sales={sales} />
+          </>
+        ) : null}
       </div>
     </>
   );
