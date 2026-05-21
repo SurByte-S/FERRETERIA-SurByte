@@ -18,6 +18,16 @@ export type ProductActionState = {
 
 type CatalogTable = "brands" | "suppliers";
 
+type SaleUnitInput = {
+  id?: string;
+  name: string;
+  quantityInBaseUnit: number;
+  salePrice: number;
+  barcode: string;
+  isDefault: boolean;
+  active: boolean;
+};
+
 const errorState = {
   ok: false,
   message: "Necesitan revisión. No se pudo guardar el producto.",
@@ -35,6 +45,202 @@ function textValue(formData: FormData, key: string) {
 
 function numberValue(value: string) {
   return Number(value.replace(",", "."));
+}
+
+function parseSaleUnitsInput(formData: FormData, fallbackSalePrice: number | null) {
+  const raw = textValue(formData, "saleUnits");
+  const fallback = fallbackSalePrice ?? 0;
+
+  if (!raw) {
+    return [
+      {
+        name: "Unidad",
+        quantityInBaseUnit: 1,
+        salePrice: fallback,
+        barcode: "",
+        isDefault: true,
+        active: true,
+      },
+    ] satisfies SaleUnitInput[];
+  }
+
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error("Presentaciones de venta invalidas.");
+  }
+
+  if (!Array.isArray(parsed)) {
+    throw new Error("Presentaciones de venta invalidas.");
+  }
+
+  const units = parsed
+    .map((item): SaleUnitInput => {
+      const record = item as Record<string, unknown>;
+      const id = String(record.id ?? "").trim();
+      const name = String(record.name ?? "").trim();
+      const quantityInBaseUnit = numberValue(
+        String(record.quantityInBaseUnit ?? "1")
+      );
+      const salePrice = numberValue(String(record.salePrice ?? fallback));
+      const barcode = String(record.barcode ?? "").trim();
+
+      return {
+        id: id || undefined,
+        name,
+        quantityInBaseUnit,
+        salePrice:
+          !id &&
+          name.toLowerCase() === "unidad" &&
+          quantityInBaseUnit === 1 &&
+          salePrice === 0 &&
+          fallback > 0
+            ? fallback
+            : salePrice,
+        barcode,
+        isDefault: Boolean(record.isDefault),
+        active: record.active !== false,
+      };
+    })
+    .filter((unit) => unit.active || unit.id);
+
+  if (units.length === 0 || units.every((unit) => !unit.active)) {
+    throw new Error("Agrega al menos una presentacion activa.");
+  }
+
+  for (const unit of units) {
+    if (!unit.name) {
+      throw new Error("Cada presentacion necesita nombre.");
+    }
+
+    if (!Number.isFinite(unit.quantityInBaseUnit) || unit.quantityInBaseUnit <= 0) {
+      throw new Error("La cantidad que descuenta debe ser mayor a 0.");
+    }
+
+    if (!Number.isFinite(unit.salePrice) || unit.salePrice < 0) {
+      throw new Error("El precio de cada presentacion debe ser mayor o igual a 0.");
+    }
+  }
+
+  const activeUnits = units.filter((unit) => unit.active);
+  const defaultIndex = activeUnits.findIndex((unit) => unit.isDefault);
+
+  if (defaultIndex === -1) {
+    activeUnits[0].isDefault = true;
+  }
+
+  let defaultAssigned = false;
+
+  for (const unit of units) {
+    if (!unit.active) {
+      unit.isDefault = false;
+      continue;
+    }
+
+    if (unit.isDefault && !defaultAssigned) {
+      defaultAssigned = true;
+      continue;
+    }
+
+    unit.isDefault = false;
+  }
+
+  return units;
+}
+
+async function syncProductSaleUnits({
+  productId,
+  saleUnits,
+  tenantId,
+}: {
+  productId: string;
+  saleUnits: SaleUnitInput[];
+  tenantId: string;
+}) {
+  const supabase = getSupabaseServerClient();
+  const existingResult = await supabase
+    .from("product_sale_units")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("product_id", productId);
+
+  if (existingResult.error) {
+    throw new Error("No se pudieron revisar las presentaciones.");
+  }
+
+  const existingIds = new Set(
+    ((existingResult.data ?? []) as { id: string }[]).map((item) => item.id)
+  );
+  const incomingIds = new Set(
+    saleUnits.map((unit) => unit.id).filter((id): id is string => Boolean(id))
+  );
+  const idsToDeactivate = [...existingIds].filter((id) => !incomingIds.has(id));
+
+  if (idsToDeactivate.length > 0) {
+    const { error } = await supabase
+      .from("product_sale_units")
+      .update({ active: false, is_default: false })
+      .eq("tenant_id", tenantId)
+      .eq("product_id", productId)
+      .in("id", idsToDeactivate);
+
+    if (error) {
+      throw new Error("No se pudieron desactivar presentaciones anteriores.");
+    }
+  }
+
+  const defaultUnit = saleUnits.find((unit) => unit.active && unit.isDefault);
+
+  if (defaultUnit?.id) {
+    const { error } = await supabase
+      .from("product_sale_units")
+      .update({ is_default: false })
+      .eq("tenant_id", tenantId)
+      .eq("product_id", productId)
+      .neq("id", defaultUnit.id);
+
+    if (error) {
+      throw new Error("No se pudo actualizar la presentacion predeterminada.");
+    }
+  } else {
+    const { error } = await supabase
+      .from("product_sale_units")
+      .update({ is_default: false })
+      .eq("tenant_id", tenantId)
+      .eq("product_id", productId);
+
+    if (error) {
+      throw new Error("No se pudo actualizar la presentacion predeterminada.");
+    }
+  }
+
+  for (const unit of saleUnits) {
+    const payload = {
+      tenant_id: tenantId,
+      product_id: productId,
+      name: unit.name,
+      quantity_in_base_unit: unit.quantityInBaseUnit,
+      sale_price: unit.salePrice,
+      barcode: unit.barcode || null,
+      is_default: unit.isDefault,
+      active: unit.active,
+    };
+
+    const { error } = unit.id
+      ? await supabase
+          .from("product_sale_units")
+          .update(payload)
+          .eq("tenant_id", tenantId)
+          .eq("product_id", productId)
+          .eq("id", unit.id)
+      : await supabase.from("product_sale_units").insert(payload);
+
+    if (error) {
+      throw new Error("No se pudieron guardar las presentaciones.");
+    }
+  }
 }
 
 function nonNegativeNumberValue({
@@ -226,6 +432,7 @@ export async function updateProductAction(
         formData,
       }),
     ];
+    const saleUnits = parseSaleUnitsInput(formData, salePrice);
     const [brandId, supplierId] = await Promise.all([
       validateTenantCatalogId({
         fieldName: textValue(formData, "brandId"),
@@ -275,6 +482,12 @@ export async function updateProductAction(
     if (error) {
       return errorState;
     }
+
+    await syncProductSaleUnits({
+      productId,
+      saleUnits,
+      tenantId: tenant.id,
+    });
 
     revalidatePath("/productos");
     revalidatePath("/stock");
@@ -416,6 +629,7 @@ export async function createProductAction(
     const finalCostWithTax =
       costWithTax ??
       (costWithoutTax === null ? null : costWithoutTax * (1 + cleanTaxRate / 100));
+    const saleUnits = parseSaleUnitsInput(formData, salePrice);
     const { data: product, error: insertError } = await supabase
       .from("products")
       .insert({
@@ -445,6 +659,12 @@ export async function createProductAction(
         message: "No se pudo crear el producto.",
       };
     }
+
+    await syncProductSaleUnits({
+      productId: (product as { id: string }).id,
+      saleUnits,
+      tenantId: tenant.id,
+    });
 
     if (cleanStockQuantity > 0) {
       const { error: movementError } = await supabase
@@ -605,6 +825,7 @@ export async function updateProductStockCommercialAction(
         formData,
       }),
     ];
+    const saleUnits = parseSaleUnitsInput(formData, salePrice);
     const supabase = getSupabaseServerClient();
     const [brandId, supplierId] = await Promise.all([
       validateTenantCatalogId({
@@ -642,6 +863,12 @@ export async function updateProductStockCommercialAction(
         message: "No se pudo guardar la gestion del producto.",
       };
     }
+
+    await syncProductSaleUnits({
+      productId,
+      saleUnits,
+      tenantId: tenant.id,
+    });
 
     revalidatePath("/productos");
     revalidatePath("/stock");
@@ -750,7 +977,10 @@ export async function adjustProductStockAction(
   formData: FormData
 ): Promise<ProductActionState> {
   const productId = textValue(formData, "productId");
-  const newStock = numberValue(textValue(formData, "newStock"));
+  const addStockQuantityText = textValue(formData, "addStockQuantity");
+  const stockLoadSaleUnitId = textValue(formData, "stockLoadSaleUnitId");
+  const newStockText = textValue(formData, "newStock");
+  let newStock = numberValue(newStockText);
   const notes = textValue(formData, "notes") || "Ajuste manual de stock";
 
   if (!productId) {
@@ -760,23 +990,78 @@ export async function adjustProductStockAction(
     };
   }
 
-  if (!Number.isFinite(newStock)) {
+  if (!addStockQuantityText && !Number.isFinite(newStock)) {
     return {
       ok: false,
       message: "Ingresa un stock valido.",
     };
   }
 
-  if (!Number.isInteger(newStock) || newStock < 0) {
+  if (!addStockQuantityText && newStock < 0) {
     return {
       ok: false,
-      message: "El stock debe ser un numero entero, sin coma ni decimales.",
+      message: "El stock debe ser un numero mayor o igual a 0.",
     };
   }
 
   try {
     const tenant = await requireTenantRole(["owner", "admin", "seller"]);
     const supabase = getSupabaseServerClient();
+
+    if (addStockQuantityText) {
+      const addStockQuantity = numberValue(addStockQuantityText);
+
+      if (!Number.isFinite(addStockQuantity) || addStockQuantity <= 0) {
+        return {
+          ok: false,
+          message: "Ingresa una cantidad de carga valida.",
+        };
+      }
+
+      const productResult = await supabase
+        .from("products")
+        .select("id,stock_quantity")
+        .eq("tenant_id", tenant.id)
+        .eq("id", productId)
+        .maybeSingle();
+
+      if (productResult.error || !productResult.data) {
+        return {
+          ok: false,
+          message: "No se encontro el producto para ajustar stock.",
+        };
+      }
+
+      let quantityInBaseUnit = 1;
+
+      if (stockLoadSaleUnitId) {
+        const saleUnitResult = await supabase
+          .from("product_sale_units")
+          .select("quantity_in_base_unit")
+          .eq("tenant_id", tenant.id)
+          .eq("product_id", productId)
+          .eq("id", stockLoadSaleUnitId)
+          .eq("active", true)
+          .maybeSingle();
+
+        if (saleUnitResult.error || !saleUnitResult.data) {
+          return {
+            ok: false,
+            message: "No se encontro la presentacion de carga.",
+          };
+        }
+
+        quantityInBaseUnit = Number(
+          (saleUnitResult.data as { quantity_in_base_unit: number | null })
+            .quantity_in_base_unit ?? 1
+        );
+      }
+
+      newStock =
+        Number((productResult.data as { stock_quantity: number | null }).stock_quantity ?? 0) +
+        addStockQuantity * quantityInBaseUnit;
+    }
+
     const { error } = await supabase.rpc("adjust_product_stock", {
       input_product_id: productId,
       input_tenant_id: tenant.id,

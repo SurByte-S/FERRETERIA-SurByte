@@ -29,6 +29,22 @@ export function StockAdjustForm({
   const [newStockValue, setNewStockValue] = useState(
     product.stockQuantity === 0 ? "" : String(product.stockQuantity)
   );
+  const defaultSaleUnit = useMemo(
+    () =>
+      product.saleUnits.find((unit) => unit.isDefault && unit.active) ??
+      product.saleUnits.find((unit) => unit.active) ?? {
+        id: "",
+        name: "Unidad",
+        quantityInBaseUnit: 1,
+        salePrice: product.salePrice ?? 0,
+        barcode: "",
+        isDefault: true,
+        active: true,
+      },
+    [product.salePrice, product.saleUnits]
+  );
+  const [stockLoadQuantity, setStockLoadQuantity] = useState("");
+  const [stockLoadSaleUnitId, setStockLoadSaleUnitId] = useState(defaultSaleUnit.id);
   const [confirmation, setConfirmation] = useState<{
     formData: FormData;
     nextStock: string;
@@ -96,8 +112,43 @@ export function StockAdjustForm({
       message: "El stock no cambia.",
     };
   }, [newStockValue, product.stockQuantity]);
+  const stockLoadPreview = useMemo(() => {
+    const quantity = Number(stockLoadQuantity);
+    const saleUnit =
+      product.saleUnits.find((unit) => unit.id === stockLoadSaleUnitId) ??
+      defaultSaleUnit;
+
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      return {
+        quantityToAdd: null,
+        nextStock: null,
+        message: "Escribi una cantidad para sumar stock por presentacion.",
+      };
+    }
+
+    const quantityToAdd = quantity * saleUnit.quantityInBaseUnit;
+
+    return {
+      quantityToAdd,
+      nextStock: product.stockQuantity + quantityToAdd,
+      message: `Vas a sumar ${formatStockQuantity(quantityToAdd)} unidades reales.`,
+    };
+  }, [
+    defaultSaleUnit,
+    product.saleUnits,
+    product.stockQuantity,
+    stockLoadQuantity,
+    stockLoadSaleUnitId,
+  ]);
 
   function submit(formData: FormData) {
+    const addQuantity = String(formData.get("addStockQuantity") ?? "").trim();
+
+    if (addQuantity) {
+      formAction(formData);
+      return;
+    }
+
     const nextStock = String(formData.get("newStock") ?? "").trim();
 
     if (!nextStock) {
@@ -112,7 +163,7 @@ export function StockAdjustForm({
   }
 
   function updateNewStockValue(value: string) {
-    setNewStockValue(value.replace(/\D/g, ""));
+    setNewStockValue(value.replace(/[^\d.,]/g, ""));
   }
 
   function confirmStockAdjustment() {
@@ -136,7 +187,46 @@ export function StockAdjustForm({
       <input type="hidden" name="notes" value="Ajuste manual de stock" />
 
       <h3 className="text-base font-bold">Stock</h3>
-      <div className="grid gap-4 md:max-w-xs">
+      <div className="grid gap-4 md:grid-cols-2">
+        <section className="grid gap-3 rounded-lg border border-border bg-muted/30 p-3">
+          <h4 className="text-sm font-bold">Sumar stock por presentacion</h4>
+          <label className="grid gap-2 text-base font-semibold">
+            <span>Presentacion de carga</span>
+            <select
+              name="stockLoadSaleUnitId"
+              value={stockLoadSaleUnitId}
+              onChange={(event) => setStockLoadSaleUnitId(event.target.value)}
+              className="h-12 rounded-lg border border-input bg-background px-3 text-base"
+            >
+              {(product.saleUnits.length > 0
+                ? product.saleUnits.filter((unit) => unit.active)
+                : [defaultSaleUnit]
+              ).map((unit) => (
+                <option key={unit.id || "fallback"} value={unit.id}>
+                  {unit.name} x {formatStockQuantity(unit.quantityInBaseUnit)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="grid gap-2 text-base font-semibold">
+            <span>Cantidad a cargar</span>
+            <input
+              name="addStockQuantity"
+              type="number"
+              min="0"
+              step="0.001"
+              inputMode="decimal"
+              value={stockLoadQuantity}
+              placeholder="0"
+              onChange={(event) => setStockLoadQuantity(event.target.value)}
+              className="h-12 rounded-lg border border-input bg-background px-3 text-base"
+            />
+          </label>
+          <p className="text-sm font-semibold text-muted-foreground">
+            {stockLoadPreview.message}
+          </p>
+        </section>
+
         <label className="grid gap-2 text-base font-semibold">
           <span>Stock final</span>
           <input
@@ -159,7 +249,7 @@ export function StockAdjustForm({
         </label>
       </div>
 
-      <div className="grid gap-3 rounded-lg border border-border bg-muted/40 p-4 md:grid-cols-3">
+      <div className="grid gap-3 rounded-lg border border-border bg-muted/40 p-4 md:grid-cols-4">
         <div>
           <p className="text-sm font-semibold text-muted-foreground">Stock actual</p>
           <p className="text-2xl font-bold">
@@ -169,7 +259,9 @@ export function StockAdjustForm({
         <div>
           <p className="text-sm font-semibold text-muted-foreground">Nuevo stock</p>
           <p className="text-2xl font-bold">
-            {stockPreview.nextStock === null
+            {stockLoadPreview.nextStock !== null
+              ? formatStockQuantity(stockLoadPreview.nextStock)
+              : stockPreview.nextStock === null
               ? "-"
               : formatStockQuantity(stockPreview.nextStock)}
           </p>

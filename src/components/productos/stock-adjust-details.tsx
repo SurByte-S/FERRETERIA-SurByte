@@ -11,6 +11,7 @@ import {
 } from "@/app/(dashboard)/productos/actions";
 import { Button } from "@/components/ui/button";
 import type { ProductListItem } from "./product-types";
+import { SaleUnitsEditor } from "./sale-units-editor";
 import { StockAdjustForm } from "./stock-adjust-form";
 
 type CatalogOption = {
@@ -358,6 +359,11 @@ function ProductCommercialForm({
           />
         </div>
       </section>
+
+      <SaleUnitsEditor
+        fallbackPrice={product.salePrice}
+        saleUnits={product.saleUnits}
+      />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <Button type="submit" disabled={pending} className="h-11 gap-2 px-4 text-base">

@@ -27,6 +27,7 @@ import type {
   QuoteCustomerOption,
   QuoteLine,
   QuoteProduct,
+  ProductSaleUnit,
 } from "@/components/presupuestos/quote-types";
 
 const EMPTY_SEARCH_MESSAGE =
@@ -64,6 +65,25 @@ function formatDate(value: string) {
     timeStyle: "short",
     timeZone: "America/Argentina/Buenos_Aires",
   }).format(new Date(value)));
+}
+
+function getDefaultSaleUnit(product: QuoteProduct): ProductSaleUnit {
+  return (
+    product.saleUnits.find((unit) => unit.isDefault && unit.active) ??
+    product.saleUnits.find((unit) => unit.active) ?? {
+      id: "",
+      name: "Unidad",
+      quantityInBaseUnit: 1,
+      salePrice: product.price,
+      barcode: "",
+      isDefault: true,
+      active: true,
+    }
+  );
+}
+
+function getLineKey(productId: string, saleUnitId: string) {
+  return `${productId}:${saleUnitId || "fallback"}`;
 }
 
 export function QuickSale({
@@ -198,19 +218,34 @@ export function QuickSale({
 
   function addProduct(product: QuoteProduct, qty = 1) {
     const safeQty = Number.isFinite(qty) && qty > 0 ? qty : 1;
+    const saleUnit = getDefaultSaleUnit(product);
+    const lineKey = getLineKey(product.id, saleUnit.id);
 
     setLines((current) => {
-      const existing = current.find((line) => line.sku === product.sku);
+      const existing = current.find(
+        (line) => getLineKey(line.id, line.selectedSaleUnitId) === lineKey
+      );
 
       if (existing) {
         return current.map((line) =>
-          line.sku === product.sku
+          getLineKey(line.id, line.selectedSaleUnitId) === lineKey
             ? { ...line, quantity: line.quantity + safeQty }
             : line
         );
       }
 
-      return [...current, { ...product, quantity: safeQty }];
+      return [
+        ...current,
+        {
+          ...product,
+          code: saleUnit.barcode || product.code,
+          price: saleUnit.salePrice,
+          quantity: safeQty,
+          selectedSaleUnitId: saleUnit.id,
+          selectedSaleUnitName: saleUnit.name,
+          quantityInBaseUnit: saleUnit.quantityInBaseUnit,
+        },
+      ];
     });
     setSearch("");
     setResults([]);
@@ -257,11 +292,11 @@ export function QuickSale({
     }
   }
 
-  function updateLineQuantity(sku: string, value: string) {
+  function updateLineQuantity(lineKey: string, value: string) {
     const nextQuantity = Number(value);
     setLines((current) =>
       current.map((line) =>
-        line.sku === sku
+        getLineKey(line.id, line.selectedSaleUnitId) === lineKey
           ? {
               ...line,
               quantity:
@@ -274,7 +309,7 @@ export function QuickSale({
     );
   }
 
-  function removeLine(sku: string) {
+  function removeLine(lineKey: string) {
     const confirmed = window.confirm(
       "Vas a quitar este producto. ¿Querés continuar?"
     );
@@ -283,7 +318,11 @@ export function QuickSale({
       return;
     }
 
-    setLines((current) => current.filter((line) => line.sku !== sku));
+    setLines((current) =>
+      current.filter(
+        (line) => getLineKey(line.id, line.selectedSaleUnitId) !== lineKey
+      )
+    );
   }
 
   function saveQuote() {
@@ -455,9 +494,12 @@ export function QuickSale({
               </div>
             ) : (
               <div className="grid gap-3">
-                {lines.map((line) => (
+                {lines.map((line) => {
+                  const lineKey = getLineKey(line.id, line.selectedSaleUnitId);
+
+                  return (
                   <div
-                    key={line.sku}
+                    key={lineKey}
                     className="grid gap-2 rounded-lg border border-border bg-background p-2"
                   >
                     <div className="flex items-start justify-between gap-3">
@@ -468,6 +510,10 @@ export function QuickSale({
                         <p className="font-mono text-xs text-muted-foreground">
                           {line.code}
                         </p>
+                        <p className="text-xs font-semibold text-muted-foreground">
+                          {line.selectedSaleUnitName} x{" "}
+                          {formatStockQuantity(line.quantityInBaseUnit)} {line.unit}
+                        </p>
                         {!line.availableForSale ? (
                           <span className="mt-2 inline-flex rounded-full border border-yellow-500/40 bg-yellow-50 px-3 py-1 text-sm font-bold text-yellow-900">
                             A pedido
@@ -477,7 +523,7 @@ export function QuickSale({
                       <Button
                         type="button"
                         variant="outline"
-                        onClick={() => removeLine(line.sku)}
+                        onClick={() => removeLine(lineKey)}
                         className="h-10 px-3"
                         aria-label={`Quitar ${line.description}`}
                       >
@@ -490,7 +536,7 @@ export function QuickSale({
                         <input
                           value={line.quantity}
                           onChange={(event) =>
-                            updateLineQuantity(line.sku, event.target.value)
+                            updateLineQuantity(lineKey, event.target.value)
                           }
                           type="number"
                           min="1"
@@ -508,7 +554,8 @@ export function QuickSale({
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
