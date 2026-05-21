@@ -66,6 +66,17 @@ type CatalogOption = {
   name: string;
 };
 
+type ProductSaleUnitRow = {
+  id: string;
+  product_id: string;
+  name: string;
+  quantity_in_base_unit: number | null;
+  sale_price: number | null;
+  barcode: string | null;
+  is_default: boolean | null;
+  active: boolean | null;
+};
+
 function formatMoney(value: number | null) {
   if (value === null) {
     return "Sin precio";
@@ -106,7 +117,52 @@ function mapProduct(row: ProductRow): ProductListItem {
     minStock: row.min_stock ?? 0,
     active: row.active,
     imageUrl: row.image_url ?? "",
+    saleUnits: [],
   };
+}
+
+async function loadSaleUnitsByProductId({
+  productIds,
+  tenantId,
+}: {
+  productIds: string[];
+  tenantId: string;
+}) {
+  const uniqueIds = [...new Set(productIds)].filter(Boolean);
+
+  if (uniqueIds.length === 0) {
+    return new Map<string, ProductListItem["saleUnits"]>();
+  }
+
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("product_sale_units")
+    .select(
+      "id,product_id,name,quantity_in_base_unit,sale_price,barcode,is_default,active"
+    )
+    .eq("tenant_id", tenantId)
+    .in("product_id", uniqueIds)
+    .order("is_default", { ascending: false })
+    .order("name");
+
+  if (error) {
+    return new Map<string, ProductListItem["saleUnits"]>();
+  }
+
+  return ((data ?? []) as ProductSaleUnitRow[]).reduce((map, row) => {
+    const current = map.get(row.product_id) ?? [];
+    current.push({
+      id: row.id,
+      name: row.name,
+      quantityInBaseUnit: Number(row.quantity_in_base_unit ?? 1),
+      salePrice: Number(row.sale_price ?? 0),
+      barcode: row.barcode ?? "",
+      isDefault: Boolean(row.is_default),
+      active: row.active !== false,
+    });
+    map.set(row.product_id, current);
+    return map;
+  }, new Map<string, ProductListItem["saleUnits"]>());
 }
 
 function stockStatus(product: ProductListItem) {
@@ -450,11 +506,18 @@ async function loadStockProducts({
       };
     }
 
+    const rows = (data ?? []) as unknown as ProductRow[];
+    const saleUnitsByProductId = await loadSaleUnitsByProductId({
+      productIds: rows.map((row) => row.id),
+      tenantId: tenant.id,
+    });
+
     return {
       ok: true,
       products: sortProductsBySearchRank(
-        ((data ?? []) as unknown as ProductRow[]).map((row) => ({
+        rows.map((row) => ({
           ...mapProduct(row),
+          saleUnits: saleUnitsByProductId.get(row.id) ?? [],
           normalizedName: row.normalized_name,
         })).filter((product) => {
           if (filter === "bajo-minimo") {

@@ -54,6 +54,8 @@ type QuoteItemRow = {
   sku: string | null;
   name: string;
   quantity: number;
+  sale_unit_name: string | null;
+  quantity_in_base_unit: number;
   unit_price: number;
   total: number;
   products: {
@@ -115,7 +117,7 @@ export default async function QuoteDetailPage({ params }: QuotePageProps) {
         .maybeSingle(),
       supabase
         .from("quote_items")
-        .select("sku,name,quantity,unit_price,total,products(stock_quantity)")
+        .select("sku,name,quantity,sale_unit_name,quantity_in_base_unit,unit_price,total,products(stock_quantity)")
         .eq("tenant_id", tenant.id)
         .eq("quote_id", id)
         .order("name"),
@@ -150,13 +152,16 @@ export default async function QuoteDetailPage({ params }: QuotePageProps) {
     .filter(
       (item) =>
         item.products &&
-        Number(item.products.stock_quantity) - Number(item.quantity) < 0
+        Number(item.products.stock_quantity) -
+          Number(item.quantity) * Number(item.quantity_in_base_unit ?? 1) <
+          0
     )
     .map((item) => ({
       name: item.name,
       sku: item.sku,
       currentStock: Number(item.products?.stock_quantity ?? 0),
-      requestedQuantity: Number(item.quantity),
+      requestedQuantity:
+        Number(item.quantity) * Number(item.quantity_in_base_unit ?? 1),
     }));
 
   return (
@@ -183,7 +188,9 @@ export default async function QuoteDetailPage({ params }: QuotePageProps) {
           customer={quote.customers}
           items={items.map((item) => ({
             code: item.sku,
-            description: item.name,
+            description: item.sale_unit_name
+              ? `${item.name} (${item.sale_unit_name})`
+              : item.name,
             quantity: item.quantity,
             unitPrice: formatMoney(item.unit_price),
             total: formatMoney(item.total),

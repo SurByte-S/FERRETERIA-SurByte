@@ -75,6 +75,17 @@ type CatalogRow = {
   name: string;
 };
 
+type ProductSaleUnitRow = {
+  id: string;
+  product_id: string;
+  name: string;
+  quantity_in_base_unit: number | null;
+  sale_price: number | null;
+  barcode: string | null;
+  is_default: boolean | null;
+  active: boolean | null;
+};
+
 export default async function ProductosPage({ searchParams }: ProductsPageProps) {
   const params = await searchParams;
   const code = (params.codigo ?? "").trim();
@@ -153,6 +164,7 @@ function mapRpcRow(row: ProductSearchRow): ProductListItem {
     minStock: row.min_stock ?? 0,
     active: row.active,
     imageUrl: row.image_url ?? "",
+    saleUnits: [],
   };
 }
 
@@ -182,7 +194,52 @@ function mapFallbackRow(row: ProductFallbackRow): ProductListItem {
     minStock: row.min_stock ?? 0,
     active: row.active,
     imageUrl: row.image_url ?? "",
+    saleUnits: [],
   };
+}
+
+async function loadSaleUnitsByProductId({
+  productIds,
+  tenantId,
+}: {
+  productIds: string[];
+  tenantId: string;
+}) {
+  const uniqueIds = [...new Set(productIds)].filter(Boolean);
+
+  if (uniqueIds.length === 0) {
+    return new Map<string, ProductListItem["saleUnits"]>();
+  }
+
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("product_sale_units")
+    .select(
+      "id,product_id,name,quantity_in_base_unit,sale_price,barcode,is_default,active"
+    )
+    .eq("tenant_id", tenantId)
+    .in("product_id", uniqueIds)
+    .order("is_default", { ascending: false })
+    .order("name");
+
+  if (error) {
+    return new Map<string, ProductListItem["saleUnits"]>();
+  }
+
+  return ((data ?? []) as ProductSaleUnitRow[]).reduce((map, row) => {
+    const current = map.get(row.product_id) ?? [];
+    current.push({
+      id: row.id,
+      name: row.name,
+      quantityInBaseUnit: Number(row.quantity_in_base_unit ?? 1),
+      salePrice: Number(row.sale_price ?? 0),
+      barcode: row.barcode ?? "",
+      isDefault: Boolean(row.is_default),
+      active: row.active !== false,
+    });
+    map.set(row.product_id, current);
+    return map;
+  }, new Map<string, ProductListItem["saleUnits"]>());
 }
 
 async function loadProducts({
@@ -287,12 +344,17 @@ async function loadProducts({
     if (mode !== "administracion" && !rpcResult.error) {
       const rows = (rpcResult.data ?? []) as ProductSearchRow[];
       const total = Number(rows[0]?.total_count ?? 0);
+      const saleUnitsByProductId = await loadSaleUnitsByProductId({
+        productIds: rows.map((row) => row.id),
+        tenantId: tenant.id,
+      });
 
       return {
         ok: true,
         products: sortProductsBySearchRank(
           rows.map((row) => ({
             ...mapRpcRow(row),
+            saleUnits: saleUnitsByProductId.get(row.id) ?? [],
             normalizedName: row.normalized_name,
           })),
           code || name
@@ -358,9 +420,15 @@ async function loadProducts({
       };
     }
 
-    const products = ((data ?? []) as unknown as ProductFallbackRow[]).map(
+    const fallbackRows = (data ?? []) as unknown as ProductFallbackRow[];
+    const saleUnitsByProductId = await loadSaleUnitsByProductId({
+      productIds: fallbackRows.map((row) => row.id),
+      tenantId: tenant.id,
+    });
+    const products = fallbackRows.map(
       (row) => ({
         ...mapFallbackRow(row),
+        saleUnits: saleUnitsByProductId.get(row.id) ?? [],
         normalizedName: row.normalized_name,
       })
     );

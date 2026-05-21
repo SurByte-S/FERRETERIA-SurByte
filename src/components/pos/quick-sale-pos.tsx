@@ -22,6 +22,7 @@ import type {
   QuoteCustomerOption,
   QuoteLine,
   QuoteProduct,
+  ProductSaleUnit,
 } from "@/components/presupuestos/quote-types";
 import { Button } from "@/components/ui/button";
 import { formatStockQuantity } from "@/lib/format";
@@ -67,6 +68,29 @@ function formatMoney(value: number) {
 
 function getInsufficientStockMessage(stockQuantity: number) {
   return `${INSUFFICIENT_STOCK_MESSAGE} ${formatStockQuantity(stockQuantity)}`;
+}
+
+function getDefaultSaleUnit(product: QuoteProduct) {
+  return (
+    product.saleUnits.find((unit) => unit.isDefault && unit.active) ??
+    product.saleUnits.find((unit) => unit.active) ?? {
+      id: "",
+      name: "Unidad",
+      quantityInBaseUnit: 1,
+      salePrice: product.price,
+      barcode: "",
+      isDefault: true,
+      active: true,
+    }
+  );
+}
+
+function getLineKey(productId: string, saleUnitId: string) {
+  return `${productId}:${saleUnitId || "fallback"}`;
+}
+
+function getLineStockUsage(line: Pick<QuoteLine, "quantity" | "quantityInBaseUnit">) {
+  return line.quantity * line.quantityInBaseUnit;
 }
 
 export function QuickSalePos({
@@ -189,15 +213,24 @@ export function QuickSalePos({
     [isQuoteMode, startTransition]
   );
 
-  const addProduct = useCallback((product: QuoteProduct) => {
-    if (product.stockQuantity < 1) {
+  const addProduct = useCallback((product: QuoteProduct, saleUnit?: ProductSaleUnit) => {
+    const selectedSaleUnit = saleUnit ?? getDefaultSaleUnit(product);
+    const lineKey = getLineKey(product.id, selectedSaleUnit.id);
+
+    if (product.stockQuantity < selectedSaleUnit.quantityInBaseUnit) {
       setMessage(getInsufficientStockMessage(product.stockQuantity));
       return;
     }
 
-    const existing = linesRef.current.find((line) => line.sku === product.sku);
+    const existing = linesRef.current.find(
+      (line) => getLineKey(line.id, line.selectedSaleUnitId) === lineKey
+    );
 
-    if (existing && existing.quantity >= product.stockQuantity) {
+    if (
+      existing &&
+      getLineStockUsage(existing) + selectedSaleUnit.quantityInBaseUnit >
+        product.stockQuantity
+    ) {
       setMessage(getInsufficientStockMessage(product.stockQuantity));
       return;
     }
@@ -205,14 +238,27 @@ export function QuickSalePos({
     setLines((current) =>
       existing
         ? current.map((line) =>
-            line.sku === product.sku
+            getLineKey(line.id, line.selectedSaleUnitId) === lineKey
               ? {
                   ...line,
-                  quantity: Math.min(line.quantity + 1, product.stockQuantity),
+                  quantity: line.quantity + 1,
                 }
               : line
           )
-        : [...current, { ...product, quantity: 1 }]
+        : [
+            ...current,
+            {
+              ...product,
+              code: selectedSaleUnit.barcode || product.code,
+              price: selectedSaleUnit.salePrice,
+              quantity: 1,
+              selectedSaleUnitId: selectedSaleUnit.id,
+              selectedSaleUnitName: selectedSaleUnit.name,
+              quantityInBaseUnit: selectedSaleUnit.quantityInBaseUnit,
+              availableForSale:
+                product.stockQuantity >= selectedSaleUnit.quantityInBaseUnit,
+            },
+          ]
     );
     setSearch("");
     setResults([]);
@@ -356,41 +402,46 @@ export function QuickSalePos({
     setPage(1);
   }
 
-  function incrementLineQuantity(sku: string) {
-    const selectedLine = lines.find((line) => line.sku === sku);
+  function incrementLineQuantity(lineKey: string) {
+    const selectedLine = lines.find(
+      (line) => getLineKey(line.id, line.selectedSaleUnitId) === lineKey
+    );
 
     if (!selectedLine) {
       return;
     }
 
-    if (selectedLine.quantity >= selectedLine.stockQuantity) {
+    if (
+      getLineStockUsage(selectedLine) + selectedLine.quantityInBaseUnit >
+      selectedLine.stockQuantity
+    ) {
       setMessage(getInsufficientStockMessage(selectedLine.stockQuantity));
       return;
     }
 
     setLines((current) =>
       current.map((line) =>
-        line.sku === sku
+        getLineKey(line.id, line.selectedSaleUnitId) === lineKey
           ? {
               ...line,
-              quantity: Math.min(line.quantity + 1, line.stockQuantity),
+              quantity: line.quantity + 1,
             }
           : line
       )
     );
   }
 
-  function decrementLineQuantity(sku: string) {
+  function decrementLineQuantity(lineKey: string) {
     setLines((current) =>
       current.map((line) =>
-        line.sku === sku
+        getLineKey(line.id, line.selectedSaleUnitId) === lineKey
           ? { ...line, quantity: Math.max(1, line.quantity - 1) }
           : line
       )
     );
   }
 
-  function removeLine(sku: string) {
+  function removeLine(lineKey: string) {
     const confirmed = window.confirm(
       "Vas a quitar este producto. Queres continuar?"
     );
@@ -399,7 +450,11 @@ export function QuickSalePos({
       return;
     }
 
-    setLines((current) => current.filter((line) => line.sku !== sku));
+    setLines((current) =>
+      current.filter(
+        (line) => getLineKey(line.id, line.selectedSaleUnitId) !== lineKey
+      )
+    );
   }
 
   function updateCustomer(key: keyof QuoteCustomer, value: string) {
@@ -612,9 +667,9 @@ export function QuickSalePos({
                 <div className="grid gap-2">
                   {results.map((product) => (
                     <ProductRow
-                      key={product.sku}
+                      key={product.id}
                       product={product}
-                      onAdd={() => addProduct(product)}
+                      onAdd={(saleUnit) => addProduct(product, saleUnit)}
                     />
                   ))}
                 </div>
@@ -653,15 +708,19 @@ export function QuickSalePos({
               </div>
             ) : (
               <div className="grid gap-2">
-                {lines.map((line) => (
+                {lines.map((line) => {
+                  const lineKey = getLineKey(line.id, line.selectedSaleUnitId);
+
+                  return (
                   <TicketLine
-                    key={line.sku}
+                    key={lineKey}
                     line={line}
-                    onDecrement={() => decrementLineQuantity(line.sku)}
-                    onIncrement={() => incrementLineQuantity(line.sku)}
-                    onRemove={() => removeLine(line.sku)}
+                    onDecrement={() => decrementLineQuantity(lineKey)}
+                    onIncrement={() => incrementLineQuantity(lineKey)}
+                    onRemove={() => removeLine(lineKey)}
                   />
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -981,10 +1040,16 @@ function ProductRow({
   onAdd,
 }: {
   product: QuoteProduct;
-  onAdd: () => void;
+  onAdd: (saleUnit: ProductSaleUnit) => void;
 }) {
+  const defaultSaleUnit = getDefaultSaleUnit(product);
+  const [selectedSaleUnitId, setSelectedSaleUnitId] = useState(defaultSaleUnit.id);
+  const selectedSaleUnit =
+    product.saleUnits.find((unit) => unit.id === selectedSaleUnitId) ??
+    defaultSaleUnit;
+
   return (
-    <div className="grid gap-2 rounded-md border border-border bg-background p-2 md:grid-cols-[minmax(0,1fr)_84px_96px_96px] md:items-center">
+    <div className="grid gap-2 rounded-md border border-border bg-background p-2 md:grid-cols-[minmax(0,1fr)_128px_84px_96px_96px] md:items-center">
       <div className="min-w-0">
         <p className="line-clamp-2 text-base font-black leading-tight">
           {product.name || product.description}
@@ -998,6 +1063,22 @@ function ProductRow({
           </p>
         ) : null}
       </div>
+      <label className="grid gap-1">
+        <span className="text-sm font-bold text-muted-foreground">
+          Presentacion
+        </span>
+        <select
+          value={selectedSaleUnitId}
+          onChange={(event) => setSelectedSaleUnitId(event.target.value)}
+          className="h-10 rounded-md border border-input bg-background px-2 text-sm font-black"
+        >
+          {product.saleUnits.map((unit) => (
+            <option key={unit.id || "fallback"} value={unit.id}>
+              {unit.name}
+            </option>
+          ))}
+        </select>
+      </label>
       <InfoBlock
         label="Stock"
         value={`${formatStockQuantity(product.stockQuantity)} ${product.unit}`}
@@ -1005,10 +1086,14 @@ function ProductRow({
       <div>
         <p className="text-sm font-bold text-muted-foreground">Precio</p>
         <p className="text-lg font-black text-primary">
-          {formatMoney(product.price)}
+          {formatMoney(selectedSaleUnit.salePrice)}
         </p>
       </div>
-      <Button type="button" onClick={onAdd} className="h-10 px-3 text-base font-black">
+      <Button
+        type="button"
+        onClick={() => onAdd(selectedSaleUnit)}
+        className="h-10 px-3 text-base font-black"
+      >
         Agregar
       </Button>
     </div>
@@ -1035,6 +1120,9 @@ function TicketLine({
           </p>
           <p className="font-mono text-xs font-semibold text-muted-foreground">
             Codigo: {line.code}
+          </p>
+          <p className="text-xs font-semibold text-muted-foreground">
+            {line.selectedSaleUnitName} x {formatStockQuantity(line.quantityInBaseUnit)} {line.unit}
           </p>
         </div>
         <Button

@@ -52,6 +52,7 @@ type SaleItemRow = {
   sku: string | null;
   name: string;
   quantity: number;
+  sale_unit_name: string | null;
   unit_price: number;
   total: number;
 };
@@ -98,7 +99,7 @@ export default async function SaleDetailPage({ params }: SalePageProps) {
       .maybeSingle(),
     supabase
       .from("sale_items")
-      .select("sku,name,quantity,unit_price,total")
+      .select("sku,name,quantity,sale_unit_name,unit_price,total")
       .eq("tenant_id", tenant.id)
       .eq("sale_id", id)
       .order("name"),
@@ -178,7 +179,9 @@ export default async function SaleDetailPage({ params }: SalePageProps) {
           customer={sale.customers}
           items={items.map((item) => ({
             code: item.sku,
-            description: item.name,
+            description: item.sale_unit_name
+              ? `${item.name} (${item.sale_unit_name})`
+              : item.name,
             quantity: item.quantity,
             unitPrice: formatMoney(item.unit_price),
             total: formatMoney(item.total),

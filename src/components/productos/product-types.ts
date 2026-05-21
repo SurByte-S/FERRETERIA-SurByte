@@ -1,3 +1,13 @@
+export type ProductSaleUnit = {
+  id: string;
+  name: string;
+  quantityInBaseUnit: number;
+  salePrice: number;
+  barcode: string;
+  isDefault: boolean;
+  active: boolean;
+};
+
 export type ProductListItem = {
   id: string;
   sku: string;
@@ -21,6 +31,7 @@ export type ProductListItem = {
   minStock: number;
   active: boolean;
   imageUrl: string;
+  saleUnits: ProductSaleUnit[];
 };
 
 export type ProductCatalogOption = {

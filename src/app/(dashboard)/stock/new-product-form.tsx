@@ -9,6 +9,7 @@ import {
   type ProductActionState,
 } from "@/app/(dashboard)/productos/actions";
 import { Button } from "@/components/ui/button";
+import { SaleUnitsEditor } from "@/components/productos/sale-units-editor";
 
 type CatalogOption = {
   id: string;
@@ -233,6 +234,8 @@ export function NewProductForm({
                   />
                 </div>
               </section>
+
+              <SaleUnitsEditor fallbackPrice={Number(salePrice) || 0} />
 
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                 <Button
