@@ -95,7 +95,7 @@ export function NewProductForm({
       <Button
         type="button"
         onClick={() => setOpen(true)}
-        className="h-11 gap-2 px-4 text-base xl:h-14 xl:px-6 xl:text-lg"
+        className="h-12 gap-2 bg-emerald-600 px-4 text-base text-white hover:bg-emerald-700 xl:h-14 xl:px-6 xl:text-lg"
       >
         <PackagePlus className="size-5" aria-hidden="true" />
         Nuevo producto

@@ -181,22 +181,61 @@ export function StockAdjustForm({
     <form
       ref={formRef}
       action={submit}
-      className="mt-4 grid gap-4 rounded-lg border border-border bg-background p-4"
+      className="grid gap-3 rounded-lg border border-border bg-background p-4"
     >
       <input type="hidden" name="productId" value={product.id} />
       <input type="hidden" name="notes" value="Ajuste manual de stock" />
 
       <h3 className="text-base font-bold">Stock</h3>
-      <div className="grid gap-4 md:grid-cols-2">
+
+      <div className="grid gap-3 rounded-lg border border-border bg-muted/40 p-3 sm:grid-cols-2 md:grid-cols-4">
+        <SummaryBlock
+          label="Stock actual"
+          value={formatStockQuantity(product.stockQuantity)}
+        />
+        <SummaryBlock
+          label="Se agregan"
+          value={
+            stockLoadPreview.quantityToAdd === null
+              ? "0"
+              : formatStockQuantity(stockLoadPreview.quantityToAdd)
+          }
+        />
+        <SummaryBlock
+          label="Stock final"
+          value={
+            stockLoadPreview.nextStock !== null
+              ? formatStockQuantity(stockLoadPreview.nextStock)
+              : stockPreview.nextStock === null
+              ? "-"
+              : formatStockQuantity(stockPreview.nextStock)
+          }
+        />
+        <SummaryBlock
+          label="Diferencia"
+          value={
+            stockPreview.difference === null
+              ? "-"
+              : formatStockQuantity(stockPreview.difference)
+          }
+        />
+      </div>
+
+      <div className="grid gap-3 lg:grid-cols-2">
         <section className="grid gap-3 rounded-lg border border-border bg-muted/30 p-3">
-          <h4 className="text-sm font-bold">Sumar stock por presentacion</h4>
-          <label className="grid gap-2 text-base font-semibold">
+          <div>
+            <h4 className="text-sm font-bold">Entrada de mercaderia</h4>
+            <p className="mt-1 text-sm font-semibold text-muted-foreground">
+              Elegi la presentacion y escribi cuantas unidades entraron al local.
+            </p>
+          </div>
+          <label className="grid gap-1.5 text-sm font-semibold">
             <span>Presentacion de carga</span>
             <select
               name="stockLoadSaleUnitId"
               value={stockLoadSaleUnitId}
               onChange={(event) => setStockLoadSaleUnitId(event.target.value)}
-              className="h-12 rounded-lg border border-input bg-background px-3 text-base"
+              className="h-10 rounded-lg border border-input bg-background px-3 text-base"
             >
               {(product.saleUnits.length > 0
                 ? product.saleUnits.filter((unit) => unit.active)
@@ -208,8 +247,8 @@ export function StockAdjustForm({
               ))}
             </select>
           </label>
-          <label className="grid gap-2 text-base font-semibold">
-            <span>Cantidad a cargar</span>
+          <label className="grid gap-1.5 text-sm font-semibold">
+            <span>Cantidad que entra</span>
             <input
               name="addStockQuantity"
               type="number"
@@ -219,7 +258,7 @@ export function StockAdjustForm({
               value={stockLoadQuantity}
               placeholder="0"
               onChange={(event) => setStockLoadQuantity(event.target.value)}
-              className="h-12 rounded-lg border border-input bg-background px-3 text-base"
+              className="h-10 rounded-lg border border-input bg-background px-3 text-base"
             />
           </label>
           <p className="text-sm font-semibold text-muted-foreground">
@@ -227,60 +266,37 @@ export function StockAdjustForm({
           </p>
         </section>
 
-        <label className="grid gap-2 text-base font-semibold">
-          <span>Stock final</span>
-          <input
-            name="newStock"
-            type="number"
-            min="0"
-            step="1"
-            inputMode="numeric"
-            pattern="[0-9]*"
-            value={newStockValue}
-            placeholder="0"
-            onKeyDown={(event) => {
-              if ([",", ".", "-", "+", "e", "E"].includes(event.key)) {
-                event.preventDefault();
-              }
-            }}
-            onChange={(event) => updateNewStockValue(event.target.value)}
-            className="h-12 rounded-lg border border-input bg-background px-3 text-base"
-          />
-        </label>
-      </div>
-
-      <div className="grid gap-3 rounded-lg border border-border bg-muted/40 p-4 md:grid-cols-4">
-        <div>
-          <p className="text-sm font-semibold text-muted-foreground">Stock actual</p>
-          <p className="text-2xl font-bold">
-            {formatStockQuantity(product.stockQuantity)}
+        <section className="grid content-start gap-3 rounded-lg border border-border bg-background p-3">
+          <div>
+            <h4 className="text-sm font-bold">Ajuste manual de conteo</h4>
+            <p className="mt-1 text-sm font-semibold text-muted-foreground">
+              Usalo solo si contaste fisicamente el producto y queres corregir el stock final.
+            </p>
+          </div>
+          <label className="grid gap-1.5 text-sm font-semibold">
+            <span>Stock final contado</span>
+            <input
+              name="newStock"
+              type="number"
+              min="0"
+              step="1"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={newStockValue}
+              placeholder="0"
+              onKeyDown={(event) => {
+                if ([",", ".", "-", "+", "e", "E"].includes(event.key)) {
+                  event.preventDefault();
+                }
+              }}
+              onChange={(event) => updateNewStockValue(event.target.value)}
+              className="h-10 rounded-lg border border-input bg-background px-3 text-base"
+            />
+          </label>
+          <p className="text-sm font-semibold text-muted-foreground">
+            {stockPreview.message}
           </p>
-        </div>
-        <div>
-          <p className="text-sm font-semibold text-muted-foreground">Nuevo stock</p>
-          <p className="text-2xl font-bold">
-            {stockLoadPreview.nextStock !== null
-              ? formatStockQuantity(stockLoadPreview.nextStock)
-              : stockPreview.nextStock === null
-              ? "-"
-              : formatStockQuantity(stockPreview.nextStock)}
-          </p>
-        </div>
-        <div>
-          <p className="text-sm font-semibold text-muted-foreground">Diferencia</p>
-          <p className="text-2xl font-bold">
-            {stockPreview.difference === null
-              ? "-"
-              : formatStockQuantity(stockPreview.difference)}
-          </p>
-        </div>
-        <div>
-          <p className="text-sm font-semibold text-muted-foreground">Stock minimo</p>
-          <p className="text-2xl font-bold">
-            {formatStockQuantity(product.minStock)}
-          </p>
-        </div>
-        <p className="font-semibold md:col-span-3">{stockPreview.message}</p>
+        </section>
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -290,7 +306,7 @@ export function StockAdjustForm({
           className="h-11 gap-2 bg-amber-600 px-4 text-base text-white hover:bg-amber-700"
         >
           <PackagePlus className="size-5" aria-hidden="true" />
-          {pending ? "Actualizando..." : "Guardar ajuste de stock"}
+          {pending ? "Actualizando..." : "Guardar cambios de stock"}
         </Button>
         {state.message ? (
           <p className="text-base font-semibold">{state.message}</p>
@@ -330,5 +346,14 @@ export function StockAdjustForm({
         </div>
       ) : null}
     </form>
+  );
+}
+
+function SummaryBlock({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-border bg-background p-2.5">
+      <p className="text-xs font-semibold text-muted-foreground">{label}</p>
+      <p className="mt-1 truncate text-lg font-bold">{value}</p>
+    </div>
   );
 }

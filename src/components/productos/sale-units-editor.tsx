@@ -132,7 +132,7 @@ export function SaleUnitsEditor({
   }
 
   return (
-    <section className="grid gap-3 rounded-lg border border-border bg-background p-4">
+    <section className="grid gap-3 rounded-lg border border-border bg-background p-3">
       <input type="hidden" name={inputName} value={serialized} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-base font-bold">Presentaciones de venta</h3>
@@ -151,75 +151,80 @@ export function SaleUnitsEditor({
         {activeUnits.map((unit) => (
           <div
             key={unit.localId}
-            className="grid gap-2 rounded-lg border border-border bg-muted/30 p-3 lg:grid-cols-[minmax(120px,1fr)_130px_130px_minmax(120px,1fr)_120px_44px] lg:items-end"
+            className="grid gap-2 rounded-lg border border-border bg-muted/30 p-3"
           >
-            <Field label="Nombre">
-              <input
-                value={unit.name}
-                onChange={(event) =>
-                  updateUnit(unit.localId, "name", event.target.value)
-                }
-                placeholder="Unidad"
-                className="h-10 rounded-md border border-input bg-background px-3 text-base"
-              />
-            </Field>
-            <Field label="Descuenta">
-              <input
-                value={unit.quantityInBaseUnit}
-                onChange={(event) =>
-                  updateUnit(
-                    unit.localId,
-                    "quantityInBaseUnit",
-                    event.target.value
-                  )
-                }
-                type="number"
-                min="0.001"
-                step="0.001"
-                className="h-10 rounded-md border border-input bg-background px-3 text-base"
-              />
-            </Field>
-            <Field label="Precio">
-              <input
-                value={unit.salePrice}
-                onChange={(event) =>
-                  updateUnit(unit.localId, "salePrice", event.target.value)
-                }
-                type="number"
-                min="0"
-                step="0.01"
-                className="h-10 rounded-md border border-input bg-background px-3 text-base"
-              />
-            </Field>
-            <Field label="Codigo de barras">
-              <input
-                value={unit.barcode}
-                onChange={(event) =>
-                  updateUnit(unit.localId, "barcode", event.target.value)
-                }
-                className="h-10 rounded-md border border-input bg-background px-3 text-base"
-              />
-            </Field>
-            <label className="flex h-10 items-center gap-2 text-sm font-bold">
-              <input
-                type="radio"
-                checked={unit.isDefault}
-                onChange={() => setDefault(unit.localId)}
-                className="size-4"
-              />
-              Predeterminada
-            </label>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              onClick={() => removeUnit(unit.localId)}
-              disabled={activeUnits.length <= 1}
-              aria-label={`Quitar ${unit.name || "presentacion"}`}
-              className="size-10"
-            >
-              <Trash2 className="size-4" aria-hidden="true" />
-            </Button>
+            <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_110px_130px] md:items-end">
+              <Field label="Nombre">
+                <input
+                  value={unit.name}
+                  onChange={(event) =>
+                    updateUnit(unit.localId, "name", event.target.value)
+                  }
+                  placeholder="Unidad"
+                  className="h-10 rounded-md border border-input bg-background px-3 text-base"
+                />
+              </Field>
+              <Field label="Descuenta">
+                <input
+                  value={unit.quantityInBaseUnit}
+                  onChange={(event) =>
+                    updateUnit(
+                      unit.localId,
+                      "quantityInBaseUnit",
+                      event.target.value
+                    )
+                  }
+                  type="number"
+                  min="0.001"
+                  step="0.001"
+                  className="h-10 rounded-md border border-input bg-background px-3 text-base"
+                />
+              </Field>
+              <Field label="Precio">
+                <input
+                  value={unit.salePrice}
+                  onChange={(event) =>
+                    updateUnit(unit.localId, "salePrice", event.target.value)
+                  }
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  className="h-10 rounded-md border border-input bg-background px-3 text-base"
+                />
+              </Field>
+            </div>
+
+            <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_170px_44px] md:items-end">
+              <Field label="Codigo de barras">
+                <input
+                  value={unit.barcode}
+                  onChange={(event) =>
+                    updateUnit(unit.localId, "barcode", event.target.value)
+                  }
+                  className="h-10 rounded-md border border-input bg-background px-3 text-base"
+                />
+              </Field>
+              <label className="flex h-10 items-center gap-2 rounded-md border border-border bg-background px-3 text-sm font-bold">
+                <input
+                  type="radio"
+                  checked={unit.isDefault}
+                  onChange={() => setDefault(unit.localId)}
+                  className="size-4"
+                />
+                Predeterminada
+              </label>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => removeUnit(unit.localId)}
+                disabled={activeUnits.length <= 1}
+                aria-label={`Quitar ${unit.name || "presentacion"}`}
+                className="size-10 md:justify-self-end"
+              >
+                <Trash2 className="size-4" aria-hidden="true" />
+              </Button>
+            </div>
           </div>
         ))}
       </div>
@@ -235,7 +240,7 @@ function Field({
   label: string;
 }) {
   return (
-    <label className="grid gap-1 text-sm font-semibold">
+    <label className="grid min-w-0 gap-1.5 text-sm font-semibold">
       <span>{label}</span>
       {children}
     </label>

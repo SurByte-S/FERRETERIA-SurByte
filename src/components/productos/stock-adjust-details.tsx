@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, PackagePlus, Save, Trash2, X } from "lucide-react";
 
@@ -30,11 +30,17 @@ function numberInputValue(value: number | null) {
 
 export function StockAdjustDetails({
   brands = [],
+  children,
+  triggerAriaLabel,
+  triggerClassName,
   product,
   canEditPrice,
   suppliers = [],
 }: {
   brands?: CatalogOption[];
+  children?: ReactNode;
+  triggerAriaLabel?: string;
+  triggerClassName?: string;
   product: ProductListItem;
   canEditPrice: boolean;
   suppliers?: CatalogOption[];
@@ -44,26 +50,38 @@ export function StockAdjustDetails({
 
   return (
     <>
-      <Button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="h-10 w-full gap-1 px-2 text-xs xl:h-11 xl:px-4 xl:text-sm"
-      >
-        <PackagePlus className="size-4" aria-hidden="true" />
-        Gestionar
-      </Button>
+      {children ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className={triggerClassName}
+          aria-label={triggerAriaLabel ?? `Gestionar producto ${product.name}`}
+        >
+          {children}
+        </button>
+      ) : (
+        <Button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="h-10 w-full gap-2 px-4 text-sm font-bold xl:h-11 xl:text-base"
+          aria-label={triggerAriaLabel ?? `Gestionar producto ${product.name}`}
+        >
+          <PackagePlus className="size-4" aria-hidden="true" />
+          Gestionar
+        </Button>
+      )}
       {message ? (
         <p className="mt-2 text-xs font-semibold text-emerald-700">{message}</p>
       ) : null}
 
       {open ? (
         <div className="fixed inset-0 z-40 grid place-items-center bg-black/35 p-3 sm:p-4">
-          <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-lg border border-border bg-card p-3 shadow-xl sm:p-4">
+          <div className="max-h-[92vh] w-[calc(100vw-1.5rem)] max-w-7xl overflow-x-hidden overflow-y-auto rounded-lg border border-border bg-card p-3 shadow-xl sm:p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-lg font-bold">Gestionar producto</p>
                 <p className="truncate text-sm font-semibold text-muted-foreground">
-                  {product.name}
+                  {product.name} - {product.sku}
                 </p>
               </div>
               <Button
@@ -72,27 +90,40 @@ export function StockAdjustDetails({
                 size="icon"
                 onClick={() => setOpen(false)}
                 aria-label="Cerrar"
+                className="text-red-600 hover:bg-red-50 hover:text-red-700"
               >
                 <X className="size-4" aria-hidden="true" />
               </Button>
             </div>
-            <StockAdjustForm product={product} onAdjusted={() => setOpen(false)} />
-            {canEditPrice ? (
-              <>
+
+            <div className="mt-3 grid gap-4 rounded-lg border border-border bg-muted/20 p-3">
+              <section className="min-w-0">
+                <StockAdjustForm
+                  product={product}
+                  onAdjusted={() => setOpen(false)}
+                />
+              </section>
+
+              {canEditPrice ? (
                 <ProductCommercialForm
                   brands={brands}
                   product={product}
                   suppliers={suppliers}
                 />
-                <DangerZone
-                  product={product}
-                  onDeleted={(nextMessage) => {
-                    setOpen(false);
-                    setMessage(nextMessage);
-                  }}
-                />
-              </>
-            ) : null}
+              ) : null}
+
+              {canEditPrice ? (
+                <section className="min-w-0">
+                  <DangerZone
+                    product={product}
+                    onDeleted={(nextMessage) => {
+                      setOpen(false);
+                      setMessage(nextMessage);
+                    }}
+                  />
+                </section>
+              ) : null}
+            </div>
           </div>
         </div>
       ) : null}
@@ -129,14 +160,13 @@ function DangerZone({
   }, [onDeleted, router, state.message, state.ok]);
 
   return (
-    <section className="mt-4 grid gap-3 rounded-lg border border-destructive/40 bg-destructive/5 p-4">
+    <section className="grid gap-3 rounded-lg border border-destructive/40 bg-destructive/5 p-3">
       <div className="flex items-start gap-3">
         <AlertTriangle className="mt-1 size-5 shrink-0 text-destructive" aria-hidden="true" />
         <div className="grid gap-1">
           <h3 className="text-base font-bold text-destructive">Zona peligrosa</h3>
           <p className="text-sm font-semibold text-muted-foreground">
-            Eliminar este producto lo ocultara de stock, ventas y busquedas. El
-            historial se conservara.
+            Eliminar oculta el producto de stock, ventas y busquedas. El historial se conserva.
           </p>
         </div>
       </div>
@@ -145,7 +175,7 @@ function DangerZone({
           type="button"
           variant="destructive"
           onClick={() => setConfirmOpen(true)}
-          className="h-11 gap-2 px-4 text-base"
+          className="h-10 gap-2 px-4 text-sm font-bold"
         >
           <Trash2 className="size-5" aria-hidden="true" />
           Eliminar producto
@@ -278,13 +308,13 @@ function ProductCommercialForm({
   return (
     <form
       action={formAction}
-      className="mt-4 grid gap-4 rounded-lg border border-border bg-background p-4"
+      className="contents"
     >
       <input type="hidden" name="productId" value={product.id} />
 
-      <section className="grid gap-3">
+      <section className="grid min-w-0 content-start gap-3 rounded-lg border border-border bg-background p-3">
         <h3 className="text-base font-bold">Precio</h3>
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <NumberField
             label="Costo sin IVA"
             name="costWithoutTax"
@@ -322,25 +352,15 @@ function ProductCommercialForm({
         </div>
       </section>
 
-      <section className="grid gap-3">
-        <h3 className="text-base font-bold">Stock planificado</h3>
-        <div className="grid gap-3 md:grid-cols-2">
-          <div className="rounded-lg border border-border bg-muted/40 p-3">
-            <p className="text-sm font-semibold text-muted-foreground">Stock actual</p>
-            <p className="mt-1 text-xl font-bold">{product.stockQuantity}</p>
-          </div>
+      <section className="grid min-w-0 gap-3 rounded-lg border border-border bg-background p-3">
+        <h3 className="text-base font-bold">Datos comerciales</h3>
+        <div className="grid gap-3 sm:grid-cols-3">
           <NumberField
             label="Stock minimo"
             name="minStock"
             defaultValue={String(product.minStock)}
             step="1"
           />
-        </div>
-      </section>
-
-      <section className="grid gap-3">
-        <h3 className="text-base font-bold">Datos comerciales</h3>
-        <div className="grid gap-3 md:grid-cols-2">
           <SelectField
             currentId={product.brandId}
             currentName={product.brand}
@@ -360,15 +380,17 @@ function ProductCommercialForm({
         </div>
       </section>
 
-      <SaleUnitsEditor
-        fallbackPrice={product.salePrice}
-        saleUnits={product.saleUnits}
-      />
+      <div className="min-w-0">
+        <SaleUnitsEditor
+          fallbackPrice={product.salePrice}
+          saleUnits={product.saleUnits}
+        />
+      </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <Button type="submit" disabled={pending} className="h-11 gap-2 px-4 text-base">
           <Save className="size-5" aria-hidden="true" />
-          {pending ? "Guardando..." : "Guardar precio y datos"}
+          {pending ? "Guardando..." : "Guardar cambios"}
         </Button>
         {state.message ? (
           <p

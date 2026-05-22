@@ -239,39 +239,44 @@ export default async function StockPage({ searchParams }: StockPageProps) {
   return (
     <>
       {result.ok ? (
-        <div className="grid gap-4 xl:gap-5">
-          <div className="flex justify-end">
-            <NewProductForm
-              brands={result.brands}
-              canCreate={result.canCreateProduct}
-              suppliers={result.suppliers}
-            />
-          </div>
-
+        <div className="grid w-full max-w-none gap-4 pb-6 xl:gap-5">
           <Card>
-            <CardContent>
-              <form className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto]" action="/stock">
-                {filter !== "con-stock" ? (
-                  <input type="hidden" name="filtro" value={filter} />
-                ) : null}
-                <label className="grid gap-2 text-base font-semibold">
-                  <span>Producto</span>
-                  <div className="relative">
-                    <Search className="pointer-events-none absolute left-4 top-1/2 size-6 -translate-y-1/2 text-muted-foreground" />
-                    <input
-                      name="q"
-                      defaultValue={q}
-                      placeholder="Codigo o nombre"
-                      className="h-11 w-full rounded-lg border border-input bg-background pl-11 pr-3 text-base xl:h-14 xl:pl-12 xl:pr-4 xl:text-lg"
-                    />
-                  </div>
-                </label>
-                <Button type="submit" className="h-11 self-end gap-2 px-5 text-base xl:h-14 xl:px-6 xl:text-lg">
-                  <Search className="size-6" aria-hidden="true" />
-                  Buscar
-                </Button>
-              </form>
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+            <CardContent className="grid gap-4">
+              <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+                <form
+                  className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end"
+                  action="/stock"
+                >
+                  {filter !== "con-stock" ? (
+                    <input type="hidden" name="filtro" value={filter} />
+                  ) : null}
+                  <label className="grid gap-2 text-base font-semibold">
+                    <span>Producto</span>
+                    <div className="relative">
+                      <Search className="pointer-events-none absolute left-4 top-1/2 size-6 -translate-y-1/2 text-muted-foreground" />
+                      <input
+                        name="q"
+                        defaultValue={q}
+                        placeholder="Codigo o nombre"
+                        className="h-12 w-full rounded-lg border border-input bg-background pl-11 pr-3 text-base xl:h-14 xl:pl-12 xl:pr-4 xl:text-lg"
+                      />
+                    </div>
+                  </label>
+                  <Button
+                    type="submit"
+                    className="h-12 gap-2 px-5 text-base xl:h-14 xl:px-6 xl:text-lg"
+                  >
+                    <Search className="size-6" aria-hidden="true" />
+                    Buscar
+                  </Button>
+                </form>
+                <NewProductForm
+                  brands={result.brands}
+                  canCreate={result.canCreateProduct}
+                  suppliers={result.suppliers}
+                />
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex flex-wrap gap-2">
                   {stockFilters.map((item) => (
                     <Button
@@ -310,7 +315,7 @@ export default async function StockPage({ searchParams }: StockPageProps) {
               </CardHeader>
             </Card>
           ) : (
-            <div className="grid gap-1">
+            <div className="space-y-1.5">
               {result.products.map((product) => (
                 <StockProductCard
                   key={product.id}
@@ -353,63 +358,55 @@ function StockProductCard({
   suppliers: CatalogOption[];
 }) {
   const status = stockStatus(product);
+  const content = (
+    <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_150px_150px] md:items-center md:gap-3">
+      <div className="min-w-0">
+        <p className="font-mono text-[11px] font-semibold leading-tight text-muted-foreground">
+          Codigo: {product.code}
+        </p>
+        <p className="mt-0.5 line-clamp-1 text-base font-semibold leading-tight text-foreground md:text-lg">
+          {product.name}
+        </p>
+      </div>
+
+      <div className="flex min-h-[48px] flex-col justify-center rounded-lg border border-border bg-background p-2 md:min-h-[52px]">
+        <p className="text-[11px] font-semibold leading-tight text-muted-foreground">
+          Precio venta
+        </p>
+        <p className="mt-0.5 truncate text-base font-bold leading-tight text-primary md:text-lg">
+          {formatMoney(product.salePrice)}
+        </p>
+      </div>
+
+      <div className={`flex min-h-[48px] flex-col justify-center rounded-lg border p-2 md:min-h-[52px] ${status.className}`}>
+        <p className="text-[11px] font-semibold leading-tight">Stock actual</p>
+        <p className="mt-0.5 truncate text-base font-bold leading-tight md:text-lg">
+          {formatStockQuantity(product.stockQuantity)} {product.unit}
+        </p>
+        <p className="text-xs font-semibold leading-tight">{status.label}</p>
+      </div>
+    </div>
+  );
+
+  if (!canAdjustStock) {
+    return (
+      <Card className="min-h-[58px] rounded-lg p-2.5 shadow-sm md:min-h-[64px] md:p-3">
+        {content}
+      </Card>
+    );
+  }
 
   return (
-    <Card className="px-2 py-1.5">
-      <div className="grid gap-1.5 xl:grid-cols-[minmax(0,1fr)_130px_220px_210px] xl:items-stretch 2xl:grid-cols-[minmax(0,1fr)_140px_250px_230px]">
-        <div className="min-w-0">
-          <p className="font-mono text-[10px] leading-none text-muted-foreground">
-            Codigo: {product.code}
-          </p>
-          <p className="truncate text-sm font-semibold leading-tight">
-            {product.name}
-          </p>
-          <p className="truncate text-[11px] leading-tight text-muted-foreground">
-            {product.description}
-          </p>
-          <div className="mt-1 grid gap-0.5 text-[11px] font-semibold leading-tight text-muted-foreground sm:grid-cols-3">
-            <span className="truncate">Marca: {product.brand || "Sin marca"}</span>
-            <span className="truncate">Proveedor: {product.supplier || "Sin proveedor"}</span>
-          </div>
-        </div>
-
-        {canAdjustStock ? (
-          <div className="grid min-h-[42px] rounded-md border border-border bg-background p-1">
-            <StockAdjustDetails
-              brands={brands}
-              product={product}
-              canEditPrice={canEditPrice}
-              suppliers={suppliers}
-            />
-          </div>
-        ) : null}
-
-        <div className="grid min-h-[42px] gap-1 rounded-md border border-border bg-background px-2 py-1">
-          <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10px] leading-tight text-muted-foreground">
-            <span>Costo s/IVA</span>
-            <span>{formatMoney(product.costWithoutTax)}</span>
-            <span>Costo c/IVA</span>
-            <span>{formatMoney(product.costWithTax)}</span>
-            <span>IVA</span>
-            <span>{product.taxRate}%</span>
-          </div>
-          <p className="truncate text-sm font-bold leading-tight">
-            Precio de venta: {formatMoney(product.salePrice)}
-          </p>
-        </div>
-
-        <div className={`grid min-h-[42px] gap-1 rounded-md border px-2 py-1 ${status.className}`}>
-          <p className="text-[10px] leading-none">Stock actual</p>
-          <p className="truncate text-sm font-bold leading-tight">
-            {formatStockQuantity(product.stockQuantity)} {product.unit}
-          </p>
-          <div className="grid grid-cols-2 gap-x-2 text-[10px] font-semibold leading-tight">
-            <span>Min: {formatStockQuantity(product.minStock)}</span>
-          </div>
-          <p className="text-[10px] font-semibold leading-none">{status.label}</p>
-        </div>
-      </div>
-    </Card>
+    <StockAdjustDetails
+      brands={brands}
+      product={product}
+      canEditPrice={canEditPrice}
+      suppliers={suppliers}
+      triggerAriaLabel={`Gestionar producto ${product.name}`}
+      triggerClassName="block min-h-[58px] w-full cursor-pointer rounded-lg border border-border bg-card p-2.5 text-left text-card-foreground shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-[64px] md:p-3"
+    >
+      {content}
+    </StockAdjustDetails>
   );
 }
 
