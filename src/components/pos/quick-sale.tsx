@@ -40,6 +40,7 @@ const PAYMENT_METHODS = [
   "Credito",
   "Cuenta corriente",
 ];
+const EPSILON = 0.000001;
 
 type SaleMode = "sale" | "quote";
 
@@ -86,6 +87,48 @@ function getLineKey(productId: string, saleUnitId: string) {
   return `${productId}:${saleUnitId || "fallback"}`;
 }
 
+function getLineStockUsage(line: Pick<QuoteLine, "quantity" | "quantityInBaseUnit">) {
+  return Number(line.quantity) * Number(line.quantityInBaseUnit);
+}
+
+function getProductBaseConsumption(
+  cartItems: Pick<QuoteLine, "id" | "quantity" | "quantityInBaseUnit">[],
+  productId: string
+) {
+  return cartItems
+    .filter((item) => item.id === productId)
+    .reduce((sum, item) => sum + getLineStockUsage(item), 0);
+}
+
+function getGroupedStockMessage({
+  productName,
+  stockQuantity,
+  consumption,
+}: {
+  productName: string;
+  stockQuantity: number;
+  consumption: number;
+}) {
+  return `Stock insuficiente para ${productName}. Disponible: ${formatStockQuantity(
+    stockQuantity
+  )}. En carrito: ${formatStockQuantity(consumption)}.`;
+}
+
+function findGroupedStockIssue(lines: QuoteLine[]) {
+  for (const line of lines) {
+    const consumption = getProductBaseConsumption(lines, line.id);
+
+    if (consumption - Number(line.stockQuantity) > EPSILON) {
+      return {
+        line,
+        consumption,
+      };
+    }
+  }
+
+  return null;
+}
+
 export function QuickSale({
   initialSku,
   customers,
@@ -121,6 +164,7 @@ export function QuickSale({
     () => lines.some((line) => !line.availableForSale),
     [lines]
   );
+  const groupedStockIssue = useMemo(() => findGroupedStockIssue(lines), [lines]);
   const isQuoteMode = mode === "quote";
   const isCashRegisterClosed = !isQuoteMode && cashStatus?.open === false;
   const modeHelp = isQuoteMode
@@ -142,6 +186,9 @@ export function QuickSale({
         addProduct(product, 1);
       }
     });
+    // addProduct is intentionally omitted so this initial SKU import runs only
+    // for the route-provided SKU, not after cart changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialSku, isQuoteMode]);
 
   useEffect(() => {
@@ -220,6 +267,20 @@ export function QuickSale({
     const safeQty = Number.isFinite(qty) && qty > 0 ? qty : 1;
     const saleUnit = getDefaultSaleUnit(product);
     const lineKey = getLineKey(product.id, saleUnit.id);
+    const nextConsumption =
+      getProductBaseConsumption(lines, product.id) +
+      safeQty * saleUnit.quantityInBaseUnit;
+
+    if (nextConsumption - product.stockQuantity > EPSILON) {
+      setMessage(
+        getGroupedStockMessage({
+          productName: product.name || product.description,
+          stockQuantity: product.stockQuantity,
+          consumption: nextConsumption,
+        })
+      );
+      return;
+    }
 
     setLines((current) => {
       const existing = current.find(
@@ -294,15 +355,40 @@ export function QuickSale({
 
   function updateLineQuantity(lineKey: string, value: string) {
     const nextQuantity = Number(value);
+    const selectedLine = lines.find(
+      (line) => getLineKey(line.id, line.selectedSaleUnitId) === lineKey
+    );
+
+    if (!selectedLine) {
+      return;
+    }
+
+    const safeQuantity =
+      Number.isFinite(nextQuantity) && nextQuantity > 0 ? nextQuantity : 1;
+    const currentLineConsumption = getLineStockUsage(selectedLine);
+    const nextLineConsumption = safeQuantity * selectedLine.quantityInBaseUnit;
+    const nextProductConsumption =
+      getProductBaseConsumption(lines, selectedLine.id) -
+      currentLineConsumption +
+      nextLineConsumption;
+
+    if (nextProductConsumption - selectedLine.stockQuantity > EPSILON) {
+      setMessage(
+        getGroupedStockMessage({
+          productName: selectedLine.name || selectedLine.description,
+          stockQuantity: selectedLine.stockQuantity,
+          consumption: nextProductConsumption,
+        })
+      );
+      return;
+    }
+
     setLines((current) =>
       current.map((line) =>
         getLineKey(line.id, line.selectedSaleUnitId) === lineKey
           ? {
               ...line,
-              quantity:
-                Number.isFinite(nextQuantity) && nextQuantity > 0
-                  ? nextQuantity
-                  : 1,
+              quantity: safeQuantity,
             }
           : line
       )
@@ -348,6 +434,19 @@ export function QuickSale({
     if (hasOutOfStockLines) {
       setMessage(
         "Hay productos a pedido. Guarda presupuesto o quitalos antes de vender."
+      );
+      return;
+    }
+
+    const stockIssue = findGroupedStockIssue(lines);
+
+    if (stockIssue) {
+      setMessage(
+        getGroupedStockMessage({
+          productName: stockIssue.line.name || stockIssue.line.description,
+          stockQuantity: stockIssue.line.stockQuantity,
+          consumption: stockIssue.consumption,
+        })
       );
       return;
     }
@@ -703,6 +802,7 @@ export function QuickSale({
                       isPending ||
                       lines.length === 0 ||
                       hasOutOfStockLines ||
+                      Boolean(groupedStockIssue) ||
                       isCashRegisterClosed
                     }
                     className="h-11 gap-2 text-sm"

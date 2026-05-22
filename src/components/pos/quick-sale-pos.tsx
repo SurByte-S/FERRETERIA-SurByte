@@ -32,7 +32,7 @@ const SEARCH_PLACEHOLDER = "Codigo, codigo de barras o nombre del producto";
 const SEARCH_HELP_TEXT =
   "Podes buscar por codigo, nombre, marca o medida. Ej: llave 3/4, cano 110, tornillo 8x1.";
 const CASH_REGISTER_CLOSED_MESSAGE = "Para vender necesitas abrir la caja.";
-const INSUFFICIENT_STOCK_MESSAGE = "No hay stock suficiente. Disponible:";
+const EPSILON = 0.000001;
 const PAGE_SIZE_OPTIONS = [20, 40, 80] as const;
 const DEFAULT_PAGE_SIZE = 40;
 
@@ -66,10 +66,6 @@ function formatMoney(value: number) {
   );
 }
 
-function getInsufficientStockMessage(stockQuantity: number) {
-  return `${INSUFFICIENT_STOCK_MESSAGE} ${formatStockQuantity(stockQuantity)}`;
-}
-
 function getDefaultSaleUnit(product: QuoteProduct) {
   return (
     product.saleUnits.find((unit) => unit.isDefault && unit.active) ??
@@ -90,7 +86,45 @@ function getLineKey(productId: string, saleUnitId: string) {
 }
 
 function getLineStockUsage(line: Pick<QuoteLine, "quantity" | "quantityInBaseUnit">) {
-  return line.quantity * line.quantityInBaseUnit;
+  return Number(line.quantity) * Number(line.quantityInBaseUnit);
+}
+
+function getProductBaseConsumption(
+  cartItems: Pick<QuoteLine, "id" | "quantity" | "quantityInBaseUnit">[],
+  productId: string
+) {
+  return cartItems
+    .filter((item) => item.id === productId)
+    .reduce((sum, item) => sum + getLineStockUsage(item), 0);
+}
+
+function getGroupedStockMessage({
+  productName,
+  stockQuantity,
+  consumption,
+}: {
+  productName: string;
+  stockQuantity: number;
+  consumption: number;
+}) {
+  return `Stock insuficiente para ${productName}. Disponible: ${formatStockQuantity(
+    stockQuantity
+  )}. En carrito: ${formatStockQuantity(consumption)}.`;
+}
+
+function findGroupedStockIssue(lines: QuoteLine[]) {
+  for (const line of lines) {
+    const consumption = getProductBaseConsumption(lines, line.id);
+
+    if (consumption - Number(line.stockQuantity) > EPSILON) {
+      return {
+        line,
+        consumption,
+      };
+    }
+  }
+
+  return null;
 }
 
 export function QuickSalePos({
@@ -134,6 +168,7 @@ export function QuickSalePos({
     () => lines.some((line) => !line.availableForSale),
     [lines]
   );
+  const groupedStockIssue = useMemo(() => findGroupedStockIssue(lines), [lines]);
   const isQuoteMode = mode === "quote";
   const isCashRegisterClosed = !isQuoteMode && cashStatus?.open === false;
   const visibleMessage =
@@ -153,6 +188,7 @@ export function QuickSalePos({
     linesCount: lines.length,
     isCashRegisterClosed,
     hasOutOfStockLines,
+    hasGroupedStockIssue: Boolean(groupedStockIssue),
     isQuoteMode,
   });
 
@@ -217,23 +253,24 @@ export function QuickSalePos({
     const selectedSaleUnit = saleUnit ?? getDefaultSaleUnit(product);
     const lineKey = getLineKey(product.id, selectedSaleUnit.id);
 
-    if (product.stockQuantity < selectedSaleUnit.quantityInBaseUnit) {
-      setMessage(getInsufficientStockMessage(product.stockQuantity));
+    const nextConsumption =
+      getProductBaseConsumption(linesRef.current, product.id) +
+      selectedSaleUnit.quantityInBaseUnit;
+
+    if (nextConsumption - product.stockQuantity > EPSILON) {
+      setMessage(
+        getGroupedStockMessage({
+          productName: product.name || product.description,
+          stockQuantity: product.stockQuantity,
+          consumption: nextConsumption,
+        })
+      );
       return;
     }
 
     const existing = linesRef.current.find(
       (line) => getLineKey(line.id, line.selectedSaleUnitId) === lineKey
     );
-
-    if (
-      existing &&
-      getLineStockUsage(existing) + selectedSaleUnit.quantityInBaseUnit >
-        product.stockQuantity
-    ) {
-      setMessage(getInsufficientStockMessage(product.stockQuantity));
-      return;
-    }
 
     setLines((current) =>
       existing
@@ -411,11 +448,18 @@ export function QuickSalePos({
       return;
     }
 
-    if (
-      getLineStockUsage(selectedLine) + selectedLine.quantityInBaseUnit >
-      selectedLine.stockQuantity
-    ) {
-      setMessage(getInsufficientStockMessage(selectedLine.stockQuantity));
+    const nextConsumption =
+      getProductBaseConsumption(lines, selectedLine.id) +
+      selectedLine.quantityInBaseUnit;
+
+    if (nextConsumption - selectedLine.stockQuantity > EPSILON) {
+      setMessage(
+        getGroupedStockMessage({
+          productName: selectedLine.name || selectedLine.description,
+          stockQuantity: selectedLine.stockQuantity,
+          consumption: nextConsumption,
+        })
+      );
       return;
     }
 
@@ -506,6 +550,19 @@ export function QuickSalePos({
 
     if (hasOutOfStockLines) {
       setMessage("Stock insuficiente. Revisa las cantidades antes de vender.");
+      return;
+    }
+
+    const stockIssue = findGroupedStockIssue(lines);
+
+    if (stockIssue) {
+      setMessage(
+        getGroupedStockMessage({
+          productName: stockIssue.line.name || stockIssue.line.description,
+          stockQuantity: stockIssue.line.stockQuantity,
+          consumption: stockIssue.consumption,
+        })
+      );
       return;
     }
 
@@ -787,6 +844,7 @@ export function QuickSalePos({
                       isPending ||
                       lines.length === 0 ||
                       hasOutOfStockLines ||
+                      Boolean(groupedStockIssue) ||
                       isCashRegisterClosed
                     }
                     className="h-11 w-full text-base font-black"
@@ -882,11 +940,13 @@ function getActionHelp({
   linesCount,
   isCashRegisterClosed,
   hasOutOfStockLines,
+  hasGroupedStockIssue,
   isQuoteMode,
 }: {
   linesCount: number;
   isCashRegisterClosed: boolean;
   hasOutOfStockLines: boolean;
+  hasGroupedStockIssue: boolean;
   isQuoteMode: boolean;
 }) {
   if (isQuoteMode) {
@@ -897,7 +957,7 @@ function getActionHelp({
     return CASH_REGISTER_CLOSED_MESSAGE;
   }
 
-  if (hasOutOfStockLines) {
+  if (hasOutOfStockLines || hasGroupedStockIssue) {
     return "Stock insuficiente. Revisa las cantidades antes de vender.";
   }
 
