@@ -29,8 +29,6 @@ import { formatStockQuantity } from "@/lib/format";
 
 const EMPTY_SEARCH_MESSAGE = "Busca un producto para empezar.";
 const SEARCH_PLACEHOLDER = "Codigo, codigo de barras o nombre del producto";
-const SEARCH_HELP_TEXT =
-  "Podes buscar por codigo, nombre, marca o medida. Ej: llave 3/4, cano 110, tornillo 8x1.";
 const CASH_REGISTER_CLOSED_MESSAGE = "Para vender necesitas abrir la caja.";
 const EPSILON = 0.000001;
 const PAGE_SIZE_OPTIONS = [20, 40, 80] as const;
@@ -184,6 +182,7 @@ export function QuickSalePos({
     visibleCount: results.length,
     total: resultsTotal,
   });
+  const showPaginationControls = totalPages > 1;
   const actionHelp = getActionHelp({
     linesCount: lines.length,
     isCashRegisterClosed,
@@ -592,16 +591,16 @@ export function QuickSalePos({
   }
 
   return (
-    <div className="grid h-auto min-h-0 gap-2 bg-background lg:h-[calc(100vh-5.75rem)] lg:grid-rows-[auto_minmax(0,1fr)] lg:overflow-hidden">
-      <header className="grid shrink-0 gap-2 rounded-lg border border-border bg-card px-3 py-2 shadow-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-        <div className="flex min-w-0 flex-wrap items-center gap-3">
-          <div className="min-w-0">
+    <div className="grid min-h-[calc(100vh-5.75rem)] gap-2 bg-background p-1 lg:grid-rows-[auto_1fr]">
+      <header className="grid shrink-0 gap-2 rounded-lg border border-border bg-card p-2 shadow-sm xl:grid-cols-[minmax(20rem,auto)_minmax(22rem,1fr)_auto] xl:items-stretch">
+        <div className="grid min-w-0 gap-1 rounded-md border border-border bg-muted/50 p-2">
+          <div className="min-h-5 min-w-0">
             <h1 className="text-xl font-black leading-tight text-primary">
               Mostrador
             </h1>
           </div>
 
-          <div className="grid min-w-[16rem] grid-cols-[minmax(6rem,1fr)_minmax(8rem,1fr)] gap-1 rounded-md border border-border bg-background p-1">
+          <div className="grid min-w-[16rem] grid-cols-[minmax(6rem,1fr)_minmax(8rem,1fr)] gap-1 rounded-md border border-input bg-card p-1">
             <ModeButton
               active={mode === "sale"}
               label="Venta"
@@ -615,111 +614,116 @@ export function QuickSalePos({
           </div>
         </div>
 
-        {!isQuoteMode && cashStatus ? <CashBadge cashStatus={cashStatus} /> : null}
+        <div className="grid min-w-0 gap-1 rounded-md border border-border bg-muted/50 p-2">
+          <label className="grid min-w-0 gap-1">
+            <span className="min-h-5 text-base font-black leading-tight">
+              Buscar producto
+            </span>
+            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_9rem]">
+              <input
+                ref={searchInputRef}
+                value={search}
+                onChange={(event) => handleSearchChange(event.target.value)}
+                onKeyDown={handleSearchKeyDown}
+                placeholder={SEARCH_PLACEHOLDER}
+                className="h-11 w-full rounded-md border border-input bg-card px-3 text-base font-semibold outline-none focus:border-primary focus:ring-2 focus:ring-ring/25"
+              />
+              <Button
+                type="button"
+                onClick={runSearch}
+                disabled={isPending}
+                className="h-11 rounded-md text-base font-black"
+              >
+                Buscar
+              </Button>
+            </div>
+          </label>
+
+          {visibleMessage ? (
+            <p className="rounded-md border border-primary/20 bg-secondary/10 px-3 py-1.5 text-sm font-semibold text-primary">
+              {visibleMessage}
+            </p>
+          ) : null}
+        </div>
+
+        {!isQuoteMode && cashStatus ? (
+          <CashBadge cashStatus={cashStatus} />
+        ) : null}
       </header>
 
-      <main className="grid min-h-0 gap-2 lg:grid-cols-[minmax(0,1fr)_clamp(360px,33vw,440px)]">
-        <section className="grid min-h-0 overflow-hidden rounded-lg border border-border bg-card shadow-sm lg:grid-rows-[auto_minmax(0,1fr)]">
-          <div className="border-b border-border p-2">
-            <label className="grid gap-1">
-              <span className="text-base font-black">Buscar producto</span>
-              <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_120px]">
-                <input
-                  ref={searchInputRef}
-                  value={search}
-                  onChange={(event) => handleSearchChange(event.target.value)}
-                  onKeyDown={handleSearchKeyDown}
-                  placeholder={SEARCH_PLACEHOLDER}
-                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-base font-semibold outline-none focus:border-primary"
-                />
-                <Button
-                  type="button"
-                  onClick={runSearch}
-                  disabled={isPending}
-                  className="h-10 rounded-md text-base font-black"
-                >
-                  Buscar
-                </Button>
-              </div>
-              <span className="text-sm font-semibold text-muted-foreground">
-                {SEARCH_HELP_TEXT}
-              </span>
-            </label>
-
-            {visibleMessage ? (
-              <p className="mt-2 rounded-md border border-primary/20 bg-secondary/10 px-3 py-2 text-sm font-semibold text-primary">
-                {visibleMessage}
-              </p>
-            ) : null}
-          </div>
-
-          <div className="grid min-h-[240px] grid-rows-[auto_minmax(0,1fr)] overflow-hidden">
-            <div className="grid gap-2 px-3 py-2 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
-              <div className="min-w-0">
+      <main className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_clamp(27rem,31vw,33rem)] lg:items-start">
+        <section className="grid rounded-lg border border-border bg-card shadow-sm lg:grid-rows-[auto_1fr]">
+          <div className="grid min-h-[18rem] grid-rows-[auto_1fr]">
+            <div className="grid min-h-[3.25rem] gap-2 border-b border-border bg-muted/40 px-3 py-2 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
+              <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
                 <h2 className="text-xl font-black">Productos</h2>
-                <p className="text-sm font-bold text-muted-foreground">
-                  {resultCounter}
-                </p>
-                <p className="text-sm font-bold text-muted-foreground">
-                  Pagina {currentPage} de {totalPages}
-                </p>
+                {resultCounter ? (
+                  <p className="text-sm font-bold text-muted-foreground">
+                    {resultCounter}
+                  </p>
+                ) : null}
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
-                <label className="flex items-center gap-2 text-sm font-bold text-muted-foreground">
-                  Por pagina
-                  <select
-                    value={pageSize}
-                    onChange={(event) => changePageSize(event.target.value)}
-                    className="h-9 rounded-md border border-input bg-background px-2 text-sm font-black text-foreground"
+              {showPaginationControls ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className="flex items-center gap-2 text-sm font-bold text-muted-foreground">
+                    Por pagina
+                    <select
+                      value={pageSize}
+                      onChange={(event) => changePageSize(event.target.value)}
+                      className="h-9 rounded-md border border-input bg-background px-2 text-sm font-black text-foreground"
+                    >
+                      {PAGE_SIZE_OPTIONS.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <span className="text-sm font-bold text-muted-foreground">
+                    Pagina {currentPage} de {totalPages}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => goToPage(1)}
+                    disabled={isPending || currentPage <= 1}
+                    className="h-9 px-3 text-sm font-bold"
                   >
-                    {PAGE_SIZE_OPTIONS.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => goToPage(1)}
-                  disabled={isPending || currentPage <= 1}
-                  className="h-9 px-3 text-sm font-bold"
-                >
-                  Primera
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => goToPage(currentPage - 1)}
-                  disabled={isPending || currentPage <= 1}
-                  className="h-9 px-3 text-sm font-bold"
-                >
-                  Anterior
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => goToPage(currentPage + 1)}
-                  disabled={isPending || currentPage >= totalPages}
-                  className="h-9 px-3 text-sm font-bold"
-                >
-                  Siguiente
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => goToPage(totalPages)}
-                  disabled={isPending || currentPage >= totalPages}
-                  className="h-9 px-3 text-sm font-bold"
-                >
-                  Ultima
-                </Button>
-              </div>
+                    Primera
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => goToPage(currentPage - 1)}
+                    disabled={isPending || currentPage <= 1}
+                    className="h-9 px-3 text-sm font-bold"
+                  >
+                    Anterior
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => goToPage(currentPage + 1)}
+                    disabled={isPending || currentPage >= totalPages}
+                    className="h-9 px-3 text-sm font-bold"
+                  >
+                    Siguiente
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => goToPage(totalPages)}
+                    disabled={isPending || currentPage >= totalPages}
+                    className="h-9 px-3 text-sm font-bold"
+                  >
+                    Ultima
+                  </Button>
+                </div>
+              ) : null}
             </div>
 
-            <div className="min-h-0 overflow-y-auto px-3 pb-3">
+            <div className="bg-muted/20 px-3 pb-3 pt-2">
               {results.length > 0 ? (
                 <div className="grid gap-2">
                   {results.map((product) => (
@@ -737,7 +741,7 @@ export function QuickSalePos({
           </div>
         </section>
 
-        <aside className="grid min-h-[500px] overflow-hidden rounded-lg border border-border bg-card shadow-sm lg:min-h-0 lg:grid-rows-[auto_minmax(140px,1fr)_auto]">
+        <aside className="grid rounded-lg border border-border bg-card shadow-sm">
           <div className="border-b border-accent/40 bg-primary px-3 py-2 text-primary-foreground">
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -758,7 +762,7 @@ export function QuickSalePos({
             </div>
           </div>
 
-          <div className="min-h-0 overflow-y-auto bg-background p-2.5">
+          <div className="bg-muted/25 p-2.5">
             {lines.length === 0 ? (
               <div className="rounded-md border border-dashed border-border bg-card p-4">
                 <p className="text-lg font-black">No hay productos agregados.</p>
@@ -769,13 +773,13 @@ export function QuickSalePos({
                   const lineKey = getLineKey(line.id, line.selectedSaleUnitId);
 
                   return (
-                  <TicketLine
-                    key={lineKey}
-                    line={line}
-                    onDecrement={() => decrementLineQuantity(lineKey)}
-                    onIncrement={() => incrementLineQuantity(lineKey)}
-                    onRemove={() => removeLine(lineKey)}
-                  />
+                    <TicketLine
+                      key={lineKey}
+                      line={line}
+                      onDecrement={() => decrementLineQuantity(lineKey)}
+                      onIncrement={() => incrementLineQuantity(lineKey)}
+                      onRemove={() => removeLine(lineKey)}
+                    />
                   );
                 })}
               </div>
@@ -789,7 +793,7 @@ export function QuickSalePos({
                   <select
                     value={paymentMethod}
                     onChange={(event) => setPaymentMethod(event.target.value)}
-                    className="h-11 w-full rounded-md border border-input bg-background px-3 text-base font-semibold"
+                    className="h-11 w-full rounded-md border border-input bg-muted/30 px-3 text-base font-semibold"
                   >
                     {PAYMENT_METHODS.map((method) => (
                       <option key={method} value={method}>
@@ -826,109 +830,109 @@ export function QuickSalePos({
               </div>
 
               <div className="grid gap-2">
-              {isQuoteMode ? (
-                <Button
-                  type="button"
-                  onClick={saveQuote}
-                  disabled={isPending || lines.length === 0}
-                  className="h-11 w-full px-4 text-base font-black"
-                >
-                  Guardar presupuesto
-                </Button>
-              ) : (
-                <>
+                {isQuoteMode ? (
                   <Button
                     type="button"
-                    onClick={registerSale}
-                    disabled={
-                      isPending ||
-                      lines.length === 0 ||
-                      hasOutOfStockLines ||
-                      Boolean(groupedStockIssue) ||
-                      isCashRegisterClosed
-                    }
-                    className="h-11 w-full text-base font-black"
-                  >
-                    Cobrar venta
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
                     onClick={saveQuote}
                     disabled={isPending || lines.length === 0}
-                    className="h-9 text-sm font-bold"
+                    className="h-11 w-full px-4 text-base font-black"
                   >
                     Guardar presupuesto
                   </Button>
-                </>
-              )}
+                ) : (
+                  <>
+                    <Button
+                      type="button"
+                      onClick={registerSale}
+                      disabled={
+                        isPending ||
+                        lines.length === 0 ||
+                        hasOutOfStockLines ||
+                        Boolean(groupedStockIssue) ||
+                        isCashRegisterClosed
+                      }
+                      className="h-11 w-full text-base font-black"
+                    >
+                      Cobrar venta
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={saveQuote}
+                      disabled={isPending || lines.length === 0}
+                      className="h-9 text-sm font-bold"
+                    >
+                      Guardar presupuesto
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
 
-              <details className="mt-2 rounded-md border border-border bg-background">
-                <summary className="flex min-h-10 cursor-pointer items-center px-3 text-base font-black">
-                  Cliente opcional
-                </summary>
-                <div className="grid gap-2 border-t border-border p-3">
-                  <Field label="Cliente guardado">
-                    <select
-                      value={customer.id ?? ""}
-                      onChange={(event) => selectCustomer(event.target.value)}
-                      className="h-10 rounded-md border border-input bg-background px-3 text-base"
-                    >
-                      <option value="">Sin cliente guardado</option>
-                      {customers.map((item) => (
-                        <option key={item.id} value={item.id}>
-                          {item.name}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                  <Field label="Nombre">
+            <details className="mt-2 rounded-md border border-border bg-muted/30">
+              <summary className="flex min-h-10 cursor-pointer items-center px-3 text-base font-black">
+                Cliente opcional
+              </summary>
+              <div className="grid gap-2 border-t border-border p-3">
+                <Field label="Cliente guardado">
+                  <select
+                    value={customer.id ?? ""}
+                    onChange={(event) => selectCustomer(event.target.value)}
+                    className="h-10 rounded-md border border-input bg-background px-3 text-base"
+                  >
+                    <option value="">Sin cliente guardado</option>
+                    {customers.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.name}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Nombre">
+                  <input
+                    value={customer.name}
+                    onChange={(event) =>
+                      updateCustomer("name", event.target.value)
+                    }
+                    disabled={Boolean(customer.id)}
+                    className="h-10 rounded-md border border-input bg-background px-3 text-base"
+                  />
+                </Field>
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                  <Field label="Telefono">
                     <input
-                      value={customer.name}
+                      value={customer.phone}
                       onChange={(event) =>
-                        updateCustomer("name", event.target.value)
+                        updateCustomer("phone", event.target.value)
                       }
                       disabled={Boolean(customer.id)}
                       className="h-10 rounded-md border border-input bg-background px-3 text-base"
                     />
                   </Field>
-                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-                    <Field label="Telefono">
-                      <input
-                        value={customer.phone}
-                        onChange={(event) =>
-                          updateCustomer("phone", event.target.value)
-                        }
-                        disabled={Boolean(customer.id)}
-                        className="h-10 rounded-md border border-input bg-background px-3 text-base"
-                      />
-                    </Field>
-                    <Field label="Email">
-                      <input
-                        type="email"
-                        value={customer.email}
-                        onChange={(event) =>
-                          updateCustomer("email", event.target.value)
-                        }
-                        disabled={Boolean(customer.id)}
-                        className="h-10 rounded-md border border-input bg-background px-3 text-base"
-                      />
-                    </Field>
-                  </div>
-                  <Field label="Domicilio">
+                  <Field label="Email">
                     <input
-                      value={customer.address}
+                      type="email"
+                      value={customer.email}
                       onChange={(event) =>
-                        updateCustomer("address", event.target.value)
+                        updateCustomer("email", event.target.value)
                       }
                       disabled={Boolean(customer.id)}
                       className="h-10 rounded-md border border-input bg-background px-3 text-base"
                     />
                   </Field>
                 </div>
-              </details>
+                <Field label="Domicilio">
+                  <input
+                    value={customer.address}
+                    onChange={(event) =>
+                      updateCustomer("address", event.target.value)
+                    }
+                    disabled={Boolean(customer.id)}
+                    className="h-10 rounded-md border border-input bg-background px-3 text-base"
+                  />
+                </Field>
+              </div>
+            </details>
           </div>
         </aside>
       </main>
@@ -1001,7 +1005,7 @@ function getResultCounter({
     return "Mostrando 0 de 0 productos";
   }
 
-  return `Mostrando ${start}-${end} de ${total} productos`;
+  return `${start}-${end} de ${total} productos`;
 }
 
 function SearchStatePanel({ status }: { status: SearchStatus }) {
@@ -1050,8 +1054,8 @@ function CashBadge({ cashStatus }: { cashStatus: CashStatus }) {
     <div
       className={
         cashStatus.open
-          ? "flex items-center justify-between gap-3 rounded-md border border-emerald-500/40 bg-emerald-50 px-3 py-2 text-emerald-900"
-          : "flex items-center justify-between gap-3 rounded-md border border-accent/40 bg-accent/10 px-3 py-2 text-accent-foreground"
+          ? "flex h-full min-w-[13rem] items-center justify-between gap-3 rounded-md border border-emerald-600/40 bg-emerald-100 px-3 py-2 text-emerald-950"
+          : "flex h-full min-w-[13rem] items-center justify-between gap-3 rounded-md border border-accent/40 bg-accent/10 px-3 py-2 text-accent-foreground"
       }
     >
       <div>
@@ -1109,7 +1113,7 @@ function ProductRow({
     defaultSaleUnit;
 
   return (
-    <div className="grid gap-2 rounded-md border border-border bg-background p-2 md:grid-cols-[minmax(0,1fr)_128px_84px_96px_96px] md:items-center">
+    <div className="grid gap-2 rounded-md border border-border bg-card p-2 shadow-sm md:grid-cols-[minmax(0,1fr)_9.6rem_6.3rem_7.2rem_7.2rem] md:items-center">
       <div className="min-w-0">
         <p className="line-clamp-2 text-base font-black leading-tight">
           {product.name || product.description}
@@ -1130,7 +1134,7 @@ function ProductRow({
         <select
           value={selectedSaleUnitId}
           onChange={(event) => setSelectedSaleUnitId(event.target.value)}
-          className="h-10 rounded-md border border-input bg-background px-2 text-sm font-black"
+          className="h-10 rounded-md border border-input bg-muted/30 px-2 text-sm font-black"
         >
           {product.saleUnits.map((unit) => (
             <option key={unit.id || "fallback"} value={unit.id}>
@@ -1196,7 +1200,7 @@ function TicketLine({
       </div>
 
       <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2">
-        <div className="grid grid-cols-[32px_44px_32px] gap-1">
+        <div className="grid grid-cols-[2.4rem_3.3rem_2.4rem] gap-1">
           <Button
             type="button"
             variant="outline"
