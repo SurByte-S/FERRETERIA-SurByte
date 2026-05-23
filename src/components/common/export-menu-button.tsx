@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 
 export function ExportMenuButton({
   csvHref,
-  label = "Exportar",
+  label = "Exportar Excel/PDF",
   pdfHref,
 }: {
   csvHref: string;
@@ -31,13 +31,13 @@ export function ExportMenuButton({
           href={csvHref}
           className="rounded px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted"
         >
-          Descargar CSV
+          Descargar Excel/CSV
         </a>
         <a
           href={pdfHref}
           className="rounded px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted"
         >
-          Descargar PDF
+          Ver PDF / Imprimir
         </a>
       </div>
     </details>

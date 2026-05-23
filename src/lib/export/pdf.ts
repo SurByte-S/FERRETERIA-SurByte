@@ -14,6 +14,8 @@ export type SimplePdfDocument = {
   table?: PdfTable;
 };
 
+export type PrintableReportDocument = SimplePdfDocument;
+
 const PAGE_WIDTH = 595;
 const PAGE_HEIGHT = 842;
 const LEFT = 40;
@@ -59,6 +61,90 @@ export function pdfResponse({
       "Cache-Control": "no-store",
       "Content-Disposition": `attachment; filename="${filename}"`,
       "Content-Type": "application/pdf",
+    },
+  });
+}
+
+export function createPrintableReportHtml(document: PrintableReportDocument) {
+  const generatedAt = new Date().toLocaleString("es-AR");
+  const sections = (document.sections ?? [])
+    .map(
+      (section) => `
+        <section>
+          <h2>${escapeHtml(section.title)}</h2>
+          <ul>
+            ${section.lines.map((line) => `<li>${escapeHtml(line)}</li>`).join("")}
+          </ul>
+        </section>`
+    )
+    .join("");
+  const table = document.table
+    ? `
+      <table>
+        <thead>
+          <tr>${document.table.headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr>
+        </thead>
+        <tbody>
+          ${document.table.rows
+            .map(
+              (row) =>
+                `<tr>${row.map((cell) => `<td>${escapeHtml(cleanCell(cell))}</td>`).join("")}</tr>`
+            )
+            .join("")}
+        </tbody>
+      </table>`
+    : "";
+
+  return `<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>${escapeHtml(document.title)}</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 24px; color: #111827; }
+    header { border-bottom: 2px solid #111827; margin-bottom: 18px; padding-bottom: 10px; }
+    h1 { font-size: 24px; margin: 0 0 6px; }
+    h2 { font-size: 18px; margin: 18px 0 8px; }
+    p { margin: 4px 0; }
+    ul { margin: 0; padding-left: 18px; }
+    table { border-collapse: collapse; width: 100%; font-size: 12px; }
+    th, td { border: 1px solid #6b7280; padding: 6px 8px; text-align: left; vertical-align: top; }
+    th { background: #e5e7eb; font-weight: 700; }
+    tr:nth-child(even) td { background: #f9fafb; }
+    .actions { margin-bottom: 16px; }
+    button { border: 1px solid #1f2937; background: #1f2937; color: white; padding: 10px 14px; font-size: 15px; font-weight: 700; border-radius: 6px; }
+    @media print {
+      .actions { display: none; }
+      body { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+  <div class="actions"><button onclick="window.print()">Imprimir / guardar como PDF</button></div>
+  <header>
+    <h1>${escapeHtml(document.title)}</h1>
+    ${document.subtitle ? `<p><strong>${escapeHtml(document.subtitle)}</strong></p>` : ""}
+    <p>Fecha de exportacion: ${escapeHtml(generatedAt)}</p>
+    ${(document.meta ?? []).map((item) => `<p>${escapeHtml(item)}</p>`).join("")}
+  </header>
+  ${sections}
+  ${table}
+</body>
+</html>`;
+}
+
+export function printableHtmlResponse({
+  filename,
+  html,
+}: {
+  filename: string;
+  html: string;
+}) {
+  return new Response(html, {
+    headers: {
+      "Cache-Control": "no-store",
+      "Content-Disposition": `inline; filename="${filename}"`,
+      "Content-Type": "text/html; charset=utf-8",
     },
   });
 }
@@ -167,6 +253,15 @@ function buildPdf(objects: string[]) {
 
 function cleanCell(value: string | number | null | undefined) {
   return String(value ?? "").replace(/\s+/g, " ").trim();
+}
+
+function escapeHtml(value: string | number | null | undefined) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }
 
 function wrapLine(line: string) {

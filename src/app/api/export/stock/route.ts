@@ -1,5 +1,8 @@
 import { createCsv, csvResponse } from "@/lib/export/csv";
-import { createSimplePdf, pdfResponse } from "@/lib/export/pdf";
+import {
+  createPrintableReportHtml,
+  printableHtmlResponse,
+} from "@/lib/export/pdf";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import {
   FORBIDDEN_ACTION_MESSAGE,
@@ -24,19 +27,14 @@ type StockExportRow = {
 };
 
 const CSV_HEADERS = [
-  "codigo",
-  "codigo_barras",
-  "nombre",
-  "unidad",
-  "marca",
-  "proveedor",
-  "precio_venta",
-  "stock_actual",
-  "stock_minimo",
-  "costo_sin_iva",
-  "costo_con_iva",
-  "iva_pct",
-  "utilidad_pct",
+  "Codigo",
+  "Producto",
+  "Marca",
+  "Proveedor",
+  "Stock actual",
+  "Stock minimo",
+  "Precio venta",
+  "Estado",
 ];
 
 export async function GET(request: Request) {
@@ -47,22 +45,23 @@ export async function GET(request: Request) {
     const date = dateStamp();
 
     if (format === "pdf") {
-      return pdfResponse({
-        filename: `stock-${date}.pdf`,
-        pdf: createSimplePdf({
+      return printableHtmlResponse({
+        filename: `stock-${date}.html`,
+        html: createPrintableReportHtml({
           title: "Reporte de stock",
-          subtitle: tenant.name || "Ferretería Güemes",
+          subtitle: tenant.name || "Ferreteria Guemes",
           meta: [`Fecha de generacion: ${new Date().toLocaleString("es-AR")}`],
           table: {
-            headers: ["Codigo", "Producto", "Precio", "Stock", "Minimo", "Marca", "Proveedor"],
+            headers: CSV_HEADERS,
             rows: rows.map((row) => [
               row.sku,
               row.name,
-              formatNumber(row.sale_price),
-              formatNumber(row.stock_quantity),
-              formatNumber(row.min_stock),
               row.brands?.name ?? "",
               row.suppliers?.name ?? "",
+              formatNumber(row.stock_quantity),
+              formatNumber(row.min_stock),
+              formatMoney(row.sale_price),
+              stockStatus(row),
             ]),
           },
         }),
@@ -75,18 +74,13 @@ export async function GET(request: Request) {
         CSV_HEADERS,
         rows.map((row) => [
           row.sku,
-          row.barcode,
           row.name,
-          row.unit,
           row.brands?.name ?? "",
           row.suppliers?.name ?? "",
-          row.sale_price,
           row.stock_quantity,
           row.min_stock,
-          row.cost_without_tax,
-          row.cost_with_tax,
-          row.tax_rate,
-          row.profit_margin_percent,
+          formatMoney(row.sale_price),
+          stockStatus(row),
         ])
       ),
     });
@@ -130,6 +124,33 @@ function dateStamp() {
 
 function formatNumber(value: number | null | undefined) {
   return value === null || value === undefined ? "" : String(Number(value));
+}
+
+function formatMoney(value: number | null | undefined) {
+  if (value === null || value === undefined) {
+    return "";
+  }
+
+  return new Intl.NumberFormat("es-AR", {
+    currency: "ARS",
+    maximumFractionDigits: 2,
+    style: "currency",
+  }).format(Number(value));
+}
+
+function stockStatus(row: StockExportRow) {
+  const stock = Number(row.stock_quantity ?? 0);
+  const minStock = Number(row.min_stock ?? 0);
+
+  if (stock <= 0) {
+    return "Sin stock";
+  }
+
+  if (minStock > 0 && stock <= minStock) {
+    return "Bajo minimo";
+  }
+
+  return "Stock OK";
 }
 
 function exportErrorResponse(error: unknown) {

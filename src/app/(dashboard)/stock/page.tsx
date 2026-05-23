@@ -368,7 +368,7 @@ function StockProductCard({
 }) {
   const status = stockStatus(product);
   const content = (
-    <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_150px_150px] md:items-center md:gap-3">
+    <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_150px_150px_118px] md:items-center md:gap-3">
       <div className="min-w-0">
         <p className="font-mono text-[11px] font-semibold leading-tight text-muted-foreground">
           Codigo: {product.code}
@@ -394,6 +394,12 @@ function StockProductCard({
         </p>
         <p className="text-xs font-semibold leading-tight">{status.label}</p>
       </div>
+
+      {canAdjustStock ? (
+        <div className="flex min-h-[48px] items-center justify-center rounded-lg border border-primary bg-primary px-3 text-base font-bold text-primary-foreground md:min-h-[52px]">
+          Gestionar
+        </div>
+      ) : null}
     </div>
   );
 

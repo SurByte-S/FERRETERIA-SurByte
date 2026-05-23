@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useActionState, useEffect, useState, type ReactNode } from "react";
+import { startTransition, useActionState, useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, PackagePlus, Save, Trash2, X } from "lucide-react";
 
@@ -57,6 +57,8 @@ export function StockAdjustDetails({
 }) {
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState("");
+  const panelRef = useRef<HTMLDivElement>(null);
+  const panelId = `stock-panel-${product.id}`;
 
   useEffect(() => {
     if (!open) {
@@ -73,23 +75,38 @@ export function StockAdjustDetails({
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [open]);
 
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    panelRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest",
+    });
+  }, [open]);
+
   return (
     <>
       {children ? (
         <button
           type="button"
-          onClick={() => setOpen(true)}
+          onClick={() => setOpen((current) => !current)}
           className={triggerClassName}
           aria-label={triggerAriaLabel ?? `Gestionar producto ${product.name}`}
+          aria-expanded={open}
+          aria-controls={panelId}
         >
           {children}
         </button>
       ) : (
         <Button
           type="button"
-          onClick={() => setOpen(true)}
+          onClick={() => setOpen((current) => !current)}
           className="h-10 w-full gap-2 px-4 text-sm font-bold xl:h-11 xl:text-base"
           aria-label={triggerAriaLabel ?? `Gestionar producto ${product.name}`}
+          aria-expanded={open}
+          aria-controls={panelId}
         >
           <PackagePlus className="size-4" aria-hidden="true" />
           Gestionar
@@ -100,9 +117,13 @@ export function StockAdjustDetails({
       ) : null}
 
       {open ? (
-        <div className="fixed inset-0 z-40 grid place-items-center bg-black/35 p-3 sm:p-4">
-          <div className="flex max-h-[92vh] w-[calc(100vw-1.5rem)] max-w-7xl flex-col overflow-hidden rounded-lg border border-border bg-card shadow-xl">
-            <div className="sticky top-0 z-20 flex shrink-0 items-start justify-between gap-3 border-b border-border bg-card/95 px-3 py-3 backdrop-blur sm:px-4">
+        <div
+          ref={panelRef}
+          id={panelId}
+          className="mt-2 rounded-lg border-2 border-border bg-secondary p-2 shadow-sm sm:p-3"
+        >
+          <div className="flex w-full flex-col overflow-hidden rounded-lg border border-border bg-card">
+            <div className="flex shrink-0 items-start justify-between gap-3 border-b border-border bg-muted px-3 py-3 sm:px-4">
               <div className="min-w-0 pr-2">
                 <p className="text-lg font-bold">Gestionar producto</p>
                 <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-sm font-semibold text-muted-foreground">
@@ -112,17 +133,17 @@ export function StockAdjustDetails({
               </div>
               <Button
                 type="button"
-                variant="ghost"
-                size="icon"
+                variant="outline"
                 onClick={() => setOpen(false)}
                 aria-label="Cerrar"
-                className="shrink-0 text-red-600 hover:bg-red-50 hover:text-red-700 focus-visible:ring-red-500"
+                className="h-10 shrink-0 gap-2 px-4 text-base font-bold"
               >
                 <X className="size-4" aria-hidden="true" />
+                Cerrar
               </Button>
             </div>
 
-            <div className="min-h-0 overflow-x-hidden overflow-y-auto p-3 sm:p-4">
+            <div className="p-3 sm:p-4">
               <div className="grid gap-4 rounded-lg border border-border bg-muted/20 p-3">
                 <section className="min-w-0">
                   <StockAdjustForm

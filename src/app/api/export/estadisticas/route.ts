@@ -1,5 +1,8 @@
 import { createCsv, csvResponse } from "@/lib/export/csv";
-import { createSimplePdf, pdfResponse } from "@/lib/export/pdf";
+import {
+  createPrintableReportHtml,
+  printableHtmlResponse,
+} from "@/lib/export/pdf";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import {
   FORBIDDEN_ACTION_MESSAGE,
@@ -9,10 +12,12 @@ import {
 
 type SaleExportRow = {
   id: string;
+  sale_number: number | null;
   total: number | null;
   paid_amount: number | null;
   payment_method: string | null;
   created_at: string;
+  customers: { name: string | null } | null;
 };
 
 type SaleItemExportRow = {
@@ -31,6 +36,16 @@ type StatsSummary = {
   totalSold: number;
 };
 
+const SALES_HEADERS = [
+  "Fecha",
+  "N venta",
+  "Cliente",
+  "Forma de pago",
+  "Total",
+  "Pagado",
+  "Pendiente",
+];
+
 export async function GET(request: Request) {
   try {
     const tenant = await requireTenantRole(["owner", "admin"]);
@@ -43,11 +58,24 @@ export async function GET(request: Request) {
     const summary = summarize(sales, items);
     const date = new Date().toISOString().slice(0, 10);
     const generatedAt = new Date().toLocaleString("es-AR");
+    const salesRows = sales.map((sale) => {
+      const total = Number(sale.total ?? 0);
+      const paid = Number(sale.paid_amount ?? 0);
+      return [
+        formatDate(sale.created_at),
+        sale.sale_number ?? "",
+        sale.customers?.name || "Consumidor final",
+        sale.payment_method || "Sin forma de pago",
+        formatMoney(total),
+        formatMoney(paid),
+        formatMoney(Math.max(total - paid, 0)),
+      ];
+    });
 
     if (format === "pdf") {
-      return pdfResponse({
-        filename: `estadisticas-${date}.pdf`,
-        pdf: createSimplePdf({
+      return printableHtmlResponse({
+        filename: `estadisticas-${date}.html`,
+        html: createPrintableReportHtml({
           title: "Reporte de estadisticas",
           subtitle: tenant.name,
           meta: [`Fecha de generacion: ${generatedAt}`],
@@ -68,42 +96,18 @@ export async function GET(request: Request) {
                 ([method, total]) => `${method}: ${formatMoney(total)}`
               ),
             },
-            {
-              title: "Productos mas vendidos",
-              lines: summary.products
-                .slice(0, 15)
-                .map(
-                  (product) =>
-                    `${product.name}: ${product.quantity} unidades - ${formatMoney(product.total)}`
-                ),
-            },
           ],
+          table: {
+            headers: SALES_HEADERS,
+            rows: salesRows,
+          },
         }),
       });
     }
 
     return csvResponse({
       filename: `estadisticas-${date}.csv`,
-      csv: createCsv(
-        ["seccion", "metrica", "valor"],
-        [
-          ["resumen", "total_vendido", summary.totalSold],
-          ["resumen", "total_cobrado", summary.totalPaid],
-          ["resumen", "pendiente_cobro", summary.pending],
-          ["resumen", "cantidad_ventas", summary.salesCount],
-          ["resumen", "ticket_promedio", summary.averageTicket],
-          ...Object.entries(summary.byPaymentMethod).map(([method, total]) => [
-            "metodo_pago",
-            method,
-            total,
-          ]),
-          ...summary.products.map((product) => [
-            "producto",
-            `${product.name} | cantidad ${product.quantity}`,
-            product.total,
-          ]),
-        ]
-      ),
+      csv: createCsv(SALES_HEADERS, salesRows),
     });
   } catch (error) {
     if (isTenantRoleForbiddenError(error)) {
@@ -125,7 +129,7 @@ async function loadSales(tenantId: string) {
   for (let from = 0; ; from += pageSize) {
     const { data, error } = await supabase
       .from("sales")
-      .select("id,total,paid_amount,payment_method,created_at")
+      .select("id,sale_number,total,paid_amount,payment_method,created_at,customers(name)")
       .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false })
       .range(from, from + pageSize - 1);
@@ -212,4 +216,11 @@ function formatMoney(value: number) {
     maximumFractionDigits: 2,
     style: "currency",
   }).format(value);
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat("es-AR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(new Date(value));
 }

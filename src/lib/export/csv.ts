@@ -2,8 +2,8 @@ export type CsvValue = string | number | boolean | null | undefined;
 
 export function createCsv(headers: string[], rows: CsvValue[][]) {
   const lines = [
-    headers.map(escapeCsvValue).join(","),
-    ...rows.map((row) => row.map(escapeCsvValue).join(",")),
+    headers.map(escapeCsvValue).join(";"),
+    ...rows.map((row) => row.map(escapeCsvValue).join(";")),
   ];
 
   return `\uFEFF${lines.join("\r\n")}`;
@@ -12,7 +12,7 @@ export function createCsv(headers: string[], rows: CsvValue[][]) {
 function escapeCsvValue(value: CsvValue) {
   const text = value === null || value === undefined ? "" : String(value);
 
-  if (/[",\r\n]/.test(text)) {
+  if (/[;"\r\n]/.test(text)) {
     return `"${text.replaceAll('"', '""')}"`;
   }
 
