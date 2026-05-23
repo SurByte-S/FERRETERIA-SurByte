@@ -70,8 +70,8 @@ export default async function PresupuestosPage() {
         backLabel="Volver al inicio"
       />
 
-      <div className="no-print mb-6">
-        <Button asChild className="h-11 gap-2 px-5 text-base xl:h-14 xl:gap-3 xl:px-6 xl:text-lg">
+      <div className="no-print mb-6 rounded-md border-2 border-border bg-secondary p-3">
+        <Button asChild className="h-14 gap-2 px-6 text-lg">
           <Link href="/inicio">
             <ShoppingCart className="size-6" aria-hidden="true" />
             Ir a vender
@@ -106,35 +106,107 @@ export default async function PresupuestosPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-2">
+        <section className="grid gap-3">
+          <div className="hidden overflow-hidden rounded-md border-2 border-border bg-card lg:block">
+            <table className="w-full border-collapse text-left">
+              <thead className="bg-primary">
+                <tr className="border-b-2 border-border">
+                  <th className="border-r border-border px-4 py-4 text-base font-bold text-primary-foreground">
+                    Fecha
+                  </th>
+                  <th className="border-r border-border px-4 py-4 text-base font-bold text-primary-foreground">
+                    Nº presupuesto
+                  </th>
+                  <th className="border-r border-border px-4 py-4 text-base font-bold text-primary-foreground">
+                    Cliente
+                  </th>
+                  <th className="border-r border-border px-4 py-4 text-base font-bold text-primary-foreground">
+                    Estado
+                  </th>
+                  <th className="border-r border-border px-4 py-4 text-right text-base font-bold text-primary-foreground">
+                    Total
+                  </th>
+                  <th className="px-4 py-4 text-right text-base font-bold text-primary-foreground">
+                    Acciones
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {quotes.map((quote) => (
+                  <tr
+                    key={quote.id}
+                    className="border-b border-border last:border-b-0 even:bg-muted/25"
+                  >
+                    <td className="border-r border-border px-4 py-4 text-base font-semibold">
+                      {formatDate(quote.created_at)}
+                    </td>
+                    <td className="border-r border-border px-4 py-4 text-base font-bold">
+                      #{quote.quote_number}
+                    </td>
+                    <td className="border-r border-border px-4 py-4 text-base font-semibold">
+                      {quote.customers?.name ?? "Sin cliente"}
+                    </td>
+                    <td className="border-r border-border px-4 py-4 text-base font-semibold">
+                      {statusLabel(quote.status)}
+                    </td>
+                    <td className="border-r border-border px-4 py-4 text-right font-mono text-lg font-black tabular-nums">
+                      {formatMoney(quote.total)}
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="flex justify-end gap-2">
+                        <Button asChild className="h-12 min-w-24 gap-2 px-4 text-base">
+                          <Link href={`/presupuestos/${quote.id}`}>
+                            <Eye className="size-5" aria-hidden="true" />
+                            Ver
+                          </Link>
+                        </Button>
+                        <Button
+                          asChild
+                          variant="outline"
+                          className="h-12 min-w-32 gap-2 px-4 text-base"
+                        >
+                          <Link href={`/presupuestos/${quote.id}?print=1`}>
+                            <Printer className="size-5" aria-hidden="true" />
+                            Imprimir
+                          </Link>
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="grid gap-2 lg:hidden">
           {quotes.map((quote) => (
-            <Card key={quote.id} className="min-h-[88px] rounded-lg">
+            <Card key={quote.id} className="min-h-[88px] rounded-md border-2">
               <CardContent className="grid min-h-[88px] gap-3 p-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
                 <div className="min-w-0 space-y-1">
-                  <p className="text-xs leading-tight text-muted-foreground">
+                  <p className="text-sm font-semibold leading-tight text-foreground">
                     {formatDate(quote.created_at)}
                   </p>
                   <h2 className="truncate text-lg font-bold leading-tight">
                     Presupuesto #{quote.quote_number}
                   </h2>
-                  <p className="truncate text-sm font-semibold leading-tight text-muted-foreground">
+                  <p className="truncate text-sm font-semibold leading-tight text-foreground">
                     Cliente: {quote.customers?.name ?? "Sin cliente"} · Estado:{" "}
                     {statusLabel(quote.status)}
                   </p>
                 </div>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-[130px_80px_130px] md:flex md:flex-wrap md:items-center md:justify-end">
-                  <p className="inline-flex h-10 w-[130px] items-center justify-center whitespace-nowrap rounded-md border border-border bg-background px-3 text-base font-bold">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-[150px_90px_140px] md:flex md:flex-wrap md:items-center md:justify-end">
+                  <p className="inline-flex h-12 min-w-[150px] items-center justify-center whitespace-nowrap rounded-md border border-border bg-background px-3 font-mono text-lg font-black tabular-nums">
                     {formatMoney(quote.total)}
                   </p>
-                  <Button asChild className="h-10 min-w-[80px] gap-2 px-3 text-sm">
+                  <Button asChild className="h-12 min-w-[90px] gap-2 px-3 text-base">
                     <Link href={`/presupuestos/${quote.id}`}>
-                      <Eye className="size-4" aria-hidden="true" />
+                      <Eye className="size-5" aria-hidden="true" />
                       Ver
                     </Link>
                   </Button>
-                  <Button asChild variant="outline" className="h-10 w-[130px] gap-2 px-3 text-sm">
+                  <Button asChild variant="outline" className="h-12 min-w-[140px] gap-2 px-3 text-base">
                     <Link href={`/presupuestos/${quote.id}?print=1`}>
-                      <Printer className="size-4" aria-hidden="true" />
+                      <Printer className="size-5" aria-hidden="true" />
                       Imprimir
                     </Link>
                   </Button>
@@ -142,7 +214,8 @@ export default async function PresupuestosPage() {
               </CardContent>
             </Card>
           ))}
-        </div>
+          </div>
+        </section>
       )}
     </>
   );

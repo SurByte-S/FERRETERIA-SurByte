@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, Clock } from "lucide-react";
+import { ArrowLeft, Calculator, Clock } from "lucide-react";
 
 import { OpenCashForm, CloseCashForm } from "@/components/caja/cash-forms";
 import { Button } from "@/components/ui/button";
@@ -126,7 +126,8 @@ export default async function CajaPage() {
         </h1>
       </header>
 
-      {openSessionResult.error || historyResult.error || salesResult.error ? (
+      <section className="rounded-md border-2 border-border bg-secondary p-3 shadow-sm sm:p-4">
+        {openSessionResult.error || historyResult.error || salesResult.error ? (
         <Card className="border-destructive/40">
           <CardHeader>
             <CardTitle>Necesita revision</CardTitle>
@@ -135,54 +136,88 @@ export default async function CajaPage() {
             </CardDescription>
           </CardHeader>
         </Card>
-      ) : openSession ? (
+        ) : openSession ? (
         <div className="grid gap-6">
-          <Card className="border-emerald-500/60">
-            <CardHeader>
-              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                <CardTitle>Caja abierta</CardTitle>
-                <CardDescription>
-                  Abierta el {formatDate(openSession.opened_at)}
-                </CardDescription>
+          <Card className="border-2 border-primary bg-card shadow-sm">
+            <CardHeader className="border-b-2 border-primary bg-primary text-primary-foreground">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                  <CardTitle className="text-2xl text-primary-foreground">Caja abierta</CardTitle>
+                  <CardDescription className="text-sm font-semibold text-primary-foreground">
+                    Abierta el {formatDate(openSession.opened_at)}
+                  </CardDescription>
+                </div>
+                <div className="rounded-md border border-emerald-500/40 bg-emerald-50 px-3 py-1 text-sm font-bold text-emerald-800">
+                  En curso
+                </div>
               </div>
             </CardHeader>
-            <CardContent className="grid gap-4 md:grid-cols-4">
-              <Metric label="Monto inicial" value={formatMoney(openSession.opening_amount)} />
-              <Metric label="Total vendido" value={formatMoney(summary.totalSold)} />
-              <Metric label="Cantidad de ventas" value={String(summary.salesCount)} />
-              <Metric label="Efectivo esperado" value={formatMoney(expectedCash)} />
+            <CardContent className="grid gap-3 md:grid-cols-4">
+              <Metric
+                label="Monto inicial"
+                value={formatMoney(openSession.opening_amount)}
+                tone="ledger"
+              />
+              <Metric
+                label="Total vendido"
+                value={formatMoney(summary.totalSold)}
+                tone="strong"
+              />
+              <Metric
+                label="Cantidad de ventas"
+                value={String(summary.salesCount)}
+                tone="ledger"
+              />
+              <Metric
+                label="Efectivo esperado"
+                value={formatMoney(expectedCash)}
+                tone="cash"
+              />
             </CardContent>
           </Card>
 
-          <div className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_340px] 2xl:gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Total por forma de pago</CardTitle>
+          <div className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_380px] 2xl:gap-6">
+            <Card className="border-2 border-border bg-card shadow-sm">
+              <CardHeader className="border-b-2 border-border bg-primary text-primary-foreground">
+                <div className="flex items-center gap-3">
+                  <div className="flex size-10 shrink-0 items-center justify-center rounded-md border border-border bg-card text-primary">
+                    <Calculator className="size-5" aria-hidden="true" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl text-primary-foreground">Cuadre de caja</CardTitle>
+                    <CardDescription className="text-sm font-semibold text-primary-foreground">
+                      Resumen para comparar ventas, efectivo y cierre
+                    </CardDescription>
+                  </div>
+                </div>
               </CardHeader>
-              <CardContent className="grid gap-3">
-                {Object.keys(summary.totalsByMethod).length === 0 ? (
-                  <p className="text-base text-muted-foreground">
-                    Todavia no hay ventas asociadas a esta caja.
-                  </p>
-                ) : (
-                  Object.entries(summary.totalsByMethod).map(([method, total]) => (
-                    <div
-                      key={method}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border p-3"
-                    >
-                      <span className="font-semibold">{method}</span>
-                      <span className="text-lg font-bold">{formatMoney(total)}</span>
-                    </div>
-                  ))
-                )}
+              <CardContent className="grid gap-4 pt-3">
+                <div className="grid gap-3 lg:grid-cols-3">
+                  <LedgerLine
+                    label="Efectivo inicial"
+                    value={formatMoney(openSession.opening_amount)}
+                  />
+                  <LedgerLine
+                    label="Ventas en efectivo"
+                    value={formatMoney(summary.expectedCashSales)}
+                  />
+                  <LedgerLine
+                    label="Debe haber en caja"
+                    value={formatMoney(expectedCash)}
+                    highlight
+                  />
+                </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Cerrar caja</CardTitle>
+            <Card className="border-2 border-destructive/40 bg-destructive/10 shadow-sm">
+              <CardHeader className="border-b-2 border-destructive/40 bg-destructive/10">
+                <CardTitle className="text-xl text-destructive">Cerrar caja</CardTitle>
+                <CardDescription className="text-sm font-semibold text-muted-foreground">
+                  Accion final del dia
+                </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-3">
                 <CloseCashForm
                   sessionId={openSession.id}
                   expectedCash={expectedCash}
@@ -191,62 +226,145 @@ export default async function CajaPage() {
             </Card>
           </div>
 
+          <Card className="border-2 border-border bg-card shadow-sm">
+            <CardHeader className="border-b-2 border-border bg-primary text-primary-foreground">
+              <CardTitle className="text-xl text-primary-foreground">Total por forma de pago</CardTitle>
+              <CardDescription className="text-sm font-semibold text-primary-foreground">
+                Ventas asociadas a la caja abierta
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-3">
+              {Object.keys(summary.totalsByMethod).length === 0 ? (
+                <p className="text-base text-muted-foreground">
+                  Todavia no hay ventas asociadas a esta caja.
+                </p>
+              ) : (
+                <div className="overflow-hidden rounded-md border-2 border-border bg-card">
+                  <div className="grid grid-cols-[minmax(0,1fr)_minmax(140px,220px)] border-b-2 border-border bg-muted text-base font-bold text-foreground">
+                    <div className="px-4 py-3">Forma de pago</div>
+                    <div className="border-l border-border px-4 py-3 text-right">
+                      Total
+                    </div>
+                  </div>
+                  {Object.entries(summary.totalsByMethod).map(([method, total]) => (
+                    <div
+                      key={method}
+                      className="grid grid-cols-[minmax(0,1fr)_minmax(140px,220px)] border-b border-border text-lg last:border-b-0 even:bg-muted/25"
+                    >
+                      <div className="px-4 py-3 font-semibold text-foreground">
+                        {method}
+                      </div>
+                      <div className="border-l border-border px-4 py-3 text-right font-mono text-2xl font-black tabular-nums text-foreground">
+                        {formatMoney(total)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           <CashHistory sessions={history} />
         </div>
       ) : (
         <div className="grid gap-6">
-          <Card className="border-red-500/60">
-            <CardHeader>
-              <CardTitle>No hay caja abierta</CardTitle>
-              <CardDescription>
-                Podes vender igual, pero esas ventas quedaran sin caja asociada.
+          <Card className="border-2 border-border bg-secondary shadow-sm">
+            <CardHeader className="border-b-2 border-border bg-muted">
+              <CardTitle className="text-2xl text-foreground">
+                No hay caja abierta
+              </CardTitle>
+              <CardDescription className="text-base font-semibold text-muted-foreground">
+                Para llevar mejor el control, abri la caja antes de vender.
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-3">
               <OpenCashForm />
             </CardContent>
           </Card>
 
           <CashHistory sessions={history} />
         </div>
-      )}
+        )}
+      </section>
     </>
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+function Metric({
+  label,
+  value,
+  tone = "ledger",
+}: {
+  label: string;
+  value: string;
+  tone?: "ledger" | "strong" | "cash";
+}) {
+  const toneClass =
+    tone === "strong"
+      ? "border-primary bg-secondary"
+      : tone === "cash"
+        ? "border-emerald-500/40 bg-emerald-50"
+        : "border-border bg-card";
+
   return (
-    <div className="rounded-lg border border-border bg-background p-4">
-      <p className="text-base text-muted-foreground">{label}</p>
-      <p className="mt-1 text-2xl font-bold">{value}</p>
+    <div className={`rounded-md border-2 p-4 ${toneClass}`}>
+      <p className="text-base font-bold text-foreground">{label}</p>
+      <p className="mt-2 font-mono text-3xl font-black leading-none tabular-nums text-foreground">
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function LedgerLine({
+  label,
+  value,
+  highlight = false,
+}: {
+  label: string;
+  value: string;
+  highlight?: boolean;
+}) {
+  return (
+    <div
+      className={`rounded-md border-2 p-4 ${
+        highlight
+          ? "border-emerald-500/40 bg-emerald-50"
+          : "border-border bg-card"
+      }`}
+    >
+      <p className="text-sm font-bold uppercase text-foreground">{label}</p>
+      <p className="mt-2 font-mono text-3xl font-black tabular-nums text-foreground">
+        {value}
+      </p>
     </div>
   );
 }
 
 function CashHistory({ sessions }: { sessions: CashSessionRow[] }) {
   return (
-    <Card>
-      <details>
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-3">
+    <Card className="border-2 border-border bg-card shadow-sm">
+      <details open>
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 border-b-2 border-border bg-primary p-4">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+            <div className="flex size-11 shrink-0 items-center justify-center rounded-md border border-border bg-card text-primary">
               <Clock className="size-5" aria-hidden="true" />
             </div>
             <div className="min-w-0">
-              <CardTitle className="text-base">Historial de cierres</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-xl text-primary-foreground">Historial de cierres</CardTitle>
+              <CardDescription className="text-sm font-semibold text-primary-foreground">
                 {sessions.length === 0
                   ? "Sin cierres registrados"
                   : `${sessions.length} registro${sessions.length === 1 ? "" : "s"}`}
               </CardDescription>
             </div>
           </div>
-          <span className="shrink-0 text-sm font-semibold text-muted-foreground">
+          <span className="shrink-0 rounded-md border border-border bg-card px-3 py-1 text-sm font-bold text-primary">
             Ver
           </span>
         </summary>
 
-        <CardContent className="grid gap-3">
+        <CardContent className="grid gap-3 pt-3">
           {sessions.length === 0 ? (
             <p className="text-base text-muted-foreground">
               Todavia no hay cierres de caja.
@@ -255,25 +373,37 @@ function CashHistory({ sessions }: { sessions: CashSessionRow[] }) {
             sessions.map((session) => (
               <div
                 key={session.id}
-                className="grid gap-3 rounded-lg border border-border p-3 2xl:grid-cols-[minmax(0,1fr)_auto] 2xl:p-4"
+                className="grid gap-3 rounded-md border-2 border-border bg-card p-4 2xl:grid-cols-[minmax(0,1fr)_auto]"
               >
                 <div>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-base font-semibold text-foreground">
                     Apertura: {formatDate(session.opened_at)}
                   </p>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-base font-semibold text-foreground">
                     Cierre: {formatDate(session.closed_at)}
                   </p>
-                  <p className="text-xl font-bold">
+                  <p className="mt-2 text-2xl font-bold">
                     {session.status === "open" ? "Abierta" : "Cerrada"}
                   </p>
                   {session.notes ? <p>Nota: {session.notes}</p> : null}
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-                  <Metric label="Inicial" value={formatMoney(session.opening_amount)} />
-                  <Metric label="Esperado" value={formatMoney(session.expected_cash_amount)} />
-                  <Metric label="Contado" value={formatMoney(session.counted_cash_amount)} />
-                  <Metric label="Diferencia" value={formatMoney(session.difference_amount)} />
+                  <HistoryMetric
+                    label="Inicial"
+                    value={formatMoney(session.opening_amount)}
+                  />
+                  <HistoryMetric
+                    label="Esperado"
+                    value={formatMoney(session.expected_cash_amount)}
+                  />
+                  <HistoryMetric
+                    label="Contado"
+                    value={formatMoney(session.counted_cash_amount)}
+                  />
+                  <HistoryMetric
+                    label="Diferencia"
+                    value={formatMoney(session.difference_amount)}
+                  />
                 </div>
               </div>
             ))
@@ -281,5 +411,16 @@ function CashHistory({ sessions }: { sessions: CashSessionRow[] }) {
         </CardContent>
       </details>
     </Card>
+  );
+}
+
+function HistoryMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-36 rounded-md border border-border bg-background p-3">
+      <p className="text-sm font-bold text-foreground">{label}</p>
+      <p className="mt-1 font-mono text-xl font-black tabular-nums text-foreground">
+        {value}
+      </p>
+    </div>
   );
 }

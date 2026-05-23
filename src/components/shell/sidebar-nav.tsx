@@ -41,7 +41,7 @@ export function SidebarNav() {
                   <span
                     className={cn(
                       "block truncate text-xs font-medium leading-tight",
-                      active ? "text-primary-foreground/80" : "text-muted-foreground"
+                      active ? "text-primary-foreground" : "text-muted-foreground"
                     )}
                   >
                    

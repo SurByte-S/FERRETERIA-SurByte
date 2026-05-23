@@ -258,9 +258,9 @@ function MetricCard({
   return (
     <Card
       className={cn(
-        "min-h-36",
-        tone === "paid" && "border-emerald-500/30 bg-emerald-50",
-        tone === "pending" && "border-destructive/30 bg-destructive/5"
+        "min-h-36 border-2 border-border",
+        tone === "paid" && "border-emerald-500/40 bg-emerald-50",
+        tone === "pending" && "border-destructive/40 bg-destructive/10"
       )}
     >
       <CardContent className="p-4 xl:p-5">
@@ -278,7 +278,7 @@ function MetricCard({
 
 function Notice({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex gap-3 rounded-md border border-border bg-secondary p-4 text-lg font-semibold text-secondary-foreground">
+    <div className="flex gap-3 rounded-md border border-border bg-secondary p-4 text-lg font-semibold text-foreground">
       <AlertTriangle
         className="mt-0.5 size-6 shrink-0 text-primary"
         aria-hidden="true"
@@ -453,7 +453,7 @@ function DailySalesChart({ days }: { days: DailySale[] }) {
                     <p className="text-lg font-bold capitalize text-foreground">
                       {day.dayName}
                     </p>
-                    <p className="text-base font-semibold text-muted-foreground">
+                    <p className="text-base font-semibold text-foreground">
                       {day.shortDate} - {day.count} venta
                       {day.count === 1 ? "" : "s"}
                     </p>

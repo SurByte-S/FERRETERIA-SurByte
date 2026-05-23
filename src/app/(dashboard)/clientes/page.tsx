@@ -185,25 +185,31 @@ function applyBalanceFilter<QueryBuilder extends {
 
 function SummaryCard({
   label,
+  note,
   value,
   tone = "default",
 }: {
   label: string;
+  note: string;
   value: number;
   tone?: "default" | "debt" | "clear" | "credit";
 }) {
   return (
     <Card
       className={cn(
-        "min-h-24",
-        tone === "debt" && "border-destructive/30 bg-destructive/5",
-        tone === "clear" && "border-emerald-500/30 bg-emerald-50",
-        tone === "credit" && "border-sky-500/30 bg-sky-50"
+        "min-h-28 border-2 shadow-sm",
+        tone === "default" && "border-border bg-card",
+        tone === "debt" && "border-destructive/40 bg-destructive/10",
+        tone === "clear" && "border-emerald-500/40 bg-emerald-50",
+        tone === "credit" && "border-sky-500/40 bg-sky-50"
       )}
     >
       <CardContent className="p-4">
-        <p className="text-base font-medium text-muted-foreground">{label}</p>
-        <p className="mt-2 text-3xl font-bold text-foreground">{value}</p>
+        <p className="text-base font-bold text-foreground">{label}</p>
+        <p className="mt-2 font-mono text-4xl font-black leading-none tabular-nums text-foreground">
+          {value}
+        </p>
+        <p className="mt-2 text-sm font-semibold text-muted-foreground">{note}</p>
       </CardContent>
     </Card>
   );
@@ -212,13 +218,17 @@ function SummaryCard({
 function CustomerActions({ customerId }: { customerId: string }) {
   return (
     <div className="flex flex-col gap-2 min-[440px]:flex-row lg:justify-end">
-      <Button asChild className="h-12 gap-2 px-4 text-base">
+      <Button asChild className="h-12 gap-2 px-5 text-base">
         <Link href={`/clientes/${customerId}`}>
           <Eye className="size-5" aria-hidden="true" />
           Ver
         </Link>
       </Button>
-      <Button asChild variant="outline" className="h-12 gap-2 px-4 text-base">
+      <Button
+        asChild
+        variant="outline"
+        className="h-12 gap-2 px-5 text-base"
+      >
         <Link href={`/clientes/${customerId}/editar`}>
           <Edit className="size-5" aria-hidden="true" />
           Editar
@@ -433,45 +443,65 @@ export default async function ClientesPage({ searchParams }: ClientesPageProps) 
         backLabel="Volver al inicio"
       />
 
+      <section className="rounded-md border-2 border-border bg-secondary p-3 shadow-sm sm:p-4">
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <Button asChild className="h-12 gap-2 px-5 text-base xl:h-14 xl:px-6 xl:text-lg">
+        <Button
+          asChild
+          className="h-14 gap-2 px-6 text-lg shadow-sm"
+        >
           <Link href="/clientes/nuevo">
             <Plus className="size-6" aria-hidden="true" />
             Nuevo cliente
           </Link>
         </Button>
         <ExportMenuButton
+          label="Exportar Excel/CSV"
           csvHref="/api/export/clientes?format=csv"
           pdfHref="/api/export/clientes?format=pdf"
         />
       </div>
 
       <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <SummaryCard label="Total clientes" value={totalCustomers} />
+        <SummaryCard
+          label="Total clientes"
+          note="Clientes guardados"
+          value={totalCustomers}
+        />
         <SummaryCard
           label="Con deuda"
+          note="Revisar cuenta corriente"
           value={debtCountResult.count ?? 0}
           tone="debt"
         />
         <SummaryCard
           label="Sin deuda"
+          note="Cuenta al dia"
           value={clearCountResult.count ?? 0}
           tone="clear"
         />
         <SummaryCard
           label="Saldo a favor"
+          note="Dinero a favor del cliente"
           value={creditCountResult.count ?? 0}
           tone="credit"
         />
       </section>
 
-      <Card className="mb-5">
+      <Card className="mb-5 border-2 border-border bg-card shadow-sm">
+        <CardHeader className="border-b-2 border-border bg-primary text-primary-foreground">
+          <CardTitle className="text-xl text-primary-foreground">
+            Buscar en cuenta corriente
+          </CardTitle>
+          <CardDescription className="text-sm font-semibold text-primary-foreground">
+            Nombre, telefono, email o direccion
+          </CardDescription>
+        </CardHeader>
         <CardContent className="grid gap-4 p-4">
           <form action="/clientes" className="grid gap-3 lg:grid-cols-[1fr_auto]">
             <input type="hidden" name="estado" value={account} />
             <input type="hidden" name="orden" value={sort} />
             <input type="hidden" name="porPagina" value={perPage} />
-            <label className="grid gap-2 text-base font-semibold">
+            <label className="grid gap-2 text-base font-bold text-foreground">
               Buscar cliente
               <div className="relative">
                 <Search
@@ -482,11 +512,14 @@ export default async function ClientesPage({ searchParams }: ClientesPageProps) 
                   name="q"
                   defaultValue={query}
                   placeholder="Buscar por nombre, teléfono, email o dirección"
-                  className="h-14 w-full rounded-md border border-border bg-background py-3 pl-12 pr-4 text-lg text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/40"
+                  className="h-14 w-full rounded-md border-2 border-border bg-background py-3 pl-12 pr-4 text-lg font-semibold text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-ring/40"
                 />
               </div>
             </label>
-            <Button type="submit" className="h-14 gap-2 px-6 text-lg lg:self-end">
+            <Button
+              type="submit"
+              className="h-14 gap-2 px-7 text-lg lg:self-end"
+            >
               <Search className="size-5" aria-hidden="true" />
               Buscar
             </Button>
@@ -499,7 +532,12 @@ export default async function ClientesPage({ searchParams }: ClientesPageProps) 
                   key={filter.value}
                   asChild
                   variant={account === filter.value ? "default" : "outline"}
-                  className="h-11 px-4 text-base"
+                  className={cn(
+                    "h-12 border-border px-4 text-base font-bold",
+                    account === filter.value
+                      ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                      : "bg-card text-foreground hover:bg-muted"
+                  )}
                 >
                   <Link
                     href={buildClientesHref({
@@ -519,31 +557,35 @@ export default async function ClientesPage({ searchParams }: ClientesPageProps) 
             <form action="/clientes" className="grid gap-3 sm:grid-cols-2">
               <input type="hidden" name="q" value={query} />
               <input type="hidden" name="estado" value={account} />
-              <label className="grid gap-1 text-sm font-semibold">
+              <label className="grid gap-1 text-sm font-bold text-foreground">
                 Ordenar por
                 <select
                   name="orden"
                   defaultValue={sort}
-                  className="h-11 rounded-md border border-border bg-background px-3 text-base text-foreground"
+                  className="h-12 rounded-md border-2 border-border bg-background px-3 text-base font-semibold text-foreground"
                 >
                   <option value="name">Nombre</option>
                   <option value="debt_desc">Mayor deuda</option>
                   <option value="debt_asc">Menor deuda</option>
                 </select>
               </label>
-              <label className="grid gap-1 text-sm font-semibold">
+              <label className="grid gap-1 text-sm font-bold text-foreground">
                 Por página
                 <select
                   name="porPagina"
                   defaultValue={perPage}
-                  className="h-11 rounded-md border border-border bg-background px-3 text-base text-foreground"
+                  className="h-12 rounded-md border-2 border-border bg-background px-3 text-base font-semibold text-foreground"
                 >
                   <option value="25">25</option>
                   <option value="50">50</option>
                   <option value="100">100</option>
                 </select>
               </label>
-              <Button type="submit" variant="outline" className="h-11 text-base sm:col-span-2">
+              <Button
+                type="submit"
+                variant="outline"
+                className="h-12 border-border bg-card text-base font-bold text-foreground hover:bg-muted sm:col-span-2"
+              >
                 Aplicar
               </Button>
             </form>
@@ -596,26 +638,26 @@ export default async function ClientesPage({ searchParams }: ClientesPageProps) 
         </Card>
       ) : (
         <section className="grid gap-4">
-          <div className="hidden overflow-hidden rounded-md border border-border bg-card lg:block">
+          <div className="hidden overflow-hidden rounded-md border-2 border-border bg-card shadow-sm lg:block">
             <table className="w-full border-collapse text-left">
-              <thead className="bg-muted/70">
-                <tr className="border-b border-border">
-                  <th className="px-4 py-4 text-base font-bold text-foreground">
+              <thead className="bg-primary">
+                <tr className="border-b-2 border-border">
+                  <th className="border-r border-border px-4 py-4 text-base font-bold text-primary-foreground">
                     Cliente
                   </th>
-                  <th className="px-4 py-4 text-base font-bold text-foreground">
+                  <th className="border-r border-border px-4 py-4 text-base font-bold text-primary-foreground">
                     Teléfono
                   </th>
-                  <th className="px-4 py-4 text-base font-bold text-foreground">
+                  <th className="border-r border-border px-4 py-4 text-base font-bold text-primary-foreground">
                     Email
                   </th>
-                  <th className="px-4 py-4 text-base font-bold text-foreground">
+                  <th className="border-r border-border px-4 py-4 text-base font-bold text-primary-foreground">
                     Dirección
                   </th>
-                  <th className="px-4 py-4 text-base font-bold text-foreground">
+                  <th className="border-r border-border px-4 py-4 text-base font-bold text-primary-foreground">
                     Estado de cuenta
                   </th>
-                  <th className="px-4 py-4 text-right text-base font-bold text-foreground">
+                  <th className="px-4 py-4 text-right text-base font-bold text-primary-foreground">
                     Acciones
                   </th>
                 </tr>
@@ -630,26 +672,26 @@ export default async function ClientesPage({ searchParams }: ClientesPageProps) 
                       key={customer.id}
                       className="border-b border-border last:border-b-0 even:bg-muted/25"
                     >
-                      <td className="max-w-[260px] px-4 py-4 text-lg font-bold text-foreground">
+                      <td className="max-w-[260px] border-r border-border px-4 py-4 text-lg font-bold text-foreground">
                         {customer.name}
                       </td>
-                      <td className="px-4 py-4 text-base text-foreground">
+                      <td className="border-r border-border px-4 py-4 text-base font-semibold text-foreground">
                         {customer.phone ?? "Sin teléfono"}
                       </td>
-                      <td className="max-w-[240px] px-4 py-4 text-base text-foreground">
+                      <td className="max-w-[240px] border-r border-border px-4 py-4 text-base font-semibold text-foreground">
                         <span className="block truncate">
                           {customer.email ?? "Sin email"}
                         </span>
                       </td>
-                      <td className="max-w-[280px] px-4 py-4 text-base text-foreground">
+                      <td className="max-w-[280px] border-r border-border px-4 py-4 text-base font-semibold text-foreground">
                         <span className="block truncate">
                           {customer.address ?? "Sin dirección"}
                         </span>
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="border-r border-border px-4 py-4">
                         <span
                           className={cn(
-                            "inline-flex min-h-11 items-center rounded-md border px-3 text-base font-bold",
+                            "inline-flex min-h-11 items-center rounded-md border-2 px-3 font-mono text-base font-black tabular-nums",
                             debt.className
                           )}
                         >
@@ -672,7 +714,7 @@ export default async function ClientesPage({ searchParams }: ClientesPageProps) 
               const debt = formatDebt(balance);
 
               return (
-                <Card key={customer.id}>
+                <Card key={customer.id} className="border-2 border-border bg-card">
                   <CardContent className="grid gap-3 p-4">
                     <div className="min-w-0">
                       <h2 className="truncate text-xl font-bold text-foreground">
@@ -681,16 +723,16 @@ export default async function ClientesPage({ searchParams }: ClientesPageProps) 
                       <p className="mt-2 text-base">
                         Teléfono: {customer.phone ?? "Sin teléfono"}
                       </p>
-                      <p className="text-base text-muted-foreground">
+                      <p className="text-base text-foreground">
                         Email: {customer.email ?? "Sin email"}
                       </p>
-                      <p className="text-base text-muted-foreground">
+                      <p className="text-base text-foreground">
                         Dirección: {customer.address ?? "Sin dirección"}
                       </p>
                     </div>
                     <p
                       className={cn(
-                        "rounded-md border p-3 text-lg font-bold",
+                        "rounded-md border-2 p-3 font-mono text-lg font-black tabular-nums",
                         debt.className
                       )}
                     >
@@ -703,15 +745,15 @@ export default async function ClientesPage({ searchParams }: ClientesPageProps) 
             })}
           </div>
 
-          <div className="flex flex-col gap-3 rounded-md border border-border bg-card p-4 md:flex-row md:items-center md:justify-between">
-            <p className="text-base font-semibold text-foreground">
+          <div className="flex flex-col gap-3 rounded-md border-2 border-border bg-card p-4 md:flex-row md:items-center md:justify-between">
+            <p className="text-base font-bold text-foreground">
               Mostrando {firstShown}-{lastShown} de {totalMatchingCustomers} clientes
             </p>
             <div className="flex gap-2">
               <Button
                 asChild={hasPrevious}
                 variant="outline"
-                className="h-11 gap-2 px-4 text-base"
+                className="h-12 gap-2 border-border bg-card px-4 text-base font-bold text-foreground"
                 disabled={!hasPrevious}
               >
                 {hasPrevious ? (
@@ -737,7 +779,7 @@ export default async function ClientesPage({ searchParams }: ClientesPageProps) 
               <Button
                 asChild={hasNext}
                 variant="outline"
-                className="h-11 gap-2 px-4 text-base"
+                className="h-12 gap-2 border-border bg-card px-4 text-base font-bold text-foreground"
                 disabled={!hasNext}
               >
                 {hasNext ? (
@@ -764,6 +806,7 @@ export default async function ClientesPage({ searchParams }: ClientesPageProps) 
           </div>
         </section>
       )}
+      </section>
     </>
   );
 }

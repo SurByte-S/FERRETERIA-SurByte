@@ -592,15 +592,15 @@ export function QuickSalePos({
 
   return (
     <div className="grid min-h-[calc(100vh-5.75rem)] gap-2 bg-background p-1 lg:grid-rows-[auto_1fr]">
-      <header className="grid shrink-0 gap-2 rounded-lg border border-border bg-card p-2 shadow-sm xl:grid-cols-[minmax(20rem,auto)_minmax(22rem,1fr)_auto] xl:items-stretch">
-        <div className="grid min-w-0 gap-1 rounded-md border border-border bg-muted/50 p-2">
+      <header className="grid shrink-0 gap-2 rounded-md border-2 border-border bg-card p-2 shadow-sm xl:grid-cols-[minmax(20rem,auto)_minmax(22rem,1fr)_auto] xl:items-stretch">
+        <div className="grid min-w-0 gap-1 rounded-md border border-border bg-secondary p-2">
           <div className="min-h-5 min-w-0">
             <h1 className="text-xl font-black leading-tight text-primary">
               Mostrador
             </h1>
           </div>
 
-          <div className="grid min-w-[16rem] grid-cols-[minmax(6rem,1fr)_minmax(8rem,1fr)] gap-1 rounded-md border border-input bg-card p-1">
+          <div className="grid min-w-[16rem] grid-cols-[minmax(6rem,1fr)_minmax(8rem,1fr)] gap-1 rounded-md border border-border bg-card p-1">
             <ModeButton
               active={mode === "sale"}
               label="Venta"
@@ -614,7 +614,7 @@ export function QuickSalePos({
           </div>
         </div>
 
-        <div className="grid min-w-0 gap-1 rounded-md border border-border bg-muted/50 p-2">
+        <div className="grid min-w-0 gap-1 rounded-md border border-border bg-secondary p-2">
           <label className="grid min-w-0 gap-1">
             <span className="min-h-5 text-base font-black leading-tight">
               Buscar producto
@@ -652,13 +652,13 @@ export function QuickSalePos({
       </header>
 
       <main className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_clamp(27rem,31vw,33rem)] lg:items-start">
-        <section className="grid rounded-lg border border-border bg-card shadow-sm lg:grid-rows-[auto_1fr]">
+        <section className="grid rounded-md border-2 border-border bg-card shadow-sm lg:grid-rows-[auto_1fr]">
           <div className="grid min-h-[18rem] grid-rows-[auto_1fr]">
-            <div className="grid min-h-[3.25rem] gap-2 border-b border-border bg-muted/40 px-3 py-2 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
+            <div className="grid min-h-[3.25rem] gap-2 border-b-2 border-border bg-primary px-3 py-2 text-primary-foreground xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
               <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
-                <h2 className="text-xl font-black">Productos</h2>
+                <h2 className="text-xl font-black">Productos encontrados</h2>
                 {resultCounter ? (
-                  <p className="text-sm font-bold text-muted-foreground">
+                  <p className="text-sm font-bold text-primary-foreground">
                     {resultCounter}
                   </p>
                 ) : null}
@@ -666,12 +666,12 @@ export function QuickSalePos({
 
               {showPaginationControls ? (
                 <div className="flex flex-wrap items-center gap-2">
-                  <label className="flex items-center gap-2 text-sm font-bold text-muted-foreground">
+                  <label className="flex items-center gap-2 text-sm font-bold text-primary-foreground">
                     Por pagina
                     <select
                       value={pageSize}
                       onChange={(event) => changePageSize(event.target.value)}
-                      className="h-9 rounded-md border border-input bg-background px-2 text-sm font-black text-foreground"
+                      className="h-10 rounded-md border border-border bg-background px-2 text-sm font-black text-foreground"
                     >
                       {PAGE_SIZE_OPTIONS.map((option) => (
                         <option key={option} value={option}>
@@ -680,7 +680,7 @@ export function QuickSalePos({
                       ))}
                     </select>
                   </label>
-                  <span className="text-sm font-bold text-muted-foreground">
+                  <span className="text-sm font-bold text-primary-foreground">
                     Pagina {currentPage} de {totalPages}
                   </span>
                   <Button
@@ -688,7 +688,7 @@ export function QuickSalePos({
                     variant="outline"
                     onClick={() => goToPage(1)}
                     disabled={isPending || currentPage <= 1}
-                    className="h-9 px-3 text-sm font-bold"
+                    className="h-10 px-3 text-sm font-bold"
                   >
                     Primera
                   </Button>
@@ -697,7 +697,7 @@ export function QuickSalePos({
                     variant="outline"
                     onClick={() => goToPage(currentPage - 1)}
                     disabled={isPending || currentPage <= 1}
-                    className="h-9 px-3 text-sm font-bold"
+                    className="h-10 px-3 text-sm font-bold"
                   >
                     Anterior
                   </Button>
@@ -706,7 +706,7 @@ export function QuickSalePos({
                     variant="outline"
                     onClick={() => goToPage(currentPage + 1)}
                     disabled={isPending || currentPage >= totalPages}
-                    className="h-9 px-3 text-sm font-bold"
+                    className="h-10 px-3 text-sm font-bold"
                   >
                     Siguiente
                   </Button>
@@ -715,7 +715,7 @@ export function QuickSalePos({
                     variant="outline"
                     onClick={() => goToPage(totalPages)}
                     disabled={isPending || currentPage >= totalPages}
-                    className="h-9 px-3 text-sm font-bold"
+                    className="h-10 px-3 text-sm font-bold"
                   >
                     Ultima
                   </Button>
@@ -723,7 +723,7 @@ export function QuickSalePos({
               ) : null}
             </div>
 
-            <div className="bg-muted/20 px-3 pb-3 pt-2">
+            <div className="bg-secondary px-3 pb-3 pt-2">
               {results.length > 0 ? (
                 <div className="grid gap-2">
                   {results.map((product) => (
@@ -741,8 +741,8 @@ export function QuickSalePos({
           </div>
         </section>
 
-        <aside className="grid rounded-lg border border-border bg-card shadow-sm">
-          <div className="border-b border-accent/40 bg-primary px-3 py-2 text-primary-foreground">
+        <aside className="grid rounded-md border-2 border-border bg-card shadow-sm">
+          <div className="border-b-2 border-border bg-primary px-3 py-2 text-primary-foreground">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h2 className="text-xl font-black leading-tight">
@@ -762,7 +762,7 @@ export function QuickSalePos({
             </div>
           </div>
 
-          <div className="bg-muted/25 p-2.5">
+          <div className="bg-secondary p-2.5">
             {lines.length === 0 ? (
               <div className="rounded-md border border-dashed border-border bg-card p-4">
                 <p className="text-lg font-black">No hay productos agregados.</p>
@@ -786,7 +786,7 @@ export function QuickSalePos({
             )}
           </div>
 
-          <div className="border-t-2 border-accent bg-card p-2.5">
+          <div className="border-t-2 border-border bg-card p-2.5">
             {!isQuoteMode ? (
               <div className="mb-2 grid gap-2">
                 <Field label="Forma de pago">
@@ -814,7 +814,7 @@ export function QuickSalePos({
             >
               <div className="min-w-0">
                 <div className="flex items-end justify-between gap-3 sm:block">
-                  <p className="text-sm font-black uppercase tracking-wide text-muted-foreground">
+                  <p className="text-sm font-black uppercase tracking-wide text-foreground">
                     {isQuoteMode ? "Total presupuesto" : "Total"}
                   </p>
                   <p className="truncate text-4xl font-black leading-none text-primary">
@@ -823,7 +823,7 @@ export function QuickSalePos({
                 </div>
 
                 {actionHelp ? (
-                  <p className="mt-2 rounded-md border border-accent/40 bg-accent/10 px-3 py-2 text-sm font-bold text-accent-foreground">
+                  <p className="mt-2 rounded-md border border-border bg-secondary px-3 py-2 text-sm font-bold text-foreground">
                     {actionHelp}
                   </p>
                 ) : null}
@@ -835,7 +835,7 @@ export function QuickSalePos({
                     type="button"
                     onClick={saveQuote}
                     disabled={isPending || lines.length === 0}
-                    className="h-11 w-full px-4 text-base font-black"
+                    className="h-14 w-full px-4 text-lg font-black"
                   >
                     Guardar presupuesto
                   </Button>
@@ -851,7 +851,7 @@ export function QuickSalePos({
                         Boolean(groupedStockIssue) ||
                         isCashRegisterClosed
                       }
-                      className="h-11 w-full text-base font-black"
+                      className="h-14 w-full text-lg font-black"
                     >
                       Cobrar venta
                     </Button>
@@ -860,7 +860,7 @@ export function QuickSalePos({
                       variant="outline"
                       onClick={saveQuote}
                       disabled={isPending || lines.length === 0}
-                      className="h-9 text-sm font-bold"
+                      className="h-12 text-base font-bold"
                     >
                       Guardar presupuesto
                     </Button>
@@ -1054,8 +1054,8 @@ function CashBadge({ cashStatus }: { cashStatus: CashStatus }) {
     <div
       className={
         cashStatus.open
-          ? "flex h-full min-w-[13rem] items-center justify-between gap-3 rounded-md border border-emerald-600/40 bg-emerald-100 px-3 py-2 text-emerald-950"
-          : "flex h-full min-w-[13rem] items-center justify-between gap-3 rounded-md border border-accent/40 bg-accent/10 px-3 py-2 text-accent-foreground"
+          ? "flex h-full min-w-[13rem] items-center justify-between gap-3 rounded-md border border-emerald-500/40 bg-emerald-50 px-3 py-2 text-emerald-800"
+          : "flex h-full min-w-[13rem] items-center justify-between gap-3 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-destructive"
       }
     >
       <div>
@@ -1239,7 +1239,7 @@ function TicketLine({
 function InfoBlock({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-sm font-bold text-muted-foreground">{label}</p>
+      <p className="text-sm font-bold text-foreground">{label}</p>
       <p className="text-base font-black">{value}</p>
     </div>
   );

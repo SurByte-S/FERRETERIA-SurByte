@@ -24,28 +24,29 @@ export function OpenCashForm() {
   return (
     <form action={formAction} className="grid gap-4">
       <label className="grid gap-2 text-base font-semibold">
-        <span>Monto inicial</span>
+        <span className="text-foreground">Monto inicial</span>
         <input
           name="openingAmount"
           type="number"
           min="0"
           step="0.01"
           defaultValue="0"
-          className="h-12 rounded-lg border border-input bg-background px-3 text-base"
+          className="h-14 rounded-md border-2 border-border bg-background px-3 font-mono text-2xl font-bold tabular-nums text-foreground"
         />
       </label>
-
 
       <Button
         type="submit"
         disabled={pending}
-        className="h-14 gap-2 bg-emerald-700 px-6 text-lg text-white hover:bg-emerald-800"
+        className="h-14 gap-2 px-6 text-lg shadow-sm"
       >
         <UnlockKeyhole className="size-6" aria-hidden="true" />
         {pending ? "Abriendo..." : "Abrir caja"}
       </Button>
 
-      {state.message ? <p className="text-base font-semibold">{state.message}</p> : null}
+      {state.message ? (
+        <p className="text-base font-semibold">{state.message}</p>
+      ) : null}
     </form>
   );
 }
@@ -61,6 +62,11 @@ export function CloseCashForm({
     closeCashSessionAction,
     initialState
   );
+  const expectedCashLabel = new Intl.NumberFormat("es-AR", {
+    style: "currency",
+    currency: "ARS",
+    maximumFractionDigits: 2,
+  }).format(expectedCash);
 
   function submit(formData: FormData) {
     const countedAmount = Number(formData.get("countedAmount"));
@@ -90,28 +96,43 @@ export function CloseCashForm({
     <form action={submit} className="grid gap-4">
       <input type="hidden" name="sessionId" value={sessionId} />
 
+      <div className="rounded-md border-2 border-border bg-background p-4">
+        <p className="text-sm font-bold uppercase text-muted-foreground">
+          Efectivo esperado
+        </p>
+        <p className="mt-2 font-mono text-3xl font-black tabular-nums text-foreground">
+          {expectedCashLabel}
+        </p>
+      </div>
+
+      <p className="rounded-md border border-border bg-secondary px-3 py-2 text-base font-semibold text-foreground">
+        Revisa el efectivo contado antes de cerrar.
+      </p>
+
       <label className="grid gap-2 text-base font-semibold">
-        <span>Efectivo contado</span>
+        <span className="text-foreground">Efectivo contado</span>
         <input
           name="countedAmount"
           type="number"
           min="0"
           step="0.01"
           defaultValue={expectedCash}
-          className="h-12 rounded-lg border border-input bg-background px-3 text-base"
+          className="h-16 rounded-md border-2 border-border bg-background px-3 font-mono text-3xl font-black tabular-nums text-foreground"
         />
       </label>
 
       <Button
         type="submit"
         disabled={pending}
-        className="h-14 gap-2 bg-red-700 px-6 text-lg text-white hover:bg-red-800"
+        className="h-16 gap-2 bg-destructive/10 px-6 text-xl text-destructive shadow-sm hover:bg-destructive/20"
       >
         <LockKeyhole className="size-6" aria-hidden="true" />
         {pending ? "Cerrando..." : "Cerrar caja"}
       </Button>
 
-      {state.message ? <p className="text-base font-semibold">{state.message}</p> : null}
+      {state.message ? (
+        <p className="text-base font-semibold">{state.message}</p>
+      ) : null}
     </form>
   );
 }
