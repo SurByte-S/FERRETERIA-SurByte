@@ -4,17 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/utils";
-import { navigationItems, secondaryNavigationItems } from "./nav-items";
+import { navigationItems } from "./nav-items";
 
-const shortcutItems = [
-  navigationItems[0],
-  navigationItems[1],
-  navigationItems[2],
-  navigationItems[3],
-  navigationItems[4],
-  navigationItems[5],
-  secondaryNavigationItems[0],
-] as const;
+const shortcutItems = navigationItems;
 
 export function ClassicShortcutsBar() {
   const pathname = usePathname();

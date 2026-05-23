@@ -3,7 +3,6 @@ import {
   ChartColumn,
   ClipboardList,
   History,
-  LayoutGrid,
   PackageSearch,
   Settings,
   ShoppingCart,
@@ -51,12 +50,6 @@ export const navigationItems = [
 ] as const;
 
 export const secondaryNavigationItems = [
-  {
-    title: "Solo encargado",
-    href: "/ajustes",
-    icon: LayoutGrid,
-    description: "Revisar y editar datos",
-  },
 ] as const;
 
 export const adminGroupItems = [

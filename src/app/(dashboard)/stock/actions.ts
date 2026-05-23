@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth/session";
 import {
   type ConsolidatedStockCsvRow,
+  normalizeStockCode,
   parseStockCsv,
 } from "@/lib/csv/stock";
 import { getSupabaseServerClient } from "@/lib/supabase";
@@ -25,6 +26,7 @@ type StockCsvProduct = {
   barcode: string | null;
   name: string;
   stock_quantity: number;
+  active: boolean;
 };
 
 function errorState(message: string): StockCsvState {
@@ -43,6 +45,10 @@ function stockCsvErrorMessage(message?: string) {
 
   if (message?.includes("STOCK_CSV_PRODUCT_NOT_FOUND")) {
     return "Hay codigos que no corresponden a productos de esta ferreteria.";
+  }
+
+  if (message?.includes("STOCK_CSV_PRODUCT_INACTIVE")) {
+    return "Hay productos inactivos en la carga.";
   }
 
   if (message?.includes("STOCK_CSV_AMBIGUOUS_BARCODE")) {
@@ -80,43 +86,57 @@ async function readCsvFile(formData: FormData) {
 
 async function loadProductsByCodes(tenantId: string, codes: string[]) {
   const supabase = getSupabaseServerClient();
-  const uniqueCodes = Array.from(new Set(codes));
+  const uniqueCodes = new Set(codes.map(normalizeStockCode));
   const bySku = new Map<string, StockCsvProduct>();
   const byBarcode = new Map<string, StockCsvProduct[]>();
 
-  if (uniqueCodes.length === 0) {
+  if (uniqueCodes.size === 0) {
     return { bySku, byBarcode };
   }
 
-  const [skuResult, barcodeResult] = await Promise.all([
-    supabase
+  const pageSize = 1000;
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await supabase
       .from("products")
-      .select("id,sku,barcode,name,stock_quantity")
+      .select("id,sku,barcode,name,stock_quantity,active")
       .eq("tenant_id", tenantId)
-      .in("sku", uniqueCodes),
-    supabase
-      .from("products")
-      .select("id,sku,barcode,name,stock_quantity")
-      .eq("tenant_id", tenantId)
-      .in("barcode", uniqueCodes),
-  ]);
+      .range(from, from + pageSize - 1);
 
-  if (skuResult.error || barcodeResult.error) {
-    throw new Error("No se pudieron buscar los productos.");
-  }
-
-  for (const product of (skuResult.data ?? []) as StockCsvProduct[]) {
-    bySku.set(product.sku, product);
-  }
-
-  for (const product of (barcodeResult.data ?? []) as StockCsvProduct[]) {
-    if (!product.barcode) {
-      continue;
+    if (error) {
+      throw new Error("No se pudieron buscar los productos.");
     }
 
-    const current = byBarcode.get(product.barcode) ?? [];
-    current.push(product);
-    byBarcode.set(product.barcode, current);
+    const products = (data ?? []) as StockCsvProduct[];
+
+    for (const product of products) {
+      const normalizedSku = normalizeStockCode(product.sku);
+
+      if (uniqueCodes.has(normalizedSku)) {
+        bySku.set(normalizedSku, product);
+      }
+
+      if (!product.barcode) {
+        continue;
+      }
+
+      const normalizedBarcode = normalizeStockCode(product.barcode);
+
+      if (!uniqueCodes.has(normalizedBarcode)) {
+        continue;
+      }
+
+      const current = byBarcode.get(normalizedBarcode) ?? [];
+      current.push(product);
+      byBarcode.set(normalizedBarcode, current);
+    }
+
+    if (products.length < pageSize) {
+      break;
+    }
+
+    from += pageSize;
   }
 
   return { bySku, byBarcode };
@@ -132,8 +152,9 @@ function buildPreviewRows({
   byBarcode: Map<string, StockCsvProduct[]>;
 }) {
   return rows.map<StockCsvPreviewRow>((row) => {
-    const skuProduct = bySku.get(row.codigo);
-    const barcodeMatches = byBarcode.get(row.codigo) ?? [];
+    const normalizedCode = normalizeStockCode(row.codigo);
+    const skuProduct = bySku.get(normalizedCode);
+    const barcodeMatches = byBarcode.get(normalizedCode) ?? [];
     const product =
       skuProduct ?? (barcodeMatches.length === 1 ? barcodeMatches[0] : null);
 
@@ -162,6 +183,20 @@ function buildPreviewRows({
         stockFinal: null,
         status: "error",
         message: "Producto no encontrado.",
+      };
+    }
+
+    if (!product.active) {
+      return {
+        codigo: row.codigo,
+        cantidad: row.cantidad,
+        sourceRows: row.sourceRows,
+        productId: product.id,
+        productName: product.name,
+        stockActual: Number(product.stock_quantity ?? 0),
+        stockFinal: null,
+        status: "error",
+        message: "Producto inactivo.",
       };
     }
 
@@ -272,7 +307,7 @@ function parseConfirmRows(value: string) {
   }
 
   return rows.map((row) => {
-    const codigo = String(row.codigo ?? "").trim();
+    const codigo = normalizeStockCode(String(row.codigo ?? ""));
     const cantidad = Number(row.cantidad);
 
     if (!codigo || !Number.isFinite(cantidad) || cantidad <= 0) {

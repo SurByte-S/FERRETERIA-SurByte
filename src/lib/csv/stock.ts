@@ -14,6 +14,14 @@ export type ConsolidatedStockCsvRow = {
   sourceRows: number[];
 };
 
+export function normalizeStockCode(value: string) {
+  return String(value ?? "")
+    .replace(/^\uFEFF/, "")
+    .replace(/[\u200B-\u200D\u2060]/g, "")
+    .trim()
+    .toUpperCase();
+}
+
 export function parseStockCsv(text: string) {
   const rows = parseCsv(text);
   const firstRow = rows[0] ?? {};
@@ -22,7 +30,7 @@ export function parseStockCsv(text: string) {
   );
 
   const parsedRows: StockCsvInputRow[] = rows.map((row, index) => {
-    const codigo = String(row.codigo ?? "").trim();
+    const codigo = normalizeStockCode(String(row.codigo ?? ""));
     const cantidadText = String(row.cantidad ?? "").trim();
     const cantidad = parseStockQuantity(cantidadText);
     const errors: string[] = [];
