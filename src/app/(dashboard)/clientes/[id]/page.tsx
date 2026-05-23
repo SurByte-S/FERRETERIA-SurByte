@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Edit, Eye, ReceiptText } from "lucide-react";
 
+import { DeleteCustomerButton } from "@/components/clientes/delete-customer-button";
 import { CustomerPaymentForm } from "@/components/clientes/payment-form";
 import { PageHeader } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
@@ -124,6 +125,7 @@ export default async function ClienteDetallePage({ params }: CustomerPageProps) 
         .select("id,name,phone,email,address,notes")
         .eq("tenant_id", tenant.id)
         .eq("id", id)
+        .is("deleted_at", null)
         .maybeSingle(),
       supabase
         .from("customer_account_balances")
@@ -143,6 +145,7 @@ export default async function ClienteDetallePage({ params }: CustomerPageProps) 
         .select("id,quote_number,status,total,created_at")
         .eq("tenant_id", tenant.id)
         .eq("customer_id", id)
+        .is("deleted_at", null)
         .order("created_at", { ascending: false })
         .limit(50),
       supabase
@@ -182,6 +185,9 @@ export default async function ClienteDetallePage({ params }: CustomerPageProps) 
             Editar cliente
           </Link>
         </Button>
+        {tenant.role === "owner" || tenant.role === "admin" ? (
+          <DeleteCustomerButton customerId={customer.id} />
+        ) : null}
       </div>
 
       <div className="grid gap-6">

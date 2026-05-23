@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { requireUser } from "@/lib/auth/session";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import {
   FORBIDDEN_ACTION_MESSAGE,
@@ -155,6 +156,21 @@ export async function registerCustomerPaymentAction(
   try {
     const tenant = await requireTenantRole(["owner", "admin", "seller"]);
     const supabase = getSupabaseServerClient();
+    const { data: customer, error: customerError } = await supabase
+      .from("customers")
+      .select("id")
+      .eq("tenant_id", tenant.id)
+      .eq("id", customerId)
+      .is("deleted_at", null)
+      .maybeSingle();
+
+    if (customerError || !customer) {
+      return {
+        ok: false,
+        message: "No se encontro el cliente.",
+      };
+    }
+
     const { error } = await supabase.from("customer_account_movements").insert({
       tenant_id: tenant.id,
       customer_id: customerId,
@@ -190,6 +206,88 @@ export async function registerCustomerPaymentAction(
     return {
       ok: false,
       message: "No se pudo registrar el pago.",
+    };
+  }
+}
+
+export async function deleteCustomerAction(
+  _previousState: CustomerActionResult,
+  formData: FormData
+): Promise<CustomerActionResult> {
+  const customerId = cleanText(formData.get("customerId"));
+
+  if (!customerId) {
+    return {
+      ok: false,
+      message: "No se encontro el cliente.",
+    };
+  }
+
+  try {
+    const [tenant, user] = await Promise.all([
+      requireTenantRole(["owner", "admin"]),
+      requireUser(),
+    ]);
+    const supabase = getSupabaseServerClient();
+    const { data: customer, error: customerError } = await supabase
+      .from("customers")
+      .select("id")
+      .eq("tenant_id", tenant.id)
+      .eq("id", customerId)
+      .is("deleted_at", null)
+      .maybeSingle();
+
+    if (customerError) {
+      return {
+        ok: false,
+        message: "No se pudo validar el cliente.",
+      };
+    }
+
+    if (!customer) {
+      return {
+        ok: false,
+        message: "El cliente no existe para esta ferreteria.",
+      };
+    }
+
+    const { error } = await supabase
+      .from("customers")
+      .update({
+        deleted_at: new Date().toISOString(),
+        deleted_by: user.id,
+      })
+      .eq("tenant_id", tenant.id)
+      .eq("id", customerId)
+      .is("deleted_at", null);
+
+    if (error) {
+      return {
+        ok: false,
+        message: "No se pudo eliminar el cliente.",
+      };
+    }
+
+    revalidatePath("/clientes");
+    revalidatePath(`/clientes/${customerId}`);
+    revalidatePath("/inicio");
+
+    return {
+      ok: true,
+      message: "Cliente eliminado. El historial se conserva.",
+      customerId,
+    };
+  } catch (error) {
+    if (isTenantRoleForbiddenError(error)) {
+      return {
+        ok: false,
+        message: FORBIDDEN_ACTION_MESSAGE,
+      };
+    }
+
+    return {
+      ok: false,
+      message: "No se pudo eliminar el cliente.",
     };
   }
 }

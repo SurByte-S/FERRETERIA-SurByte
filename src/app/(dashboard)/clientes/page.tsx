@@ -9,6 +9,7 @@ import {
   Users,
 } from "lucide-react";
 
+import { ExportMenuButton } from "@/components/common/export-menu-button";
 import { PageHeader } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
 import {
@@ -249,7 +250,8 @@ export default async function ClientesPage({ searchParams }: ClientesPageProps) 
     supabase
       .from("customers")
       .select("id", { count: "exact", head: true })
-      .eq("tenant_id", tenant.id),
+      .eq("tenant_id", tenant.id)
+      .is("deleted_at", null),
     supabase
       .from("customer_account_balances")
       .select("customer_id", { count: "exact", head: true })
@@ -311,6 +313,7 @@ export default async function ClientesPage({ searchParams }: ClientesPageProps) 
             .from("customers")
             .select("id,name,phone,email,address", { count: "exact" })
             .eq("tenant_id", tenant.id)
+            .is("deleted_at", null)
             .in("id", eligibleIds)
             .order("name", { ascending: true })
             .range(from, to);
@@ -329,6 +332,7 @@ export default async function ClientesPage({ searchParams }: ClientesPageProps) 
               .from("customers")
               .select("id", { count: "exact" })
               .eq("tenant_id", tenant.id)
+              .is("deleted_at", null)
               .in("id", eligibleIds)
               .limit(BALANCE_ID_LIMIT);
 
@@ -355,6 +359,7 @@ export default async function ClientesPage({ searchParams }: ClientesPageProps) 
               .from("customers")
               .select("id,name,phone,email,address")
               .eq("tenant_id", tenant.id)
+              .is("deleted_at", null)
               .in("id", pageIds);
 
             if (customerResult.error) {
@@ -378,6 +383,7 @@ export default async function ClientesPage({ searchParams }: ClientesPageProps) 
       .from("customers")
       .select("id,name,phone,email,address", { count: "exact" })
       .eq("tenant_id", tenant.id)
+      .is("deleted_at", null)
       .order("name", { ascending: true })
       .range(from, to);
 
@@ -434,6 +440,10 @@ export default async function ClientesPage({ searchParams }: ClientesPageProps) 
             Nuevo cliente
           </Link>
         </Button>
+        <ExportMenuButton
+          csvHref="/api/export/clientes?format=csv"
+          pdfHref="/api/export/clientes?format=pdf"
+        />
       </div>
 
       <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

@@ -40,6 +40,7 @@ async function loadCustomers(
     .from("customers")
     .select("id,name,phone,email,address")
     .eq("tenant_id", tenantId)
+    .is("deleted_at", null)
     .order("name")
     .limit(300);
 

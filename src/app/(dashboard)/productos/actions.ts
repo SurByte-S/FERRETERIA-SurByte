@@ -16,6 +16,13 @@ export type ProductActionState = {
   message: string;
 };
 
+export type CatalogCreateState = {
+  ok: boolean;
+  message: string;
+  id?: string;
+  name?: string;
+};
+
 type CatalogTable = "brands" | "suppliers";
 
 type SaleUnitInput = {
@@ -41,6 +48,11 @@ function isUuid(value: string) {
 
 function textValue(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
+}
+
+function optionalText(formData: FormData, key: string) {
+  const clean = textValue(formData, key);
+  return clean || null;
 }
 
 function numberValue(value: string) {
@@ -327,6 +339,123 @@ async function validateTenantCatalogId({
   return id;
 }
 
+export async function createBrandAction(
+  _previousState: CatalogCreateState,
+  formData: FormData
+): Promise<CatalogCreateState> {
+  const name = textValue(formData, "name");
+
+  if (!name) {
+    return {
+      ok: false,
+      message: "Escribi el nombre de la marca.",
+    };
+  }
+
+  try {
+    const tenant = await requireTenantRole(["owner", "admin"]);
+    const supabase = getSupabaseServerClient();
+    const { data, error } = await supabase
+      .from("brands")
+      .insert({
+        tenant_id: tenant.id,
+        name,
+        active: true,
+      })
+      .select("id,name")
+      .single();
+
+    if (error || !data) {
+      return {
+        ok: false,
+        message: "No se pudo crear la marca. Revisa si ya existe.",
+      };
+    }
+
+    revalidatePath("/stock");
+    revalidatePath("/productos");
+
+    return {
+      ok: true,
+      message: "Marca creada.",
+      id: (data as { id: string; name: string }).id,
+      name: (data as { id: string; name: string }).name,
+    };
+  } catch (error) {
+    if (isTenantRoleForbiddenError(error)) {
+      return {
+        ok: false,
+        message: FORBIDDEN_ACTION_MESSAGE,
+      };
+    }
+
+    return {
+      ok: false,
+      message: "No se pudo crear la marca.",
+    };
+  }
+}
+
+export async function createSupplierAction(
+  _previousState: CatalogCreateState,
+  formData: FormData
+): Promise<CatalogCreateState> {
+  const name = textValue(formData, "name");
+
+  if (!name) {
+    return {
+      ok: false,
+      message: "Escribi el nombre del proveedor.",
+    };
+  }
+
+  try {
+    const tenant = await requireTenantRole(["owner", "admin"]);
+    const supabase = getSupabaseServerClient();
+    const { data, error } = await supabase
+      .from("suppliers")
+      .insert({
+        tenant_id: tenant.id,
+        name,
+        phone: optionalText(formData, "phone"),
+        email: optionalText(formData, "email"),
+        address: optionalText(formData, "address"),
+        notes: optionalText(formData, "notes"),
+      })
+      .select("id,name")
+      .single();
+
+    if (error || !data) {
+      return {
+        ok: false,
+        message: "No se pudo crear el proveedor. Revisa si ya existe.",
+      };
+    }
+
+    revalidatePath("/stock");
+    revalidatePath("/productos");
+
+    return {
+      ok: true,
+      message: "Proveedor creado.",
+      id: (data as { id: string; name: string }).id,
+      name: (data as { id: string; name: string }).name,
+    };
+  } catch (error) {
+    if (isTenantRoleForbiddenError(error)) {
+      return {
+        ok: false,
+        message: FORBIDDEN_ACTION_MESSAGE,
+      };
+    }
+
+    return {
+      ok: false,
+      message: "No se pudo crear el proveedor.",
+    };
+  }
+}
+
 async function uploadProductImage({
   tenantId,
   productId,
@@ -398,6 +527,7 @@ export async function updateProductAction(
       costWithoutTax,
       costWithTax,
       taxRate,
+      profitMarginPercent,
       salePrice,
       minStock,
     ] = [
@@ -416,6 +546,12 @@ export async function updateProductAction(
       nonNegativeNumberValue({
         fieldName: "taxRate",
         label: "IVA",
+        fallback: 0,
+        formData,
+      }),
+      nonNegativeNumberValue({
+        fieldName: "profitMarginPercent",
+        label: "Utilidad",
         fallback: 0,
         formData,
       }),
@@ -471,6 +607,7 @@ export async function updateProductAction(
         cost_with_tax: costWithTax,
         sale_price: salePrice,
         tax_rate: taxRate,
+        profit_margin_percent: profitMarginPercent,
         min_stock: minStock,
         active: parseBoolean(textValue(formData, "active")),
         image_url: imageUrl || null,
@@ -549,6 +686,7 @@ export async function createProductAction(
       costWithoutTax,
       costWithTax,
       taxRate,
+      profitMarginPercent,
       salePrice,
       stockQuantity,
       minStock,
@@ -580,6 +718,12 @@ export async function createProductAction(
       nonNegativeNumberValue({
         fieldName: "taxRate",
         label: "IVA",
+        fallback: 0,
+        formData,
+      }),
+      nonNegativeNumberValue({
+        fieldName: "profitMarginPercent",
+        label: "Utilidad",
         fallback: 0,
         formData,
       }),
@@ -624,6 +768,7 @@ export async function createProductAction(
     }
 
     const cleanTaxRate = taxRate ?? 0;
+    const cleanProfitMarginPercent = profitMarginPercent ?? 0;
     const cleanStockQuantity = stockQuantity ?? 0;
     const cleanMinStock = minStock ?? 0;
     const finalCostWithTax =
@@ -646,6 +791,7 @@ export async function createProductAction(
         cost_with_tax: finalCostWithTax,
         sale_price: salePrice,
         tax_rate: cleanTaxRate,
+        profit_margin_percent: cleanProfitMarginPercent,
         stock_quantity: cleanStockQuantity,
         min_stock: cleanMinStock,
         active,
@@ -690,6 +836,7 @@ export async function createProductAction(
 
     revalidatePath("/stock");
     revalidatePath("/productos");
+    revalidatePath("/inicio");
 
     return {
       ok: true,
@@ -791,6 +938,7 @@ export async function updateProductStockCommercialAction(
       costWithoutTax,
       costWithTax,
       taxRate,
+      profitMarginPercent,
       salePrice,
       minStock,
     ] = [
@@ -809,6 +957,12 @@ export async function updateProductStockCommercialAction(
       nonNegativeNumberValue({
         fieldName: "taxRate",
         label: "IVA",
+        fallback: 0,
+        formData,
+      }),
+      nonNegativeNumberValue({
+        fieldName: "profitMarginPercent",
+        label: "Utilidad",
         fallback: 0,
         formData,
       }),
@@ -849,6 +1003,7 @@ export async function updateProductStockCommercialAction(
         cost_without_tax: costWithoutTax,
         cost_with_tax: costWithTax,
         tax_rate: taxRate,
+        profit_margin_percent: profitMarginPercent,
         sale_price: salePrice,
         min_stock: minStock,
       })

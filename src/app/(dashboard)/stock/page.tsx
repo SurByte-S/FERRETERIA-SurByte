@@ -1,6 +1,7 @@
 import { AlertTriangle, Search } from "lucide-react";
 import Link from "next/link";
 
+import { ExportMenuButton } from "@/components/common/export-menu-button";
 import { StockAdjustDetails } from "@/components/productos/stock-adjust-details";
 import { StockSearchScrollAnchor } from "@/components/productos/stock-search-scroll-anchor";
 import type { ProductListItem } from "@/components/productos/product-types";
@@ -50,6 +51,7 @@ type ProductRow = {
   cost_with_tax: number | null;
   sale_price: number | null;
   tax_rate: number | null;
+  profit_margin_percent: number | null;
   stock_quantity: number | null;
   min_stock: number | null;
   active: boolean;
@@ -112,6 +114,7 @@ function mapProduct(row: ProductRow): ProductListItem {
     costWithoutTax,
     costWithTax: row.cost_with_tax,
     taxRate,
+    profitMarginPercent: row.profit_margin_percent ?? 0,
     salePrice: row.sale_price,
     stockQuantity,
     minStock: row.min_stock ?? 0,
@@ -270,11 +273,17 @@ export default async function StockPage({ searchParams }: StockPageProps) {
                     Buscar
                   </Button>
                 </form>
-                <NewProductForm
-                  brands={result.brands}
-                  canCreate={result.canCreateProduct}
-                  suppliers={result.suppliers}
-                />
+                <div className="flex flex-wrap items-end gap-2">
+                  <ExportMenuButton
+                    csvHref="/api/export/stock?format=csv"
+                    pdfHref="/api/export/stock?format=pdf"
+                  />
+                  <NewProductForm
+                    brands={result.brands}
+                    canCreate={result.canCreateProduct}
+                    suppliers={result.suppliers}
+                  />
+                </div>
               </div>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex flex-wrap gap-2">
@@ -466,7 +475,7 @@ async function loadStockProducts({
     let query = supabase
       .from("products")
       .select(
-        "id,sku,barcode,name,normalized_name,description,unit,cost_without_tax,cost_with_tax,sale_price,tax_rate,stock_quantity,min_stock,active,image_url,category_id,brand_id,supplier_id,brands(name),suppliers(name)"
+        "id,sku,barcode,name,normalized_name,description,unit,cost_without_tax,cost_with_tax,sale_price,tax_rate,profit_margin_percent,stock_quantity,min_stock,active,image_url,category_id,brand_id,supplier_id,brands(name),suppliers(name)"
       )
       .eq("tenant_id", tenant.id)
       .eq("active", true)

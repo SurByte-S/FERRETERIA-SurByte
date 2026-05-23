@@ -32,7 +32,7 @@ export const navigationItems = [
   },
   {
     title: "Estadísticas",
-    href: "/ventas",
+    href: "/estadisticas",
     icon: ChartColumn,
     description: "Ventas por día, caja y resumen del negocio.",
   },
@@ -83,7 +83,7 @@ export const historyItems = [
   },
   {
     title: "Estadísticas",
-    href: "/ventas",
+    href: "/estadisticas",
     icon: ChartColumn,
     description: "Ventas por día, caja y resumen del negocio.",
   },

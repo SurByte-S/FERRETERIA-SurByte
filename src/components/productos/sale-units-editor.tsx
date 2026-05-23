@@ -132,7 +132,7 @@ export function SaleUnitsEditor({
   }
 
   return (
-    <section className="grid gap-3 rounded-lg border border-border bg-background p-3">
+    <section className="grid w-full min-w-0 gap-3 overflow-x-hidden rounded-lg border border-border bg-background p-3">
       <input type="hidden" name={inputName} value={serialized} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-base font-bold">Presentaciones de venta</h3>
@@ -147,13 +147,13 @@ export function SaleUnitsEditor({
         </Button>
       </div>
 
-      <div className="grid gap-2">
+      <div className="grid min-w-0 gap-3">
         {activeUnits.map((unit) => (
           <div
             key={unit.localId}
-            className="grid gap-2 rounded-lg border border-border bg-muted/30 p-3"
+            className="grid min-w-0 gap-3 rounded-lg border border-border bg-muted/30 p-3"
           >
-            <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_110px_130px] md:items-end">
+            <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_120px_140px] md:items-end">
               <Field label="Nombre">
                 <input
                   value={unit.name}
@@ -161,7 +161,7 @@ export function SaleUnitsEditor({
                     updateUnit(unit.localId, "name", event.target.value)
                   }
                   placeholder="Unidad"
-                  className="h-10 rounded-md border border-input bg-background px-3 text-base"
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-base"
                 />
               </Field>
               <Field label="Descuenta">
@@ -177,7 +177,7 @@ export function SaleUnitsEditor({
                   type="number"
                   min="0.001"
                   step="0.001"
-                  className="h-10 rounded-md border border-input bg-background px-3 text-base"
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-right text-base"
                 />
               </Field>
               <Field label="Precio">
@@ -189,22 +189,22 @@ export function SaleUnitsEditor({
                   type="number"
                   min="0"
                   step="0.01"
-                  className="h-10 rounded-md border border-input bg-background px-3 text-base"
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-right text-base"
                 />
               </Field>
             </div>
 
-            <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_170px_44px] md:items-end">
+            <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_180px_40px] md:items-end">
               <Field label="Codigo de barras">
                 <input
                   value={unit.barcode}
                   onChange={(event) =>
                     updateUnit(unit.localId, "barcode", event.target.value)
                   }
-                  className="h-10 rounded-md border border-input bg-background px-3 text-base"
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-base"
                 />
               </Field>
-              <label className="flex h-10 items-center gap-2 rounded-md border border-border bg-background px-3 text-sm font-bold">
+              <label className="flex h-10 min-w-0 items-center gap-2 whitespace-nowrap rounded-md border border-border bg-background px-3 text-sm font-bold">
                 <input
                   type="radio"
                   checked={unit.isDefault}
@@ -220,7 +220,7 @@ export function SaleUnitsEditor({
                 onClick={() => removeUnit(unit.localId)}
                 disabled={activeUnits.length <= 1}
                 aria-label={`Quitar ${unit.name || "presentacion"}`}
-                className="size-10 md:justify-self-end"
+                className="size-10 text-red-600 hover:bg-red-50 hover:text-red-700 md:justify-self-end"
               >
                 <Trash2 className="size-4" aria-hidden="true" />
               </Button>
@@ -240,7 +240,7 @@ function Field({
   label: string;
 }) {
   return (
-    <label className="grid min-w-0 gap-1.5 text-sm font-semibold">
+    <label className="grid min-w-0 gap-1.5 text-xs font-medium">
       <span>{label}</span>
       {children}
     </label>

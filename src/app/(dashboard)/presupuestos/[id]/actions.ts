@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { requireUser } from "@/lib/auth/session";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import {
   FORBIDDEN_ACTION_MESSAGE,
@@ -22,6 +23,11 @@ const CASH_REGISTER_CLOSED_MESSAGE =
 
 const STOCK_NOT_ENOUGH_MESSAGE =
   "Stock insuficiente. Revisá las cantidades antes de vender.";
+
+type DeleteQuoteActionResult = {
+  ok: boolean;
+  message: string;
+};
 
 function getConvertErrorMessage(message?: string) {
   if (!message) {
@@ -139,6 +145,85 @@ export async function convertQuoteToSaleAction({
     return {
       ok: false,
       message: "No se pudo convertir el presupuesto en venta.",
+    };
+  }
+}
+
+export async function deleteQuoteAction(
+  _previousState: DeleteQuoteActionResult,
+  formData: FormData
+): Promise<DeleteQuoteActionResult> {
+  const quoteId = String(formData.get("quoteId") ?? "").trim();
+
+  if (!quoteId) {
+    return {
+      ok: false,
+      message: "No se encontro el presupuesto.",
+    };
+  }
+
+  try {
+    const [tenant, user] = await Promise.all([
+      requireTenantRole(["owner", "admin"]),
+      requireUser(),
+    ]);
+    const supabase = getSupabaseServerClient();
+    const { data: quote, error: quoteError } = await supabase
+      .from("quotes")
+      .select("id")
+      .eq("tenant_id", tenant.id)
+      .eq("id", quoteId)
+      .is("deleted_at", null)
+      .maybeSingle();
+
+    if (quoteError) {
+      return {
+        ok: false,
+        message: "No se pudo validar el presupuesto.",
+      };
+    }
+
+    if (!quote) {
+      return {
+        ok: false,
+        message: "El presupuesto no existe para esta ferreteria.",
+      };
+    }
+
+    const { error } = await supabase
+      .from("quotes")
+      .update({
+        deleted_at: new Date().toISOString(),
+        deleted_by: user.id,
+      })
+      .eq("tenant_id", tenant.id)
+      .eq("id", quoteId);
+
+    if (error) {
+      return {
+        ok: false,
+        message: "No se pudo eliminar el presupuesto.",
+      };
+    }
+
+    revalidatePath("/presupuestos");
+    revalidatePath(`/presupuestos/${quoteId}`);
+
+    return {
+      ok: true,
+      message: "Presupuesto eliminado. El historial se conserva.",
+    };
+  } catch (error) {
+    if (isTenantRoleForbiddenError(error)) {
+      return {
+        ok: false,
+        message: FORBIDDEN_ACTION_MESSAGE,
+      };
+    }
+
+    return {
+      ok: false,
+      message: "No se pudo eliminar el presupuesto.",
     };
   }
 }

@@ -55,6 +55,7 @@ export default async function PresupuestosPage() {
     .from("quotes")
     .select("id,quote_number,status,total,created_at,customers(name)")
     .eq("tenant_id", tenant.id)
+    .is("deleted_at", null)
     .order("created_at", { ascending: false })
     .limit(100);
   const quotes = ((data ?? []) as unknown as QuoteRow[]);
@@ -64,6 +65,7 @@ export default async function PresupuestosPage() {
       <PageHeader
         title="Presupuestos"
         description="Consultá presupuestos guardados, imprimilos o abrí el detalle."
+        eyebrow=""
         backHref="/inicio"
         backLabel="Volver al inicio"
       />
@@ -104,37 +106,35 @@ export default async function PresupuestosPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid gap-2">
           {quotes.map((quote) => (
-            <Card key={quote.id}>
-              <CardContent className="grid gap-3 p-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center xl:p-5">
-                <div className="min-w-0">
-                  <p className="text-sm text-muted-foreground">
+            <Card key={quote.id} className="min-h-[88px] rounded-lg">
+              <CardContent className="grid min-h-[88px] gap-3 p-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+                <div className="min-w-0 space-y-1">
+                  <p className="text-xs leading-tight text-muted-foreground">
                     {formatDate(quote.created_at)}
                   </p>
-                  <h2 className="mt-1 text-xl font-bold xl:text-2xl">
+                  <h2 className="truncate text-lg font-bold leading-tight">
                     Presupuesto #{quote.quote_number}
                   </h2>
-                  <p className="mt-2 text-lg">
-                    Cliente: {quote.customers?.name ?? "Sin cliente"}
-                  </p>
-                  <p className="text-base text-muted-foreground">
-                    Estado: {statusLabel(quote.status)}
+                  <p className="truncate text-sm font-semibold leading-tight text-muted-foreground">
+                    Cliente: {quote.customers?.name ?? "Sin cliente"} · Estado:{" "}
+                    {statusLabel(quote.status)}
                   </p>
                 </div>
-                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap xl:justify-end">
-                  <p className="rounded-lg border border-border bg-background p-3 text-xl font-bold xl:p-4 xl:text-2xl">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-[130px_80px_130px] md:flex md:flex-wrap md:items-center md:justify-end">
+                  <p className="inline-flex h-10 w-[130px] items-center justify-center whitespace-nowrap rounded-md border border-border bg-background px-3 text-base font-bold">
                     {formatMoney(quote.total)}
                   </p>
-                  <Button asChild className="h-11 gap-2 px-4 text-base xl:h-14 xl:px-5 xl:text-lg">
+                  <Button asChild className="h-10 min-w-[80px] gap-2 px-3 text-sm">
                     <Link href={`/presupuestos/${quote.id}`}>
-                      <Eye className="size-6" aria-hidden="true" />
+                      <Eye className="size-4" aria-hidden="true" />
                       Ver
                     </Link>
                   </Button>
-                  <Button asChild variant="outline" className="h-11 gap-2 px-4 text-base xl:h-14 xl:px-5 xl:text-lg">
+                  <Button asChild variant="outline" className="h-10 w-[130px] gap-2 px-3 text-sm">
                     <Link href={`/presupuestos/${quote.id}?print=1`}>
-                      <Printer className="size-6" aria-hidden="true" />
+                      <Printer className="size-4" aria-hidden="true" />
                       Imprimir
                     </Link>
                   </Button>

@@ -6,8 +6,10 @@ import { FileUp, PackagePlus } from "lucide-react";
 import {
   confirmStockCsvAction,
   previewStockCsvAction,
-  type StockCsvState,
 } from "@/app/(dashboard)/stock/actions";
+import {
+  initialStockCsvState,
+} from "@/app/(dashboard)/stock/stock-csv-utils";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -17,22 +19,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { formatStockQuantity } from "@/lib/format";
-
-const initialStockCsvState: StockCsvState = {
-  ok: false,
-  title: "",
-  message: "",
-  fileName: "",
-  previewRows: [],
-  invalidRows: [],
-  summary: {
-    updatedProducts: 0,
-    notFound: 0,
-    invalidRows: 0,
-    totalQuantity: 0,
-  },
-  confirmPayload: "",
-};
 
 export function StockCsvUploadCard() {
   const [previewState, previewAction, previewPending] = useActionState(

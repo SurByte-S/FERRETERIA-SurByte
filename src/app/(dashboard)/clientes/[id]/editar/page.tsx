@@ -18,6 +18,7 @@ export default async function EditarClientePage({ params }: EditCustomerPageProp
     .select("id,name,phone,email,address,notes")
     .eq("tenant_id", tenant.id)
     .eq("id", id)
+    .is("deleted_at", null)
     .maybeSingle();
 
   if (error || !data) {

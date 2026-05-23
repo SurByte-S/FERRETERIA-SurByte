@@ -35,6 +35,7 @@ type ProductSearchRow = {
   cost_with_tax: number | null;
   sale_price: number | null;
   tax_rate: number | null;
+  profit_margin_percent: number | null;
   stock_quantity: number | null;
   min_stock: number | null;
   active: boolean;
@@ -58,6 +59,7 @@ type ProductFallbackRow = {
   cost_with_tax: number | null;
   sale_price: number | null;
   tax_rate: number | null;
+  profit_margin_percent: number | null;
   stock_quantity: number | null;
   min_stock: number | null;
   active: boolean;
@@ -159,6 +161,7 @@ function mapRpcRow(row: ProductSearchRow): ProductListItem {
     costWithoutTax: null,
     costWithTax: row.cost_with_tax,
     taxRate: 21,
+    profitMarginPercent: row.profit_margin_percent ?? 0,
     salePrice: row.sale_price,
     stockQuantity,
     minStock: row.min_stock ?? 0,
@@ -189,6 +192,7 @@ function mapFallbackRow(row: ProductFallbackRow): ProductListItem {
     costWithoutTax: row.cost_without_tax,
     costWithTax: row.cost_with_tax,
     taxRate: row.tax_rate ?? 21,
+    profitMarginPercent: row.profit_margin_percent ?? 0,
     salePrice: row.sale_price,
     stockQuantity,
     minStock: row.min_stock ?? 0,
@@ -371,7 +375,7 @@ async function loadProducts({
     let query = supabase
       .from("products")
       .select(
-        "id,sku,barcode,name,normalized_name,description,unit,cost_without_tax,cost_with_tax,sale_price,tax_rate,stock_quantity,min_stock,active,image_url,category_id,brand_id,supplier_id,categories(name),brands(name),suppliers(name)",
+        "id,sku,barcode,name,normalized_name,description,unit,cost_without_tax,cost_with_tax,sale_price,tax_rate,profit_margin_percent,stock_quantity,min_stock,active,image_url,category_id,brand_id,supplier_id,categories(name),brands(name),suppliers(name)",
         { count: "exact" }
       )
       .eq("tenant_id", tenant.id)

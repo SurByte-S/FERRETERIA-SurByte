@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { PackagePlus } from "lucide-react";
 
-import { adminGroupItems } from "@/components/shell/nav-items";
 import { PageHeader } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,16 +12,12 @@ import {
 } from "@/components/ui/card";
 
 export default function AjustesPage() {
-  const visibleItems = adminGroupItems.filter(
-    (item) => item.href !== "/ajustes/configuracion"
-  );
   const quickStockItem = {
     title: "Carga rapida de stock",
     href: "/stock/carga-rapida",
     icon: PackagePlus,
     description: "Subir un CSV para sumar cantidades al stock.",
   };
-  const items = [...visibleItems, quickStockItem];
 
   return (
     <>
@@ -37,9 +32,8 @@ export default function AjustesPage() {
         aria-label="Solo encargado"
         className="grid max-w-4xl gap-4 md:grid-cols-2"
       >
-        {items.map((item, index) => {
+        {[quickStockItem].map((item) => {
           const Icon = item.icon;
-          const actionLabel = index === 0 ? "Ver" : "Abrir";
 
           return (
             <Card key={item.href}>
@@ -58,7 +52,7 @@ export default function AjustesPage() {
                 >
                   <Link href={item.href}>
                     <Icon className="size-5" aria-hidden="true" />
-                    {actionLabel}
+                    Abrir
                   </Link>
                 </Button>
               </CardContent>

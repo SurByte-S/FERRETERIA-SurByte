@@ -26,6 +26,7 @@ export type ProductListItem = {
   costWithoutTax: number | null;
   costWithTax: number | null;
   taxRate: number;
+  profitMarginPercent: number;
   salePrice: number | null;
   stockQuantity: number;
   minStock: number;

@@ -44,9 +44,9 @@ export function PrintQuoteButton() {
     <Button
       type="button"
       onClick={() => window.print()}
-      className="h-14 gap-2 px-6 text-lg"
+      className="h-11 w-full gap-2 px-4 text-base sm:w-auto"
     >
-      <Printer className="size-6" aria-hidden="true" />
+      <Printer className="size-5" aria-hidden="true" />
       Imprimir presupuesto
     </Button>
   );
@@ -110,68 +110,72 @@ export function ConvertQuoteButton({
   }
 
   return (
-    <div className="grid gap-3 rounded-lg border border-border bg-card p-4">
-      <label className="grid gap-2 text-base font-semibold">
-        <span>Cliente de la venta</span>
-        <select
-          value={customerId}
-          onChange={(event) => setCustomerId(event.target.value)}
+    <div className="grid gap-3 rounded-xl border border-border bg-card p-4">
+      <h2 className="text-base font-bold">Convertir en venta</h2>
+
+      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_180px_auto] md:items-end">
+        <label className="grid min-w-0 gap-2 text-sm font-semibold">
+          <span>Cliente de la venta</span>
+          <select
+            value={customerId}
+            onChange={(event) => setCustomerId(event.target.value)}
+            disabled={disabled || pending}
+            className="h-11 w-full rounded-lg border border-input bg-background px-3 text-base"
+          >
+            <option value="">Sin cliente</option>
+            {customers.map((customer) => (
+              <option key={customer.id} value={customer.id}>
+                {customer.name}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="grid min-w-0 gap-2 text-sm font-semibold">
+          <span>Forma de pago</span>
+          <select
+            value={paymentMethod}
+            onChange={(event) => setPaymentMethod(event.target.value)}
+            disabled={disabled || pending}
+            className="h-11 w-full rounded-lg border border-input bg-background px-3 text-base"
+          >
+            {PAYMENT_METHODS.map((method) => (
+              <option key={method} value={method}>
+                {method}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="grid min-w-0 gap-2 text-sm font-semibold">
+          <span>Monto pagado</span>
+          <input
+            value={paidAmount}
+            onChange={(event) => setPaidAmount(event.target.value)}
+            disabled={disabled || pending}
+            type="number"
+            min="0"
+            step="0.01"
+            className="h-11 w-full rounded-lg border border-input bg-background px-3 text-base"
+          />
+        </label>
+
+        <Button
+          type="button"
+          onClick={convert}
           disabled={disabled || pending}
-          className="h-12 rounded-lg border border-input bg-background px-3 text-base"
+          className="h-11 gap-2 whitespace-nowrap px-4 text-base"
         >
-          <option value="">Sin cliente</option>
-          {customers.map((customer) => (
-            <option key={customer.id} value={customer.id}>
-              {customer.name}
-            </option>
-          ))}
-        </select>
-      </label>
+          <ShoppingCart className="size-5" aria-hidden="true" />
+          {pending ? "Convirtiendo..." : "Convertir en venta"}
+        </Button>
+      </div>
 
       {paymentMethod === "Cuenta corriente" ? (
-        <p className="rounded-lg border border-yellow-500/40 bg-yellow-50 p-3 text-base font-semibold text-yellow-900">
+        <p className="rounded-lg border border-yellow-500/40 bg-yellow-50 p-3 text-sm font-semibold text-yellow-900">
           Esta venta queda anotada en cuenta corriente.
         </p>
       ) : null}
-
-      <label className="grid gap-2 text-base font-semibold">
-        <span>Forma de pago</span>
-        <select
-          value={paymentMethod}
-          onChange={(event) => setPaymentMethod(event.target.value)}
-          disabled={disabled || pending}
-          className="h-12 rounded-lg border border-input bg-background px-3 text-base"
-        >
-          {PAYMENT_METHODS.map((method) => (
-            <option key={method} value={method}>
-              {method}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <label className="grid gap-2 text-base font-semibold">
-        <span>Monto pagado</span>
-        <input
-          value={paidAmount}
-          onChange={(event) => setPaidAmount(event.target.value)}
-          disabled={disabled || pending}
-          type="number"
-          min="0"
-          step="0.01"
-          className="h-12 rounded-lg border border-input bg-background px-3 text-base"
-        />
-      </label>
-
-      <Button
-        type="button"
-        onClick={convert}
-        disabled={disabled || pending}
-        className="h-14 gap-2 px-6 text-lg"
-      >
-        <ShoppingCart className="size-6" aria-hidden="true" />
-        {pending ? "Convirtiendo..." : "Convertir en venta"}
-      </Button>
       {stockWarnings.length > 0 ? (
         <div className="rounded-lg border border-yellow-500/40 bg-yellow-50 p-3 text-sm text-yellow-900">
           <p className="font-semibold">

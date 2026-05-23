@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState, type ReactNode } from "react";
+import { startTransition, useActionState, useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, PackagePlus, Save, Trash2, X } from "lucide-react";
 
@@ -9,6 +9,8 @@ import {
   updateProductStockCommercialAction,
   type ProductActionState,
 } from "@/app/(dashboard)/productos/actions";
+import { DeleteConfirmDialog } from "@/components/common/delete-confirm-dialog";
+import { CatalogSelectWithCreate } from "@/components/productos/catalog-select-with-create";
 import { Button } from "@/components/ui/button";
 import type { ProductListItem } from "./product-types";
 import { SaleUnitsEditor } from "./sale-units-editor";
@@ -26,6 +28,14 @@ const initialState: ProductActionState = {
 
 function numberInputValue(value: number | null) {
   return value === null ? "" : String(value);
+}
+
+function numberValue(value: string) {
+  return Number(value.replace(",", "."));
+}
+
+function moneyValue(value: number) {
+  return value.toFixed(2);
 }
 
 export function StockAdjustDetails({
@@ -47,6 +57,21 @@ export function StockAdjustDetails({
 }) {
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    }
+
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [open]);
 
   return (
     <>
@@ -76,13 +101,14 @@ export function StockAdjustDetails({
 
       {open ? (
         <div className="fixed inset-0 z-40 grid place-items-center bg-black/35 p-3 sm:p-4">
-          <div className="max-h-[92vh] w-[calc(100vw-1.5rem)] max-w-7xl overflow-x-hidden overflow-y-auto rounded-lg border border-border bg-card p-3 shadow-xl sm:p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
+          <div className="flex max-h-[92vh] w-[calc(100vw-1.5rem)] max-w-7xl flex-col overflow-hidden rounded-lg border border-border bg-card shadow-xl">
+            <div className="sticky top-0 z-20 flex shrink-0 items-start justify-between gap-3 border-b border-border bg-card/95 px-3 py-3 backdrop-blur sm:px-4">
+              <div className="min-w-0 pr-2">
                 <p className="text-lg font-bold">Gestionar producto</p>
-                <p className="truncate text-sm font-semibold text-muted-foreground">
-                  {product.name} - {product.sku}
-                </p>
+                <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-sm font-semibold text-muted-foreground">
+                  <p className="min-w-0 max-w-full truncate">{product.name}</p>
+                  <p className="shrink-0 truncate">SKU/codigo: {product.sku}</p>
+                </div>
               </div>
               <Button
                 type="button"
@@ -90,39 +116,41 @@ export function StockAdjustDetails({
                 size="icon"
                 onClick={() => setOpen(false)}
                 aria-label="Cerrar"
-                className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                className="shrink-0 text-red-600 hover:bg-red-50 hover:text-red-700 focus-visible:ring-red-500"
               >
                 <X className="size-4" aria-hidden="true" />
               </Button>
             </div>
 
-            <div className="mt-3 grid gap-4 rounded-lg border border-border bg-muted/20 p-3">
-              <section className="min-w-0">
-                <StockAdjustForm
-                  product={product}
-                  onAdjusted={() => setOpen(false)}
-                />
-              </section>
-
-              {canEditPrice ? (
-                <ProductCommercialForm
-                  brands={brands}
-                  product={product}
-                  suppliers={suppliers}
-                />
-              ) : null}
-
-              {canEditPrice ? (
+            <div className="min-h-0 overflow-x-hidden overflow-y-auto p-3 sm:p-4">
+              <div className="grid gap-4 rounded-lg border border-border bg-muted/20 p-3">
                 <section className="min-w-0">
-                  <DangerZone
+                  <StockAdjustForm
                     product={product}
-                    onDeleted={(nextMessage) => {
-                      setOpen(false);
-                      setMessage(nextMessage);
-                    }}
+                    onAdjusted={() => setOpen(false)}
                   />
                 </section>
-              ) : null}
+
+                {canEditPrice ? (
+                  <ProductCommercialForm
+                    brands={brands}
+                    product={product}
+                    suppliers={suppliers}
+                  />
+                ) : null}
+
+                {canEditPrice ? (
+                  <section className="min-w-0">
+                    <DangerZone
+                      product={product}
+                      onDeleted={(nextMessage) => {
+                        setOpen(false);
+                        setMessage(nextMessage);
+                      }}
+                    />
+                  </section>
+                ) : null}
+              </div>
             </div>
           </div>
         </div>
@@ -140,7 +168,6 @@ function DangerZone({
 }) {
   const router = useRouter();
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [confirmation, setConfirmation] = useState("");
   const [state, formAction, pending] = useActionState(
     deactivateProductAction,
     initialState
@@ -151,7 +178,6 @@ function DangerZone({
       router.refresh();
       const closeTimeout = window.setTimeout(() => {
         setConfirmOpen(false);
-        setConfirmation("");
         onDeleted(state.message);
       }, 250);
 
@@ -175,7 +201,7 @@ function DangerZone({
           type="button"
           variant="destructive"
           onClick={() => setConfirmOpen(true)}
-          className="h-10 gap-2 px-4 text-sm font-bold"
+          className="h-10 gap-2 bg-red-600 px-4 text-sm font-bold text-white hover:bg-red-700 focus-visible:ring-red-500"
         >
           <Trash2 className="size-5" aria-hidden="true" />
           Eliminar producto
@@ -187,29 +213,20 @@ function DangerZone({
       ) : null}
 
       {confirmOpen ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 p-4">
-          <div className="w-full max-w-lg rounded-lg border border-border bg-card p-5 shadow-lg">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-lg font-bold">Confirmar eliminacion</p>
-                <p className="mt-1 text-sm font-semibold text-muted-foreground">
-                  Esta accion solo oculta el producto. El historial se conserva.
-                </p>
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => {
-                  setConfirmOpen(false);
-                  setConfirmation("");
-                }}
-                aria-label="Cerrar confirmacion"
-              >
-                <X className="size-4" aria-hidden="true" />
-              </Button>
-            </div>
-
+        <DeleteConfirmDialog
+          open={confirmOpen}
+          onOpenChange={setConfirmOpen}
+          title="Eliminar producto"
+          description="Vas a eliminar este producto del stock. Ya no aparecera en ventas ni busquedas, pero el historial se conservara."
+          confirmLabel="Eliminar producto"
+          isPending={pending}
+          onConfirm={() => {
+            const formData = new FormData();
+            formData.set("productId", product.id);
+            startTransition(() => formAction(formData));
+          }}
+        >
+          <>
             <div className="mt-4 grid gap-2 rounded-lg border border-border bg-muted/40 p-3 text-sm font-semibold">
               <p>Producto: {product.name}</p>
               <p>SKU/codigo: {product.sku}</p>
@@ -222,43 +239,8 @@ function DangerZone({
                 quedara oculto pero el historial se conservara.
               </p>
             ) : null}
-
-            <form action={formAction} className="mt-4 grid gap-3">
-              <input type="hidden" name="productId" value={product.id} />
-              <label className="grid gap-2 text-sm font-semibold">
-                <span>Escribi ELIMINAR para confirmar</span>
-                <input
-                  value={confirmation}
-                  onChange={(event) => setConfirmation(event.target.value)}
-                  className="h-11 rounded-lg border border-input bg-background px-3 text-base"
-                />
-              </label>
-              <div className="grid gap-2 sm:grid-cols-2">
-                <Button
-                  type="submit"
-                  variant="destructive"
-                  disabled={pending || confirmation !== "ELIMINAR"}
-                  className="h-11 gap-2 px-4 text-base"
-                >
-                  <Trash2 className="size-5" aria-hidden="true" />
-                  {pending ? "Eliminando..." : "Eliminar producto"}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={pending}
-                  onClick={() => {
-                    setConfirmOpen(false);
-                    setConfirmation("");
-                  }}
-                  className="h-11 px-4 text-base"
-                >
-                  Cancelar
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
+          </>
+        </DeleteConfirmDialog>
       ) : null}
     </section>
   );
@@ -285,18 +267,36 @@ function ProductCommercialForm({
   const [costWithTax, setCostWithTax] = useState(
     numberInputValue(product.costWithTax)
   );
+  const [profitMarginPercent, setProfitMarginPercent] = useState(
+    String(product.profitMarginPercent)
+  );
   const [salePrice, setSalePrice] = useState(numberInputValue(product.salePrice));
-  function syncCalculatedPrice(nextCostWithoutTax: string, nextTaxRate: string) {
-    const cost = Number(nextCostWithoutTax);
-    const tax = Number(nextTaxRate);
+  function calculateSalePrice(nextCostWithTax: string, nextProfitMargin: string) {
+    const cost = numberValue(nextCostWithTax);
+    const margin = numberValue(nextProfitMargin);
+
+    if (!nextCostWithTax.trim() || !Number.isFinite(cost) || !Number.isFinite(margin)) {
+      return "";
+    }
+
+    return moneyValue(cost * (1 + margin / 100));
+  }
+
+  function syncCostAndPrice(nextCostWithoutTax: string, nextTaxRate: string) {
+    const cost = numberValue(nextCostWithoutTax);
+    const tax = numberValue(nextTaxRate);
 
     if (!nextCostWithoutTax.trim() || !Number.isFinite(cost) || !Number.isFinite(tax)) {
       return;
     }
 
-    const calculated = String((cost * (1 + tax / 100)).toFixed(2));
+    const calculated = moneyValue(cost * (1 + tax / 100));
     setCostWithTax(calculated);
-    setSalePrice(calculated);
+    const nextSalePrice = calculateSalePrice(calculated, profitMarginPercent);
+
+    if (nextSalePrice) {
+      setSalePrice(nextSalePrice);
+    }
   }
 
   useEffect(() => {
@@ -314,22 +314,15 @@ function ProductCommercialForm({
 
       <section className="grid min-w-0 content-start gap-3 rounded-lg border border-border bg-background p-3">
         <h3 className="text-base font-bold">Precio</h3>
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-3 md:grid-cols-5">
           <NumberField
             label="Costo sin IVA"
             name="costWithoutTax"
             value={costWithoutTax}
             onChange={(value) => {
               setCostWithoutTax(value);
-              syncCalculatedPrice(value, taxRate);
+              syncCostAndPrice(value, taxRate);
             }}
-            step="0.01"
-          />
-          <NumberField
-            label="Costo con IVA"
-            name="costWithTax"
-            value={costWithTax}
-            onChange={setCostWithTax}
             step="0.01"
           />
           <NumberField
@@ -338,7 +331,35 @@ function ProductCommercialForm({
             value={taxRate}
             onChange={(value) => {
               setTaxRate(value);
-              syncCalculatedPrice(costWithoutTax, value);
+              syncCostAndPrice(costWithoutTax, value);
+            }}
+            step="0.01"
+          />
+          <NumberField
+            label="Costo con IVA"
+            name="costWithTax"
+            value={costWithTax}
+            onChange={(value) => {
+              setCostWithTax(value);
+              const nextSalePrice = calculateSalePrice(value, profitMarginPercent);
+
+              if (nextSalePrice) {
+                setSalePrice(nextSalePrice);
+              }
+            }}
+            step="0.01"
+          />
+          <NumberField
+            label="Utilidad %"
+            name="profitMarginPercent"
+            value={profitMarginPercent}
+            onChange={(value) => {
+              setProfitMarginPercent(value);
+              const nextSalePrice = calculateSalePrice(costWithTax, value);
+
+              if (nextSalePrice) {
+                setSalePrice(nextSalePrice);
+              }
             }}
             step="0.01"
           />
@@ -361,19 +382,21 @@ function ProductCommercialForm({
             defaultValue={String(product.minStock)}
             step="1"
           />
-          <SelectField
+          <CatalogSelectWithCreate
             currentId={product.brandId}
             currentName={product.brand}
             label="Marca"
             name="brandId"
+            kind="brand"
             options={brands}
             placeholder="Sin marca"
           />
-          <SelectField
+          <CatalogSelectWithCreate
             currentId={product.supplierId}
             currentName={product.supplier}
             label="Proveedor"
             name="supplierId"
+            kind="supplier"
             options={suppliers}
             placeholder="Sin proveedor"
           />
@@ -439,42 +462,3 @@ function NumberField({
   );
 }
 
-function SelectField({
-  currentId,
-  currentName,
-  label,
-  name,
-  options,
-  placeholder,
-}: {
-  currentId: string;
-  currentName: string;
-  label: string;
-  name: string;
-  options: CatalogOption[];
-  placeholder: string;
-}) {
-  const hasCurrentOption =
-    currentId && !options.some((option) => option.id === currentId);
-
-  return (
-    <label className="grid gap-2 text-sm font-semibold">
-      <span>{label}</span>
-      <select
-        name={name}
-        defaultValue={currentId}
-        className="h-11 rounded-lg border border-input bg-background px-3 text-base"
-      >
-        <option value="">{placeholder}</option>
-        {hasCurrentOption ? (
-          <option value={currentId}>{currentName || currentId}</option>
-        ) : null}
-        {options.map((option) => (
-          <option key={option.id} value={option.id}>
-            {option.name}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}

@@ -1,15 +1,19 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 
 import {
   ConvertQuoteButton,
   PrintQuoteButton,
 } from "@/components/presupuestos/quote-actions";
+import { DeleteQuoteButton } from "@/components/presupuestos/delete-quote-button";
 import {
   PrintDocument,
   type PrintBusiness,
   type PrintTotalRow,
 } from "@/components/print/print-document";
 import { PageHeader } from "@/components/shell/page-header";
+import { Button } from "@/components/ui/button";
 import { ferreteriaGuemesBrand } from "@/lib/brand/ferreteria-guemes";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { requireTenant } from "@/lib/tenant";
@@ -114,6 +118,7 @@ export default async function QuoteDetailPage({ params }: QuotePageProps) {
         )
         .eq("tenant_id", tenant.id)
         .eq("id", id)
+        .is("deleted_at", null)
         .maybeSingle(),
       supabase
         .from("quote_items")
@@ -125,6 +130,7 @@ export default async function QuoteDetailPage({ params }: QuotePageProps) {
         .from("customers")
         .select("id,name")
         .eq("tenant_id", tenant.id)
+        .is("deleted_at", null)
         .order("name")
         .limit(300),
       supabase
@@ -163,19 +169,55 @@ export default async function QuoteDetailPage({ params }: QuotePageProps) {
       requestedQuantity:
         Number(item.quantity) * Number(item.quantity_in_base_unit ?? 1),
     }));
+  const canConvertToSale =
+    quote.status !== "converted" &&
+    quote.status !== "converted_to_sale" &&
+    quote.status !== "cancelled" &&
+    items.length > 0;
 
   return (
     <>
       <div className="no-print">
+        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <Button asChild variant="outline" className="h-9 gap-1.5 px-3 text-sm">
+            <Link href="/presupuestos">
+              <ArrowLeft className="size-4" aria-hidden="true" />
+              Volver a presupuestos
+            </Link>
+          </Button>
+          <PrintQuoteButton />
+          {tenant.role === "owner" || tenant.role === "admin" ? (
+            <DeleteQuoteButton
+              quoteId={quote.id}
+              isConverted={quote.status === "converted"}
+            />
+          ) : null}
+        </div>
         <PageHeader
           title={`Presupuesto #${quote.quote_number}`}
-          description="Detalle listo para imprimir o convertir en venta."
-          backHref="/presupuestos"
-          backLabel="Volver a presupuestos"
+          description={
+            canConvertToSale
+              ? "Detalle listo para imprimir o convertir en venta."
+              : "Detalle listo para imprimir."
+          }
+          eyebrow=""
         />
       </div>
 
       <div className="grid gap-6">
+        {canConvertToSale ? (
+          <div className="no-print">
+            <ConvertQuoteButton
+              quoteId={quote.id}
+              total={quote.total}
+              initialCustomerId={quote.customer_id}
+              customers={customers}
+              disabled={!canConvertToSale}
+              stockWarnings={negativeStockWarnings}
+            />
+          </div>
+        ) : null}
+
         <PrintDocument
           business={buildBusiness(tenantDetails)}
           document={{
@@ -201,18 +243,6 @@ export default async function QuoteDetailPage({ params }: QuotePageProps) {
           note="Este presupuesto esta sujeto a disponibilidad de stock y actualizacion de precios."
           footerMessage="Gracias por consultar"
         />
-
-        <div className="no-print flex flex-col gap-3 sm:flex-row">
-          <PrintQuoteButton />
-          <ConvertQuoteButton
-            quoteId={quote.id}
-            total={quote.total}
-            initialCustomerId={quote.customer_id}
-            customers={customers}
-            disabled={quote.status === "converted" || items.length === 0}
-            stockWarnings={negativeStockWarnings}
-          />
-        </div>
       </div>
     </>
   );

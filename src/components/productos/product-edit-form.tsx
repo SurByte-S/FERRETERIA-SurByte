@@ -82,6 +82,9 @@ export function ProductEditForm({
         <Field label="Costo con IVA">
           <input name="cost" defaultValue={product.costWithTax ?? ""} inputMode="decimal" className="h-12 rounded-lg border border-input bg-background px-3 text-base" />
         </Field>
+        <Field label="Utilidad %">
+          <input name="profitMarginPercent" defaultValue={product.profitMarginPercent} inputMode="decimal" min="0" className="h-12 rounded-lg border border-input bg-background px-3 text-base" />
+        </Field>
         <Field label="Precio de venta">
           <input name="salePrice" defaultValue={product.salePrice ?? ""} inputMode="decimal" className="h-12 rounded-lg border border-input bg-background px-3 text-base" />
         </Field>
