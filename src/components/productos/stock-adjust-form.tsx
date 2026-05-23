@@ -352,7 +352,7 @@ export function StockAdjustForm({
 function SummaryBlock({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-border bg-background p-2.5">
-      <p className="text-xs font-semibold text-muted-foreground">{label}</p>
+      <p className="text-xs font-semibold text-foreground">{label}</p>
       <p className="mt-1 truncate text-lg font-bold">{value}</p>
     </div>
   );

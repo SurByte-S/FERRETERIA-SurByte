@@ -83,7 +83,7 @@ export function StockCsvUploadCard() {
 
             <div className="overflow-x-auto rounded-md border border-border">
               <table className="w-full min-w-[760px] text-left text-sm">
-                <thead className="bg-muted text-muted-foreground">
+                <thead className="bg-muted text-foreground">
                   <tr>
                     <th className="p-2">Codigo</th>
                     <th className="p-2">Cantidad a sumar</th>
@@ -224,7 +224,7 @@ function SummaryGrid({
 function SummaryItem({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="rounded-md border border-border bg-background p-3">
-      <p className="text-xs font-semibold text-muted-foreground">{label}</p>
+      <p className="text-xs font-semibold text-foreground">{label}</p>
       <p className="mt-1 text-lg font-bold">{value}</p>
     </div>
   );

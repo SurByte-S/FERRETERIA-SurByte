@@ -50,7 +50,7 @@ export function ProductPriceForm({
       <input type="hidden" name="productId" value={productId} />
 
       <div className="grid gap-2">
-        <p className="font-mono text-base text-muted-foreground">
+        <p className="font-mono text-base font-semibold text-foreground">
           Codigo/SKU: {sku}
         </p>
         <h3 className="text-xl font-bold">{name}</h3>

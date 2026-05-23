@@ -97,7 +97,7 @@ export function CloseCashForm({
       <input type="hidden" name="sessionId" value={sessionId} />
 
       <div className="rounded-md border-2 border-border bg-background p-4">
-        <p className="text-sm font-bold uppercase text-muted-foreground">
+        <p className="text-sm font-bold uppercase text-foreground">
           Efectivo esperado
         </p>
         <p className="mt-2 font-mono text-3xl font-black tabular-nums text-foreground">

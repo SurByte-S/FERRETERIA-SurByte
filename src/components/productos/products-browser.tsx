@@ -317,7 +317,7 @@ export function ProductsBrowser({
                 >
                   {mode === "administracion" ? <ProductThumb product={product} /> : null}
                   <div className="min-w-0">
-                    <p className="mb-2 font-mono text-base text-muted-foreground">
+                    <p className="mb-2 font-mono text-base font-semibold text-foreground">
                       Código: {product.sku}
                     </p>
                     <CardTitle className="text-xl xl:text-2xl">{product.name}</CardTitle>
@@ -328,7 +328,7 @@ export function ProductsBrowser({
                     ) : null}
                   </div>
                   <div className="rounded-lg border border-border bg-background p-3 text-left xl:min-w-48 xl:p-4">
-                    <p className="text-base text-muted-foreground">Precio de venta</p>
+                    <p className="text-base font-semibold text-foreground">Precio de venta</p>
                     <p className="mt-1 text-2xl font-bold xl:text-3xl">
                       {formatMoney(product.salePrice)}
                     </p>
@@ -344,14 +344,14 @@ export function ProductsBrowser({
                   }
                 >
                   <div className="rounded-lg border border-border bg-background p-4">
-                    <p className="text-base text-muted-foreground">Stock actual</p>
+                    <p className="text-base font-semibold text-foreground">Stock actual</p>
                     <p className="mt-1 text-2xl font-bold">
                       {formatStockQuantity(product.stockQuantity)}
                     </p>
                   </div>
                   {mode === "administracion" ? (
                     <div className="rounded-lg border border-border bg-background p-4">
-                      <p className="text-base text-muted-foreground">Stock minimo</p>
+                      <p className="text-base font-semibold text-foreground">Stock minimo</p>
                       <p className="mt-1 text-2xl font-bold">
                         {formatStockQuantity(product.minStock)}
                       </p>
@@ -441,7 +441,7 @@ function ProductThumb({ product }: { product: ProductListItem }) {
   }
 
   return (
-    <div className="flex size-20 items-center justify-center rounded-lg border border-border bg-muted text-muted-foreground 2xl:size-24">
+    <div className="flex size-20 items-center justify-center rounded-lg border border-border bg-muted text-foreground 2xl:size-24">
       <ImageIcon className="size-9" aria-hidden="true" />
     </div>
   );

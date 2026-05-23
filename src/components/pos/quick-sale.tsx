@@ -606,10 +606,10 @@ export function QuickSale({
                         <p className="truncate text-sm font-bold">
                           {line.description}
                         </p>
-                        <p className="font-mono text-xs text-muted-foreground">
+                        <p className="font-mono text-xs font-semibold text-foreground">
                           {line.code}
                         </p>
-                        <p className="text-xs font-semibold text-muted-foreground">
+                        <p className="text-xs font-semibold text-foreground">
                           {line.selectedSaleUnitName} x{" "}
                           {formatStockQuantity(line.quantityInBaseUnit)} {line.unit}
                         </p>
@@ -644,7 +644,7 @@ export function QuickSale({
                         />
                       </label>
                       <div className="text-right">
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-sm font-semibold text-foreground">
                           {formatMoney(line.price)} c/u
                         </p>
                         <p className="text-lg font-bold text-primary">
@@ -852,7 +852,7 @@ function CashStatusLine({ cashStatus }: { cashStatus: CashStatus }) {
           <p className="font-bold">
             {cashStatus.open ? "Caja abierta" : "Caja cerrada"}
           </p>
-          <p className="truncate text-muted-foreground">
+          <p className="truncate text-foreground">
             {cashStatus.open
               ? `${formatDate(cashStatus.openedAt)} - ${formatMoney(
                   cashStatus.expectedCash
@@ -902,27 +902,27 @@ function ProductResult({
   return (
     <div className="grid gap-3 rounded-lg border border-border bg-background p-3 lg:grid-cols-[110px_minmax(0,1fr)_120px_100px_96px_auto] lg:items-center">
       <div>
-        <p className="text-sm font-semibold text-muted-foreground">Código</p>
+        <p className="text-sm font-semibold text-foreground">Código</p>
         <p className="font-mono text-base font-bold">{product.code}</p>
       </div>
       <div className="min-w-0">
-        <p className="text-sm font-semibold text-muted-foreground">Producto</p>
+        <p className="text-sm font-semibold text-foreground">Producto</p>
         <p className="truncate text-base font-bold">
           {product.name || product.description}
         </p>
       </div>
       <div>
-        <p className="text-sm font-semibold text-muted-foreground">Precio</p>
+        <p className="text-sm font-semibold text-foreground">Precio</p>
         <p className="text-base font-bold">{formatMoney(product.price)}</p>
       </div>
       <div>
-        <p className="text-sm font-semibold text-muted-foreground">Stock</p>
+        <p className="text-sm font-semibold text-foreground">Stock</p>
         <p className="text-base font-bold">
           {formatStockQuantity(product.stockQuantity)} {product.unit}
         </p>
       </div>
       <div>
-        <p className="text-sm font-semibold text-muted-foreground">Estado</p>
+        <p className="text-sm font-semibold text-foreground">Estado</p>
         <span
           className={
             inStock

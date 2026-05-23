@@ -160,7 +160,7 @@ function LegalBlocks({ blocks }: { blocks: MarkdownBlock[] }) {
           return (
             <aside
               key={`${block.type}-${index}`}
-              className="rounded-lg border border-accent/40 bg-secondary p-4 text-sm font-medium leading-6 text-secondary-foreground"
+              className="rounded-lg border border-accent/40 bg-secondary p-4 text-sm font-medium leading-6 text-foreground"
             >
               {parseInline(block.text)}
             </aside>
@@ -234,7 +234,7 @@ export function LegalDocument({
             </p>
           </header>
 
-          <section className="mt-6 rounded-lg border border-accent/40 bg-secondary p-4 text-sm font-semibold leading-6 text-secondary-foreground">
+          <section className="mt-6 rounded-lg border border-accent/40 bg-secondary p-4 text-sm font-semibold leading-6 text-foreground">
             {ACADEMIC_NOTICE}
           </section>
 

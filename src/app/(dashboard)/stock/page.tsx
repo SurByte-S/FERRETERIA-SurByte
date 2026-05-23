@@ -300,7 +300,7 @@ export default async function StockPage({ searchParams }: StockPageProps) {
                     </Button>
                   ))}
                 </div>
-                <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm font-semibold text-muted-foreground xl:text-base">
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm font-semibold text-foreground xl:text-base">
                   <span>Productos encontrados: {result.products.length}</span>
                   <span>Productos sin stock: {result.outOfStockCount}</span>
                 </div>
@@ -370,7 +370,7 @@ function StockProductCard({
   const content = (
     <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_150px_150px] md:items-center md:gap-3">
       <div className="min-w-0">
-        <p className="font-mono text-[11px] font-semibold leading-tight text-muted-foreground">
+        <p className="font-mono text-[11px] font-semibold leading-tight text-foreground">
           Codigo: {product.code}
         </p>
         <p className="mt-0.5 line-clamp-1 text-base font-semibold leading-tight text-foreground md:text-lg">
@@ -379,7 +379,7 @@ function StockProductCard({
       </div>
 
       <div className="flex min-h-[48px] flex-col justify-center rounded-lg border border-border bg-background p-2 md:min-h-[52px]">
-        <p className="text-[11px] font-semibold leading-tight text-muted-foreground">
+        <p className="text-[11px] font-semibold leading-tight text-foreground">
           Precio venta
         </p>
         <p className="mt-0.5 truncate text-base font-bold leading-tight text-primary md:text-lg">

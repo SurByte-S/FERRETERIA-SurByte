@@ -124,19 +124,19 @@ export default async function ProductStockPage({ params }: ProductStockPageProps
           </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-3">
             <div className="rounded-lg border border-border p-4">
-              <p className="text-base text-muted-foreground">Stock actual</p>
+              <p className="text-base font-semibold text-foreground">Stock actual</p>
               <p className="text-3xl font-bold">
                 {formatStockQuantity(product.stock_quantity)}
               </p>
             </div>
             <div className="rounded-lg border border-border p-4">
-              <p className="text-base text-muted-foreground">Stock minimo</p>
+              <p className="text-base font-semibold text-foreground">Stock minimo</p>
               <p className="text-3xl font-bold">
                 {formatStockQuantity(product.min_stock)}
               </p>
             </div>
             <div className="rounded-lg border border-border p-4">
-              <p className="text-base text-muted-foreground">Estado</p>
+              <p className="text-base font-semibold text-foreground">Estado</p>
               <p className="text-3xl font-bold">{stockStatus(product)}</p>
             </div>
           </CardContent>

@@ -1118,7 +1118,7 @@ function ProductRow({
         <p className="line-clamp-2 text-base font-black leading-tight">
           {product.name || product.description}
         </p>
-        <p className="font-mono text-sm font-semibold text-muted-foreground">
+        <p className="font-mono text-sm font-semibold text-foreground">
           Codigo: {product.code}
         </p>
         {product.brand || product.category ? (
@@ -1128,7 +1128,7 @@ function ProductRow({
         ) : null}
       </div>
       <label className="grid gap-1">
-        <span className="text-sm font-bold text-muted-foreground">
+        <span className="text-sm font-bold text-foreground">
           Presentacion
         </span>
         <select
@@ -1148,7 +1148,7 @@ function ProductRow({
         value={`${formatStockQuantity(product.stockQuantity)} ${product.unit}`}
       />
       <div>
-        <p className="text-sm font-bold text-muted-foreground">Precio</p>
+        <p className="text-sm font-bold text-foreground">Precio</p>
         <p className="text-lg font-black text-primary">
           {formatMoney(selectedSaleUnit.salePrice)}
         </p>
@@ -1182,10 +1182,10 @@ function TicketLine({
           <p className="line-clamp-2 text-sm font-black leading-tight">
             {line.description}
           </p>
-          <p className="font-mono text-xs font-semibold text-muted-foreground">
+          <p className="font-mono text-xs font-semibold text-foreground">
             Codigo: {line.code}
           </p>
-          <p className="text-xs font-semibold text-muted-foreground">
+          <p className="text-xs font-semibold text-foreground">
             {line.selectedSaleUnitName} x {formatStockQuantity(line.quantityInBaseUnit)} {line.unit}
           </p>
         </div>
@@ -1224,7 +1224,7 @@ function TicketLine({
           </Button>
         </div>
         <div className="text-right">
-          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+          <p className="text-xs font-bold uppercase tracking-wide text-foreground">
             {formatMoney(line.price)} c/u
           </p>
           <p className="text-lg font-black text-primary">

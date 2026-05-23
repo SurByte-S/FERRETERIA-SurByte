@@ -246,7 +246,7 @@ export default async function ClienteDetallePage({ params }: CustomerPageProps) 
                   className="grid gap-3 rounded-lg border border-border p-4 md:grid-cols-[1fr_auto] md:items-center"
                 >
                   <div>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm font-semibold text-foreground">
                       {formatDate(sale.created_at)}
                     </p>
                     <p className="text-xl font-bold">Venta #{sale.sale_number}</p>
@@ -286,7 +286,7 @@ export default async function ClienteDetallePage({ params }: CustomerPageProps) 
                   className="grid gap-3 rounded-lg border border-border p-4 md:grid-cols-[1fr_auto] md:items-center"
                 >
                   <div>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm font-semibold text-foreground">
                       {formatDate(quote.created_at)}
                     </p>
                     <p className="text-xl font-bold">
@@ -326,7 +326,7 @@ export default async function ClienteDetallePage({ params }: CustomerPageProps) 
                   className="grid gap-2 rounded-lg border border-border p-4 md:grid-cols-[1fr_auto] md:items-center"
                 >
                   <div>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm font-semibold text-foreground">
                       {formatDate(movement.created_at)}
                     </p>
                     <p className="text-lg font-bold">
