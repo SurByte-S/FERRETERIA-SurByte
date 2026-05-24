@@ -31,7 +31,7 @@ export const navigationItems = [
   },
   {
     title: "Estadísticas",
-    href: "/estadisticas",
+    href: "/ventas",
     icon: ChartColumn,
     description: "Ventas por día, caja y resumen del negocio.",
   },
@@ -46,6 +46,12 @@ export const navigationItems = [
     href: "/stock",
     icon: Boxes,
     description: "Ver stock y cambiar precios",
+  },
+  {
+    title: "Datos de factura",
+    href: "/ajustes",
+    icon: Settings,
+    description: "Datos que se imprimen",
   },
 ] as const;
 

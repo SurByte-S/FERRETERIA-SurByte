@@ -48,6 +48,20 @@ type TenantBusinessRow = {
   logo_url: string | null;
 };
 
+type InvoiceSettingsRow = {
+  fantasy_name: string | null;
+  legal_name: string | null;
+  tax_id: string | null;
+  iva_condition: string | null;
+  address: string | null;
+  city: string | null;
+  province: string | null;
+  phone: string | null;
+  email: string | null;
+  receipt_footer: string | null;
+  receipt_message: string | null;
+};
+
 type SaleItemRow = {
   sku: string | null;
   name: string;
@@ -72,14 +86,58 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
-function buildBusiness(tenantDetails: TenantBusinessRow | null): PrintBusiness {
+function clean(value: string | null | undefined) {
+  return value?.trim() ?? "";
+}
+
+function preferred(
+  settingValue: string | null | undefined,
+  tenantValue: string | null | undefined,
+  fallback = ""
+) {
+  return clean(settingValue) || clean(tenantValue) || fallback;
+}
+
+function buildBusiness(
+  tenantDetails: TenantBusinessRow | null,
+  invoiceSettings: InvoiceSettingsRow | null
+): PrintBusiness {
   return {
-    name: ferreteriaGuemesBrand.brandName,
+    name: preferred(
+      invoiceSettings?.fantasy_name,
+      tenantDetails?.name,
+      ferreteriaGuemesBrand.brandName
+    ),
     subtitle: ferreteriaGuemesBrand.slogan,
-    address: tenantDetails?.address ?? ferreteriaGuemesBrand.address,
-    phone: tenantDetails?.phone ?? ferreteriaGuemesBrand.phone,
-    email: tenantDetails?.email ?? ferreteriaGuemesBrand.email,
-    taxId: tenantDetails?.tax_id ?? ferreteriaGuemesBrand.taxId,
+    legalName: preferred(
+      invoiceSettings?.legal_name,
+      tenantDetails?.business_name
+    ),
+    address: preferred(
+      invoiceSettings?.address,
+      tenantDetails?.address,
+      ferreteriaGuemesBrand.address
+    ),
+    city: clean(invoiceSettings?.city),
+    province: clean(invoiceSettings?.province),
+    phone: preferred(
+      invoiceSettings?.phone,
+      tenantDetails?.phone,
+      ferreteriaGuemesBrand.phone
+    ),
+    email: preferred(
+      invoiceSettings?.email,
+      tenantDetails?.email,
+      ferreteriaGuemesBrand.email
+    ),
+    taxId: preferred(
+      invoiceSettings?.tax_id,
+      tenantDetails?.tax_id,
+      ferreteriaGuemesBrand.taxId
+    ),
+    ivaCondition: clean(invoiceSettings?.iva_condition),
+    receiptFooter: clean(invoiceSettings?.receipt_footer),
+    receiptMessage: clean(invoiceSettings?.receipt_message),
     logoUrl: tenantDetails?.logo_url ?? ferreteriaGuemesBrand.logoPath,
   };
 }
@@ -88,27 +146,35 @@ export default async function SaleDetailPage({ params }: SalePageProps) {
   const { id } = await params;
   const tenant = await requireTenant();
   const supabase = getSupabaseServerClient();
-  const [saleResult, itemsResult, tenantResult] = await Promise.all([
-    supabase
-      .from("sales")
-      .select(
-        "id,sale_number,subtotal,discount_amount,tax_amount,total,paid_amount,payment_method,cash_session_id,created_at,customers(name,phone,email,address),cash_register_sessions(opened_at)"
-      )
-      .eq("tenant_id", tenant.id)
-      .eq("id", id)
-      .maybeSingle(),
-    supabase
-      .from("sale_items")
-      .select("sku,name,quantity,sale_unit_name,unit_price,total")
-      .eq("tenant_id", tenant.id)
-      .eq("sale_id", id)
-      .order("name"),
-    supabase
-      .from("tenants")
-      .select("name,slug,business_name,tax_id,phone,email,address,logo_url")
-      .eq("id", tenant.id)
-      .maybeSingle(),
-  ]);
+  const [saleResult, itemsResult, tenantResult, invoiceSettingsResult] =
+    await Promise.all([
+      supabase
+        .from("sales")
+        .select(
+          "id,sale_number,subtotal,discount_amount,tax_amount,total,paid_amount,payment_method,cash_session_id,created_at,customers(name,phone,email,address),cash_register_sessions(opened_at)"
+        )
+        .eq("tenant_id", tenant.id)
+        .eq("id", id)
+        .maybeSingle(),
+      supabase
+        .from("sale_items")
+        .select("sku,name,quantity,sale_unit_name,unit_price,total")
+        .eq("tenant_id", tenant.id)
+        .eq("sale_id", id)
+        .order("name"),
+      supabase
+        .from("tenants")
+        .select("name,slug,business_name,tax_id,phone,email,address,logo_url")
+        .eq("id", tenant.id)
+        .maybeSingle(),
+      supabase
+        .from("tenant_invoice_settings")
+        .select(
+          "fantasy_name,legal_name,tax_id,iva_condition,address,city,province,phone,email,receipt_footer,receipt_message"
+        )
+        .eq("tenant_id", tenant.id)
+        .maybeSingle(),
+    ]);
 
   if (saleResult.error || !saleResult.data) {
     notFound();
@@ -117,6 +183,8 @@ export default async function SaleDetailPage({ params }: SalePageProps) {
   const sale = saleResult.data as unknown as SaleRow;
   const items = (itemsResult.data ?? []) as unknown as SaleItemRow[];
   const tenantDetails = tenantResult.data as TenantBusinessRow | null;
+  const invoiceSettings =
+    invoiceSettingsResult.data as InvoiceSettingsRow | null;
   const pendingAmount = Math.max(sale.total - sale.paid_amount, 0);
   const isAccountSale = sale.payment_method === "Cuenta corriente";
   const totalRows: PrintTotalRow[] = [
@@ -162,7 +230,7 @@ export default async function SaleDetailPage({ params }: SalePageProps) {
 
       <div className="grid gap-6">
         <PrintDocument
-          business={buildBusiness(tenantDetails)}
+          business={buildBusiness(tenantDetails, invoiceSettings)}
           document={{
             typeLabel: "Comprobante de venta",
             numberLabel: `#${sale.sale_number}`,

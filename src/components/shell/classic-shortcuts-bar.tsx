@@ -14,7 +14,7 @@ export function ClassicShortcutsBar() {
   return (
     <nav
       aria-label="Accesos rapidos"
-      className="no-print border-b border-[#9aa7b8] bg-[#e9edf3] px-2 py-2 sm:px-2.5"
+      className="no-print border-b border-border bg-secondary px-2 py-2 sm:px-2.5"
     >
       <div className="flex gap-2 overflow-x-auto pb-0.5 lg:flex-wrap lg:overflow-visible">
         {shortcutItems.map((item) => {
@@ -31,8 +31,8 @@ export function ClassicShortcutsBar() {
               className={cn(
                 "flex min-h-13 min-w-[150px] shrink-0 items-center gap-2 rounded-md border px-3 text-base font-bold shadow-sm transition-colors",
                 active
-                  ? "border-[#174ea6] bg-[#1f5fbf] text-white"
-                  : "border-[#8a96a8] bg-[#f8fafc] text-[#111827] hover:border-[#1f5fbf] hover:bg-white"
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-card text-foreground hover:border-primary hover:bg-background"
               )}
             >
               <Icon className="size-5 shrink-0" aria-hidden="true" />

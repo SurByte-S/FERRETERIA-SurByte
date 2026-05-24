@@ -3,10 +3,16 @@ import { BrandLogo } from "@/components/brand/brand-logo";
 export type PrintBusiness = {
   name: string;
   subtitle?: string | null;
+  legalName?: string | null;
   address?: string | null;
+  city?: string | null;
+  province?: string | null;
   phone?: string | null;
   email?: string | null;
   taxId?: string | null;
+  ivaCondition?: string | null;
+  receiptFooter?: string | null;
+  receiptMessage?: string | null;
   logoUrl?: string | null;
 };
 
@@ -60,11 +66,21 @@ function visibleText(value: string | null | undefined, fallback: string) {
   return cleanValue ? cleanValue : fallback;
 }
 
+function optionalText(value: string | null | undefined) {
+  return value?.trim() || null;
+}
+
 function DetailLine({ label, value }: { label: string; value?: string | null }) {
+  const cleanValue = optionalText(value);
+
+  if (!cleanValue) {
+    return null;
+  }
+
   return (
     <p>
       <span>{label}</span>
-      <strong>{visibleText(value, "No configurado")}</strong>
+      <strong>{cleanValue}</strong>
     </p>
   );
 }
@@ -97,10 +113,14 @@ function PrintHeader({
           </p>
           <h1>{business.name}</h1>
           <div className="print-contact-grid">
+            <DetailLine label="Razon social" value={business.legalName} />
+            <DetailLine label="CUIT" value={business.taxId} />
+            <DetailLine label="Condicion IVA" value={business.ivaCondition} />
             <DetailLine label="Direccion" value={business.address} />
+            <DetailLine label="Localidad" value={business.city} />
+            <DetailLine label="Provincia" value={business.province} />
             <DetailLine label="Telefono / WhatsApp" value={business.phone} />
             <DetailLine label="Email" value={business.email} />
-            <DetailLine label="CUIT" value={business.taxId} />
           </div>
         </div>
       </div>
@@ -257,22 +277,28 @@ function PrintFooter({
   note: string;
   footerMessage: string;
 }) {
+  const addressLine = [business.address, business.city, business.province]
+    .map(optionalText)
+    .filter(Boolean)
+    .join(", ");
   const contact = [
-    business.phone ? `Tel. ${business.phone}` : null,
-    business.email ?? null,
-    business.address ?? null,
+    optionalText(business.phone) ? `Tel. ${optionalText(business.phone)}` : null,
+    optionalText(business.email),
+    addressLine || null,
   ]
     .filter(Boolean)
     .join(" | ");
+  const printedMessage = visibleText(business.receiptMessage, footerMessage);
+  const printedNote = visibleText(business.receiptFooter, note);
 
   return (
     <footer className="print-footer">
       <div>
-        <strong>{footerMessage}</strong>
-        <p>{note}</p>
+        <strong>{printedMessage}</strong>
+        <p>{printedNote}</p>
         <p>Comprobante interno no valido como factura fiscal.</p>
       </div>
-      <p>{contact || "Datos de contacto no configurados"}</p>
+      {contact ? <p>{contact}</p> : null}
     </footer>
   );
 }

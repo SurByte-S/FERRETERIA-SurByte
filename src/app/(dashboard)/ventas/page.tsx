@@ -1,12 +1,7 @@
 import Link from "next/link";
-import {
-  AlertTriangle,
-  BarChart3,
-  Eye,
-  Printer,
-  ReceiptText,
-} from "lucide-react";
+import { AlertTriangle, BarChart3, Eye, Printer, ReceiptText } from "lucide-react";
 
+import { ExportMenuButton } from "@/components/common/export-menu-button";
 import { PageHeader } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,9 +11,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { requireTenant } from "@/lib/tenant";
+import { cn } from "@/lib/utils";
 
 type VentasPageProps = {
   searchParams: Promise<{
@@ -31,9 +26,46 @@ type SaleRow = {
   sale_number: number;
   total: number;
   paid_amount: number;
-  payment_method: string | null;
   created_at: string;
   customers: { name: string } | null;
+};
+
+type SaleItemRow = {
+  id: string;
+  sale_id: string;
+  product_id: string | null;
+  sku: string | null;
+  name: string;
+  quantity: number;
+  unit_price: number;
+  total: number;
+};
+
+type ProductRow = {
+  id: string;
+  sku: string;
+  name: string;
+  stock_quantity: number | null;
+  min_stock: number | null;
+  sale_price: number | null;
+  cost_without_tax: number | null;
+  cost_with_tax: number | null;
+};
+
+type ProductMovement = {
+  code: string;
+  estimatedGain: number | null;
+  hasCost: boolean;
+  id: string;
+  minStock: number;
+  name: string;
+  quantity: number;
+  stock: number;
+  total: number;
+};
+
+type ReplenishmentRow = ProductMovement & {
+  suggestion: "Reponer" | "Revisar" | "OK";
 };
 
 type RangeOption = "today" | "7" | "15" | "30" | "month";
@@ -45,46 +77,35 @@ type DateRange = {
   start: string;
 };
 
-type DailySale = {
-  average: number;
-  count: number;
-  date: Date;
-  dateKey: string;
-  dayName: string;
-  paid: number;
+type BusinessSummary = {
+  estimatedGain: number | null;
+  hasAnyCost: boolean;
+  hasMissingCosts: boolean;
   pending: number;
-  shortDate: string;
-  total: number;
-};
-
-type SalesSummary = {
-  averageTicket: number;
-  byPaymentMethod: Record<string, number>;
-  pending: number;
+  salesCount: number;
   totalPaid: number;
   totalSold: number;
 };
 
 const RANGE_OPTIONS: { key: RangeOption; label: string }[] = [
   { key: "today", label: "Hoy" },
-  { key: "7", label: "Últimos 7 días" },
-  { key: "15", label: "Últimos 15 días" },
-  { key: "30", label: "Últimos 30 días" },
+  { key: "7", label: "Ultimos 7 dias" },
+  { key: "15", label: "Ultimos 15 dias" },
+  { key: "30", label: "Ultimos 30 dias" },
   { key: "month", label: "Este mes" },
 ];
 
 function formatMoney(value: number) {
   return new Intl.NumberFormat("es-AR", {
-    style: "currency",
     currency: "ARS",
     maximumFractionDigits: 0,
+    style: "currency",
   }).format(value);
 }
 
-function formatPercent(value: number) {
+function formatNumber(value: number) {
   return new Intl.NumberFormat("es-AR", {
-    maximumFractionDigits: 0,
-    style: "percent",
+    maximumFractionDigits: 2,
   }).format(value);
 }
 
@@ -93,35 +114,6 @@ function formatDate(value: string) {
     dateStyle: "short",
     timeStyle: "short",
   }).format(new Date(value));
-}
-
-function formatDayDate(date: Date) {
-  return new Intl.DateTimeFormat("es-AR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(date);
-}
-
-function formatDateKey(date: Date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
-}
-
-function dayName(date: Date) {
-  return new Intl.DateTimeFormat("es-AR", {
-    weekday: "long",
-  }).format(date);
-}
-
-function shortDate(date: Date) {
-  return new Intl.DateTimeFormat("es-AR", {
-    day: "2-digit",
-    month: "2-digit",
-  }).format(date);
 }
 
 function normalizeRange(value?: string): RangeOption {
@@ -154,70 +146,78 @@ function getRangeFromSearchParams(range?: string): DateRange {
   return {
     end: end.toISOString(),
     key,
-    label: RANGE_OPTIONS.find((option) => option.key === key)?.label ?? "Últimos 7 días",
+    label: RANGE_OPTIONS.find((option) => option.key === key)?.label ?? "Ultimos 7 dias",
     start: start.toISOString(),
   };
 }
 
-function buildDailySales(sales: SaleRow[], range: DateRange) {
-  const startDate = new Date(range.start);
-  const endDate = new Date(range.end);
-  const days: DailySale[] = [];
-  const cursor = new Date(startDate);
-
-  while (cursor <= endDate) {
-    days.push({
-      average: 0,
-      count: 0,
-      date: new Date(cursor),
-      dateKey: formatDateKey(cursor),
-      dayName: dayName(cursor),
-      paid: 0,
-      pending: 0,
-      shortDate: shortDate(cursor),
-      total: 0,
-    });
-    cursor.setDate(cursor.getDate() + 1);
-  }
-
-  const byKey = new Map(days.map((day) => [day.dateKey, day]));
-
-  for (const sale of sales) {
-    const key = formatDateKey(new Date(sale.created_at));
-    const day = byKey.get(key);
-
-    if (!day) {
-      continue;
-    }
-
-    const total = Number(sale.total ?? 0);
-    const paid = Number(sale.paid_amount ?? 0);
-
-    day.count += 1;
-    day.total += total;
-    day.paid += paid;
-    day.pending += Math.max(total - paid, 0);
-  }
-
-  return days.map((day) => ({
-    ...day,
-    average: day.count > 0 ? day.total / day.count : 0,
-  }));
-}
-
-function normalizePaymentMethod(value: string | null) {
-  return value?.trim() || "Sin forma de pago";
-}
-
-function getBarWidth(total: number, max: number) {
-  if (total <= 0 || max <= 0) {
+function getBarWidth(value: number, max: number) {
+  if (value <= 0 || max <= 0) {
     return 0;
   }
 
-  return Math.max((total / max) * 100, 10);
+  return Math.max((value / max) * 100, 10);
 }
 
-function summarizeSales(sales: SaleRow[]): SalesSummary {
+function getCurrentCost(product?: ProductRow) {
+  const costWithTax = Number(product?.cost_with_tax ?? 0);
+  const costWithoutTax = Number(product?.cost_without_tax ?? 0);
+
+  if (costWithTax > 0) {
+    return costWithTax;
+  }
+
+  if (costWithoutTax > 0) {
+    return costWithoutTax;
+  }
+
+  return null;
+}
+
+function buildProductMovements(
+  items: SaleItemRow[],
+  productsById: Map<string, ProductRow>
+) {
+  const movements = new Map<string, ProductMovement>();
+
+  for (const item of items) {
+    const product = item.product_id ? productsById.get(item.product_id) : undefined;
+    const key = item.product_id ?? `${item.sku ?? ""}-${item.name}`;
+    const quantity = Number(item.quantity ?? 0);
+    const total = Number(item.total ?? 0);
+    const cost = getCurrentCost(product);
+    const current = movements.get(key) ?? {
+      code: product?.sku ?? item.sku ?? "-",
+      estimatedGain: 0,
+      hasCost: true,
+      id: key,
+      minStock: Number(product?.min_stock ?? 0),
+      name: product?.name ?? item.name,
+      quantity: 0,
+      stock: Number(product?.stock_quantity ?? 0),
+      total: 0,
+    };
+
+    current.quantity += quantity;
+    current.total += total;
+
+    if (cost === null) {
+      current.hasCost = false;
+      current.estimatedGain = null;
+    } else if (current.estimatedGain !== null) {
+      current.estimatedGain += total - quantity * cost;
+    }
+
+    movements.set(key, current);
+  }
+
+  return [...movements.values()];
+}
+
+function summarizeBusiness(
+  sales: SaleRow[],
+  movements: ProductMovement[]
+): BusinessSummary {
   const totalSold = sales.reduce((sum, sale) => sum + Number(sale.total ?? 0), 0);
   const totalPaid = sales.reduce(
     (sum, sale) => sum + Number(sale.paid_amount ?? 0),
@@ -228,39 +228,77 @@ function summarizeSales(sales: SaleRow[]): SalesSummary {
     const paid = Number(sale.paid_amount ?? 0);
     return sum + Math.max(total - paid, 0);
   }, 0);
-  const averageTicket = sales.length > 0 ? totalSold / sales.length : 0;
-  const byPaymentMethod = sales.reduce<Record<string, number>>((acc, sale) => {
-    const method = normalizePaymentMethod(sale.payment_method);
-    acc[method] = (acc[method] ?? 0) + Number(sale.total ?? 0);
-    return acc;
-  }, {});
+  const hasAnyCost = movements.some((movement) => movement.hasCost);
+  const hasMissingCosts = movements.some((movement) => !movement.hasCost);
+  const estimatedGain = hasAnyCost
+    ? movements.reduce(
+        (sum, movement) => sum + (movement.estimatedGain ?? 0),
+        0
+      )
+    : null;
 
   return {
-    averageTicket,
-    byPaymentMethod,
+    estimatedGain,
+    hasAnyCost,
+    hasMissingCosts,
     pending,
+    salesCount: sales.length,
     totalPaid,
     totalSold,
   };
 }
 
+function getReplenishmentRows(movements: ProductMovement[]) {
+  return movements
+    .map<ReplenishmentRow>((movement) => {
+      let suggestion: ReplenishmentRow["suggestion"] = "OK";
+
+      if (
+        movement.stock <= 0 ||
+        (movement.minStock > 0 && movement.stock <= movement.minStock)
+      ) {
+        suggestion = "Reponer";
+      } else if (movement.minStock > 0 && movement.stock <= movement.minStock + movement.quantity) {
+        suggestion = "Revisar";
+      }
+
+      return { ...movement, suggestion };
+    })
+    .filter((movement) => movement.suggestion !== "OK")
+    .sort((first, second) => {
+      const priority = { Reponer: 0, Revisar: 1, OK: 2 };
+      return priority[first.suggestion] - priority[second.suggestion];
+    })
+    .slice(0, 15);
+}
+
+function getSaleItemCounts(items: SaleItemRow[]) {
+  const counts = new Map<string, number>();
+
+  for (const item of items) {
+    counts.set(item.sale_id, (counts.get(item.sale_id) ?? 0) + 1);
+  }
+
+  return counts;
+}
+
 function MetricCard({
   description,
   title,
-  value,
   tone = "default",
+  value,
 }: {
   description: string;
   title: string;
+  tone?: "default" | "good" | "warning";
   value: string;
-  tone?: "default" | "paid" | "pending";
 }) {
   return (
     <Card
       className={cn(
-        "min-h-36 border-2 border-border",
-        tone === "paid" && "border-emerald-500/40 bg-emerald-50",
-        tone === "pending" && "border-destructive/40 bg-destructive/10"
+        "min-h-36 border-2 border-border bg-card",
+        tone === "good" && "border-emerald-500/40 bg-emerald-50",
+        tone === "warning" && "border-destructive/40 bg-destructive/10"
       )}
     >
       <CardContent className="p-4 xl:p-5">
@@ -268,7 +306,7 @@ function MetricCard({
         <p className="mt-3 text-3xl font-bold leading-tight text-primary xl:text-4xl">
           {value}
         </p>
-        <p className="mt-3 text-base font-medium text-muted-foreground">
+        <p className="mt-3 text-base font-semibold text-foreground">
           {description}
         </p>
       </CardContent>
@@ -276,27 +314,15 @@ function MetricCard({
   );
 }
 
-function Notice({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex gap-3 rounded-md border border-border bg-secondary p-4 text-lg font-semibold text-foreground">
-      <AlertTriangle
-        className="mt-0.5 size-6 shrink-0 text-primary"
-        aria-hidden="true"
-      />
-      <p>{children}</p>
-    </div>
-  );
-}
-
 function RangeFilters({ activeRange }: { activeRange: RangeOption }) {
   return (
-    <nav aria-label="Período de estadísticas" className="flex flex-wrap gap-3">
+    <nav aria-label="Periodo del resumen" className="flex flex-wrap gap-3">
       {RANGE_OPTIONS.map((option) => (
         <Button
           key={option.key}
           asChild
-          variant={activeRange === option.key ? "default" : "outline"}
           className="h-13 px-5 text-lg xl:h-14"
+          variant={activeRange === option.key ? "default" : "outline"}
         >
           <Link href={`/ventas?range=${option.key}`}>{option.label}</Link>
         </Button>
@@ -305,122 +331,312 @@ function RangeFilters({ activeRange }: { activeRange: RangeOption }) {
   );
 }
 
-function SummaryCards({
-  salesCount,
-  summary,
-}: {
-  salesCount: number;
-  summary: SalesSummary;
-}) {
+function CajaDelPeriodo({ summary }: { summary: BusinessSummary }) {
+  const gainTitle = summary.hasAnyCost ? "Ganancia estimada" : "Faltan costos";
+  const gainValue = summary.hasAnyCost
+    ? formatMoney(summary.estimatedGain ?? 0)
+    : "Faltan costos";
+
   return (
-    <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-      <MetricCard
-        title="Total vendido"
-        description="Ventas registradas en el período"
-        value={formatMoney(summary.totalSold)}
-      />
-      <MetricCard
-        title="Total cobrado"
-        description="Dinero registrado como pagado"
-        tone="paid"
-        value={formatMoney(summary.totalPaid)}
-      />
-      <MetricCard
-        title="Pendiente de cobro"
-        description="Importe que falta cobrar"
-        tone="pending"
-        value={formatMoney(summary.pending)}
-      />
-      <MetricCard
-        title="Cantidad de ventas"
-        description="Operaciones registradas"
-        value={String(salesCount)}
-      />
-      <MetricCard
-        title="Promedio por venta"
-        description="Total vendido dividido por ventas"
-        value={formatMoney(summary.averageTicket)}
-      />
+    <section className="grid gap-4" aria-labelledby="caja-periodo-title">
+      <div>
+        <h2 id="caja-periodo-title" className="text-2xl font-bold text-foreground">
+          Caja del periodo
+        </h2>
+        <p className="text-base font-semibold text-foreground">
+          Lo principal para revisar plata vendida y cobrada.
+        </p>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <MetricCard
+          description="Total vendido en ventas registradas"
+          title="Vendido"
+          value={formatMoney(summary.totalSold)}
+        />
+        <MetricCard
+          description="Dinero marcado como cobrado"
+          title="Cobrado"
+          tone="good"
+          value={formatMoney(summary.totalPaid)}
+        />
+        <MetricCard
+          description={
+            summary.hasAnyCost
+              ? "Calculada con costo actual del producto"
+              : "Cargue costos para poder estimar"
+          }
+          title={gainTitle}
+          tone={summary.hasAnyCost ? "default" : "warning"}
+          value={gainValue}
+        />
+        <MetricCard
+          description="Cantidad de operaciones"
+          title="Ventas realizadas"
+          value={String(summary.salesCount)}
+        />
+      </div>
+      {summary.pending > 0 ? (
+        <p className="rounded-md border border-border bg-secondary p-4 text-base font-bold text-foreground">
+          Hay ventas pendientes de cobro. Revisar solo si usan cuenta corriente.
+        </p>
+      ) : null}
     </section>
   );
 }
 
-function DailySalesTable({ days }: { days: DailySale[] }) {
+function ImportantNotices({
+  hasItems,
+  replenishmentCount,
+  summary,
+}: {
+  hasItems: boolean;
+  replenishmentCount: number;
+  summary: BusinessSummary;
+}) {
+  const notices: string[] = [];
+
+  if (summary.salesCount === 0) {
+    notices.push("No hay ventas en este periodo.");
+  }
+
+  if (!hasItems && summary.salesCount > 0) {
+    notices.push("No hay detalle suficiente para mostrar productos vendidos.");
+  }
+
+  if (summary.hasMissingCosts) {
+    notices.push("Hay productos vendidos sin costo cargado.");
+  }
+
+  if (summary.hasAnyCost) {
+    notices.push("La ganancia es estimada porque usa el costo actual.");
+  }
+
+  if (replenishmentCount > 0) {
+    notices.push("Hay productos vendidos que quedaron bajo stock.");
+  }
+
+  if (notices.length === 0) {
+    notices.push("No hay avisos importantes para este periodo.");
+  }
+
   return (
-    <Card>
+    <Card className="border-2 border-border bg-secondary">
       <CardHeader>
-        <CardTitle className="text-2xl">Ventas por día</CardTitle>
-        <CardDescription className="text-base">
-          Planilla diaria para comparar ventas, cobros y pendientes.
-        </CardDescription>
+        <div className="flex items-center gap-3">
+          <AlertTriangle className="size-7 text-primary" aria-hidden="true" />
+          <CardTitle className="text-2xl">Avisos importantes</CardTitle>
+        </div>
       </CardHeader>
       <CardContent>
-        <div className="overflow-x-auto rounded-md border border-border">
-          <table className="w-full min-w-[900px] border-collapse text-left">
-            <thead className="bg-muted/70">
-              <tr className="border-b border-border">
-                <th className="px-4 py-4 text-base font-bold text-foreground">
-                  Fecha
-                </th>
-                <th className="px-4 py-4 text-base font-bold text-foreground">
-                  Día
-                </th>
-                <th className="px-4 py-4 text-right text-base font-bold text-foreground">
-                  Cantidad de ventas
-                </th>
-                <th className="px-4 py-4 text-right text-base font-bold text-foreground">
-                  Total vendido
-                </th>
-                <th className="px-4 py-4 text-right text-base font-bold text-foreground">
-                  Total cobrado
-                </th>
-                <th className="px-4 py-4 text-right text-base font-bold text-foreground">
-                  Pendiente
-                </th>
-                <th className="px-4 py-4 text-right text-base font-bold text-foreground">
-                  Promedio por venta
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {days.map((day) => (
-                <tr
-                  key={day.dateKey}
-                  className="border-b border-border last:border-b-0 even:bg-muted/25"
-                >
-                  <td className="px-4 py-4 text-base font-semibold text-foreground">
-                    {formatDayDate(day.date)}
-                  </td>
-                  <td className="px-4 py-4 text-base capitalize text-foreground">
-                    {day.dayName}
-                  </td>
-                  <td className="px-4 py-4 text-right text-base font-bold text-foreground">
-                    {day.count}
-                  </td>
-                  <td className="px-4 py-4 text-right text-base font-bold text-foreground">
-                    {formatMoney(day.total)}
-                  </td>
-                  <td className="px-4 py-4 text-right text-base font-bold text-emerald-800">
-                    {formatMoney(day.paid)}
-                  </td>
-                  <td className="px-4 py-4 text-right text-base font-bold text-destructive">
-                    {formatMoney(day.pending)}
-                  </td>
-                  <td className="px-4 py-4 text-right text-base font-bold text-foreground">
-                    {formatMoney(day.average)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ul className="grid gap-3">
+          {notices.map((notice) => (
+            <li
+              key={notice}
+              className="rounded-md border border-border bg-card p-3 text-lg font-bold text-foreground"
+            >
+              {notice}
+            </li>
+          ))}
+        </ul>
       </CardContent>
     </Card>
   );
 }
 
-function DailySalesChart({ days }: { days: DailySale[] }) {
-  const maxTotal = Math.max(...days.map((day) => day.total), 0);
+function ProductMovementsTable({ movements }: { movements: ProductMovement[] }) {
+  const rows = [...movements]
+    .sort((first, second) => second.quantity - first.quantity)
+    .slice(0, 15);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-2xl">Productos que se movieron</CardTitle>
+        <CardDescription className="text-base font-semibold text-foreground">
+          Ordenado por cantidad vendida.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {rows.length === 0 ? (
+          <p className="rounded-md border border-border bg-muted p-4 text-lg font-bold text-foreground">
+            No hay detalle suficiente para mostrar productos vendidos.
+          </p>
+        ) : (
+          <div className="overflow-x-auto rounded-md border border-border">
+            <table className="w-full min-w-[980px] border-collapse text-left">
+              <thead className="bg-muted">
+                <tr className="border-b border-border">
+                  <TableHead>Producto</TableHead>
+                  <TableHead>Codigo</TableHead>
+                  <TableHead align="right">Cantidad vendida</TableHead>
+                  <TableHead align="right">Total vendido</TableHead>
+                  <TableHead align="right">Ganancia estimada</TableHead>
+                  <TableHead align="right">Stock actual</TableHead>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((movement) => (
+                  <tr
+                    key={movement.id}
+                    className="border-b border-border last:border-b-0 even:bg-muted/25"
+                  >
+                    <TableCell strong>{movement.name}</TableCell>
+                    <TableCell>{movement.code}</TableCell>
+                    <TableCell align="right" strong>
+                      {formatNumber(movement.quantity)}
+                    </TableCell>
+                    <TableCell align="right" strong>
+                      {formatMoney(movement.total)}
+                    </TableCell>
+                    <TableCell align="right" strong>
+                      {movement.estimatedGain === null
+                        ? "Falta costo"
+                        : formatMoney(movement.estimatedGain)}
+                    </TableCell>
+                    <TableCell align="right" strong>
+                      {formatNumber(movement.stock)}
+                    </TableCell>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function ReplenishmentTable({ rows }: { rows: ReplenishmentRow[] }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-2xl">Para reponer</CardTitle>
+        <CardDescription className="text-base font-semibold text-foreground">
+          Productos vendidos que quedaron sin stock, bajo minimo o cerca del minimo.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {rows.length === 0 ? (
+          <p className="rounded-md border border-border bg-muted p-4 text-lg font-bold text-foreground">
+            No hay productos vendidos para reponer en este periodo.
+          </p>
+        ) : (
+          <div className="overflow-x-auto rounded-md border border-border">
+            <table className="w-full min-w-[900px] border-collapse text-left">
+              <thead className="bg-muted">
+                <tr className="border-b border-border">
+                  <TableHead>Producto</TableHead>
+                  <TableHead>Codigo</TableHead>
+                  <TableHead align="right">Vendido</TableHead>
+                  <TableHead align="right">Stock actual</TableHead>
+                  <TableHead align="right">Stock minimo</TableHead>
+                  <TableHead>Sugerencia</TableHead>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
+                  <tr
+                    key={row.id}
+                    className="border-b border-border last:border-b-0 even:bg-muted/25"
+                  >
+                    <TableCell strong>{row.name}</TableCell>
+                    <TableCell>{row.code}</TableCell>
+                    <TableCell align="right" strong>
+                      {formatNumber(row.quantity)}
+                    </TableCell>
+                    <TableCell align="right" strong>
+                      {formatNumber(row.stock)}
+                    </TableCell>
+                    <TableCell align="right" strong>
+                      {formatNumber(row.minStock)}
+                    </TableCell>
+                    <TableCell strong>
+                      <span
+                        className={cn(
+                          "rounded-md border px-3 py-1 text-base font-bold",
+                          row.suggestion === "Reponer"
+                            ? "border-destructive/40 bg-destructive/10 text-destructive"
+                            : "border-border bg-secondary text-foreground"
+                        )}
+                      >
+                        {row.suggestion}
+                      </span>
+                    </TableCell>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function TopMoneyTable({ movements }: { movements: ProductMovement[] }) {
+  const rows = [...movements]
+    .sort((first, second) => second.total - first.total)
+    .slice(0, 15);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-2xl">Productos que mas plata dejaron</CardTitle>
+        <CardDescription className="text-base font-semibold text-foreground">
+          Plata vendida no siempre significa ganancia.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {rows.length === 0 ? (
+          <p className="rounded-md border border-border bg-muted p-4 text-lg font-bold text-foreground">
+            No hay productos vendidos para mostrar.
+          </p>
+        ) : (
+          <div className="overflow-x-auto rounded-md border border-border">
+            <table className="w-full min-w-[820px] border-collapse text-left">
+              <thead className="bg-muted">
+                <tr className="border-b border-border">
+                  <TableHead>Producto</TableHead>
+                  <TableHead align="right">Cantidad vendida</TableHead>
+                  <TableHead align="right">Total vendido</TableHead>
+                  <TableHead align="right">Ganancia estimada</TableHead>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((movement) => (
+                  <tr
+                    key={movement.id}
+                    className="border-b border-border last:border-b-0 even:bg-muted/25"
+                  >
+                    <TableCell strong>{movement.name}</TableCell>
+                    <TableCell align="right" strong>
+                      {formatNumber(movement.quantity)}
+                    </TableCell>
+                    <TableCell align="right" strong>
+                      {formatMoney(movement.total)}
+                    </TableCell>
+                    <TableCell align="right" strong>
+                      {movement.estimatedGain === null
+                        ? "Falta costo"
+                        : formatMoney(movement.estimatedGain)}
+                    </TableCell>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function ProductsChart({ movements }: { movements: ProductMovement[] }) {
+  const rows = [...movements]
+    .sort((first, second) => second.quantity - first.quantity)
+    .slice(0, 10);
+  const maxQuantity = Math.max(...rows.map((row) => row.quantity), 0);
 
   return (
     <Card className="border-primary/30">
@@ -428,217 +644,112 @@ function DailySalesChart({ days }: { days: DailySale[] }) {
         <div className="mb-2 flex size-12 items-center justify-center rounded-md bg-primary text-primary-foreground">
           <BarChart3 className="size-7" aria-hidden="true" />
         </div>
-        <CardTitle className="text-2xl">Gráfico simple de ventas por día</CardTitle>
-        <CardDescription className="text-base">
-          La barra más larga es el día que más vendió.
+        <CardTitle className="text-2xl">Productos mas vendidos</CardTitle>
+        <CardDescription className="text-base font-semibold text-foreground">
+          Barras simples por cantidad vendida.
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div
-          aria-label="Gráfico simple de ventas por día"
-          className="grid gap-3"
-          role="list"
-        >
-          {days.map((day) => {
-            const width = getBarWidth(day.total, maxTotal);
+        {rows.length === 0 ? (
+          <p className="rounded-md border border-border bg-muted p-4 text-lg font-bold text-foreground">
+            No hay productos vendidos para graficar.
+          </p>
+        ) : (
+          <div className="grid gap-3" role="list">
+            {rows.map((row) => {
+              const width = getBarWidth(row.quantity, maxQuantity);
 
-            return (
-              <div
-                key={day.dateKey}
-                role="listitem"
-                className="grid gap-2 rounded-md border border-border bg-background p-3"
-              >
-                <div className="grid gap-3 md:grid-cols-[170px_minmax(0,1fr)_180px] md:items-center">
+              return (
+                <div
+                  key={row.id}
+                  className="grid gap-3 rounded-md border border-border bg-background p-3 md:grid-cols-[260px_minmax(0,1fr)_190px] md:items-center"
+                  role="listitem"
+                >
                   <div>
-                    <p className="text-lg font-bold capitalize text-foreground">
-                      {day.dayName}
-                    </p>
+                    <p className="text-lg font-bold text-foreground">{row.name}</p>
                     <p className="text-base font-semibold text-foreground">
-                      {day.shortDate} - {day.count} venta
-                      {day.count === 1 ? "" : "s"}
+                      {row.code}
                     </p>
                   </div>
                   <div className="min-h-11 rounded-md bg-muted p-1">
                     <div
-                      aria-label={`${day.shortDate}: ${formatMoney(day.total)}, ${
-                        day.count
-                      } ventas`}
-                      className={
-                        day.total > 0
-                          ? "flex h-9 items-center rounded-md bg-primary px-3 text-primary-foreground"
-                          : "flex h-9 items-center rounded-md border border-dashed border-border bg-card px-3 text-muted-foreground"
-                      }
-                      style={{ width: day.total > 0 ? `${width}%` : "100%" }}
+                      aria-label={`${row.name}: ${formatNumber(row.quantity)} vendidos`}
+                      className="flex h-9 items-center rounded-md bg-primary px-3 text-primary-foreground"
+                      style={{ width: `${width}%` }}
                     >
                       <span className="truncate text-base font-bold">
-                        {formatMoney(day.total)}
+                        {formatNumber(row.quantity)}
                       </span>
                     </div>
                   </div>
-                  <p className="text-right text-2xl font-bold text-foreground">
-                    {formatMoney(day.total)}
+                  <p className="text-right text-xl font-bold text-foreground">
+                    {formatMoney(row.total)}
                   </p>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
 }
 
-function PaymentSummary({
-  byPaymentMethod,
-  totalSold,
+function LatestSales({
+  itemCounts,
+  sales,
 }: {
-  byPaymentMethod: Record<string, number>;
-  totalSold: number;
+  itemCounts: Map<string, number>;
+  sales: SaleRow[];
 }) {
-  const entries = Object.entries(byPaymentMethod).sort(([, a], [, b]) => b - a);
-  const max = Math.max(...entries.map(([, total]) => total), 0);
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-2xl">Resumen por forma de pago</CardTitle>
-        <CardDescription className="text-base">
-          Total vendido agrupado por forma de pago.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="overflow-x-auto rounded-md border border-border">
-          <table className="w-full min-w-[680px] border-collapse text-left">
-            <thead className="bg-muted/70">
-              <tr className="border-b border-border">
-                <th className="px-4 py-4 text-base font-bold text-foreground">
-                  Forma de pago
-                </th>
-                <th className="px-4 py-4 text-right text-base font-bold text-foreground">
-                  Total
-                </th>
-                <th className="px-4 py-4 text-right text-base font-bold text-foreground">
-                  Porcentaje del total
-                </th>
-                <th className="px-4 py-4 text-base font-bold text-foreground">
-                  Barra
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {entries.map(([method, total]) => {
-                const percent = totalSold > 0 ? total / totalSold : 0;
-                const width = getBarWidth(total, max);
-
-                return (
-                  <tr
-                    key={method}
-                    className="border-b border-border last:border-b-0 even:bg-muted/25"
-                  >
-                    <td className="px-4 py-4 text-base font-bold text-foreground">
-                      {method}
-                    </td>
-                    <td className="px-4 py-4 text-right text-base font-bold text-foreground">
-                      {formatMoney(total)}
-                    </td>
-                    <td className="px-4 py-4 text-right text-base font-bold text-foreground">
-                      {formatPercent(percent)}
-                    </td>
-                    <td className="px-4 py-4">
-                      <div className="h-7 rounded-md bg-muted p-1">
-                        <div
-                          className="h-5 rounded bg-primary"
-                          style={{ width: `${width}%` }}
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function LatestSales({ sales }: { sales: SaleRow[] }) {
   return (
     <Card>
       <CardHeader>
         <div className="mb-2 flex size-12 items-center justify-center rounded-md bg-primary text-primary-foreground">
           <ReceiptText className="size-7" aria-hidden="true" />
         </div>
-        <CardTitle className="text-2xl">Últimas ventas</CardTitle>
-        <CardDescription className="text-base">
-          Ventas recientes del período seleccionado.
+        <CardTitle className="text-2xl">Resumen de ventas</CardTitle>
+        <CardDescription className="text-base font-semibold text-foreground">
+          Ultimas ventas del periodo seleccionado.
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="overflow-x-auto rounded-md border border-border">
-          <table className="w-full min-w-[1040px] border-collapse text-left">
-            <thead className="bg-muted/70">
-              <tr className="border-b border-border">
-                <th className="px-4 py-4 text-base font-bold text-foreground">
-                  Fecha
-                </th>
-                <th className="px-4 py-4 text-base font-bold text-foreground">
-                  Nº venta
-                </th>
-                <th className="px-4 py-4 text-base font-bold text-foreground">
-                  Cliente
-                </th>
-                <th className="px-4 py-4 text-base font-bold text-foreground">
-                  Forma de pago
-                </th>
-                <th className="px-4 py-4 text-right text-base font-bold text-foreground">
-                  Total
-                </th>
-                <th className="px-4 py-4 text-right text-base font-bold text-foreground">
-                  Pagado
-                </th>
-                <th className="px-4 py-4 text-right text-base font-bold text-foreground">
-                  Pendiente
-                </th>
-                <th className="px-4 py-4 text-right text-base font-bold text-foreground">
-                  Acciones
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {sales.slice(0, 20).map((sale) => {
-                const pending = Math.max(
-                  Number(sale.total ?? 0) - Number(sale.paid_amount ?? 0),
-                  0
-                );
-
-                return (
+        {sales.length === 0 ? (
+          <p className="rounded-md border border-border bg-muted p-4 text-lg font-bold text-foreground">
+            No hay ventas en este periodo.
+          </p>
+        ) : (
+          <div className="overflow-x-auto rounded-md border border-border">
+            <table className="w-full min-w-[960px] border-collapse text-left">
+              <thead className="bg-muted">
+                <tr className="border-b border-border">
+                  <TableHead>Fecha</TableHead>
+                  <TableHead>N venta</TableHead>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead align="right">Total</TableHead>
+                  <TableHead align="right">Cobrado</TableHead>
+                  <TableHead align="right">Productos</TableHead>
+                  <TableHead align="right">Acciones</TableHead>
+                </tr>
+              </thead>
+              <tbody>
+                {sales.slice(0, 20).map((sale) => (
                   <tr
                     key={sale.id}
                     className="border-b border-border last:border-b-0 even:bg-muted/25"
                   >
-                    <td className="px-4 py-4 text-base font-semibold text-foreground">
-                      {formatDate(sale.created_at)}
-                    </td>
-                    <td className="px-4 py-4 text-base font-bold text-foreground">
-                      #{sale.sale_number}
-                    </td>
-                    <td className="px-4 py-4 text-base text-foreground">
-                      {sale.customers?.name ?? "Sin cliente"}
-                    </td>
-                    <td className="px-4 py-4 text-base text-foreground">
-                      {normalizePaymentMethod(sale.payment_method)}
-                    </td>
-                    <td className="px-4 py-4 text-right text-base font-bold text-foreground">
+                    <TableCell>{formatDate(sale.created_at)}</TableCell>
+                    <TableCell strong>#{sale.sale_number}</TableCell>
+                    <TableCell>{sale.customers?.name ?? "Sin cliente"}</TableCell>
+                    <TableCell align="right" strong>
                       {formatMoney(sale.total)}
-                    </td>
-                    <td className="px-4 py-4 text-right text-base font-bold text-emerald-800">
+                    </TableCell>
+                    <TableCell align="right" strong>
                       {formatMoney(sale.paid_amount)}
-                    </td>
-                    <td className="px-4 py-4 text-right text-base font-bold text-destructive">
-                      {formatMoney(pending)}
-                    </td>
+                    </TableCell>
+                    <TableCell align="right" strong>
+                      {itemCounts.get(sale.id) ?? 0}
+                    </TableCell>
                     <td className="px-4 py-4">
                       <div className="flex justify-end gap-2">
                         <Button asChild className="h-11 gap-2 px-4 text-base">
@@ -649,8 +760,8 @@ function LatestSales({ sales }: { sales: SaleRow[] }) {
                         </Button>
                         <Button
                           asChild
-                          variant="outline"
                           className="h-11 gap-2 px-4 text-base"
+                          variant="outline"
                         >
                           <Link href={`/ventas/${sale.id}`}>
                             <Printer className="size-5" aria-hidden="true" />
@@ -660,14 +771,98 @@ function LatestSales({ sales }: { sales: SaleRow[] }) {
                       </div>
                     </td>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
+}
+
+function TableHead({
+  align = "left",
+  children,
+}: {
+  align?: "left" | "right";
+  children: React.ReactNode;
+}) {
+  return (
+    <th
+      className={cn(
+        "px-4 py-4 text-base font-bold text-foreground",
+        align === "right" && "text-right"
+      )}
+    >
+      {children}
+    </th>
+  );
+}
+
+function TableCell({
+  align = "left",
+  children,
+  strong = false,
+}: {
+  align?: "left" | "right";
+  children: React.ReactNode;
+  strong?: boolean;
+}) {
+  return (
+    <td
+      className={cn(
+        "px-4 py-4 text-base text-foreground",
+        strong && "font-bold",
+        align === "right" && "text-right"
+      )}
+    >
+      {children}
+    </td>
+  );
+}
+
+async function loadSaleItems(tenantId: string, saleIds: string[]) {
+  if (saleIds.length === 0) {
+    return [];
+  }
+
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("sale_items")
+    .select("id,sale_id,product_id,sku,name,quantity,unit_price,total")
+    .eq("tenant_id", tenantId)
+    .in("sale_id", saleIds);
+
+  if (error) {
+    return [];
+  }
+
+  return (data ?? []) as unknown as SaleItemRow[];
+}
+
+async function loadProducts(tenantId: string, productIds: string[]) {
+  const uniqueIds = [...new Set(productIds.filter(Boolean))];
+
+  if (uniqueIds.length === 0) {
+    return new Map<string, ProductRow>();
+  }
+
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("products")
+    .select(
+      "id,sku,name,stock_quantity,min_stock,sale_price,cost_without_tax,cost_with_tax"
+    )
+    .eq("tenant_id", tenantId)
+    .in("id", uniqueIds);
+
+  if (error) {
+    return new Map<string, ProductRow>();
+  }
+
+  const rows = (data ?? []) as unknown as ProductRow[];
+  return new Map(rows.map((row) => [row.id, row]));
 }
 
 export default async function VentasPage({ searchParams }: VentasPageProps) {
@@ -677,27 +872,46 @@ export default async function VentasPage({ searchParams }: VentasPageProps) {
   const supabase = getSupabaseServerClient();
   const salesResult = await supabase
     .from("sales")
-    .select(
-      "id,sale_number,total,paid_amount,payment_method,created_at,customers(name)"
-    )
+    .select("id,sale_number,total,paid_amount,created_at,customers(name)")
     .eq("tenant_id", tenant.id)
     .gte("created_at", range.start)
     .lte("created_at", range.end)
     .order("created_at", { ascending: false });
 
   const sales = (salesResult.data ?? []) as unknown as SaleRow[];
-  const dailySales = buildDailySales(sales, range);
-  const summary = summarizeSales(sales);
-  const hasNoSales = !salesResult.error && sales.length === 0;
+  const saleItems = await loadSaleItems(
+    tenant.id,
+    sales.map((sale) => sale.id)
+  );
+  const products = await loadProducts(
+    tenant.id,
+    saleItems
+      .map((item) => item.product_id)
+      .filter((id): id is string => Boolean(id))
+  );
+  const movements = buildProductMovements(saleItems, products);
+  const summary = summarizeBusiness(sales, movements);
+  const replenishmentRows = getReplenishmentRows(movements);
+  const itemCounts = getSaleItemCounts(saleItems);
+  const exportQuery = `range=${range.key}`;
 
   return (
     <>
-      <PageHeader
-        title="Estadísticas de ventas"
-        description="Resumen de ventas, cobros y movimientos del negocio."
-        backHref="/inicio"
-        backLabel="Volver al inicio"
-      />
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <PageHeader
+          backHref="/inicio"
+          backLabel="Volver al inicio"
+          description="Plata vendida, productos que se movieron y reposicion sugerida."
+          title="Resumen del negocio"
+        />
+        <div className="lg:pt-1">
+          <ExportMenuButton
+            csvHref={`/api/export/estadisticas?format=csv&${exportQuery}`}
+            label="Exportar resumen"
+            pdfHref={`/api/export/estadisticas?format=pdf&${exportQuery}`}
+          />
+        </div>
+      </div>
 
       <div className="grid gap-5">
         <RangeFilters activeRange={range.key} />
@@ -706,32 +920,29 @@ export default async function VentasPage({ searchParams }: VentasPageProps) {
           <Card className="border-destructive/40">
             <CardHeader>
               <CardTitle className="text-2xl">
-                No se pudieron cargar las estadísticas
+                No se pudo cargar el resumen
               </CardTitle>
-              <CardDescription className="text-lg">
-                Revisá la conexión a Supabase.
+              <CardDescription className="text-lg font-semibold text-foreground">
+                Revise la conexion antes de tomar decisiones.
               </CardDescription>
             </CardHeader>
           </Card>
         ) : null}
 
-        <SummaryCards salesCount={sales.length} summary={summary} />
+        <CajaDelPeriodo summary={summary} />
+        <ImportantNotices
+          hasItems={saleItems.length > 0}
+          replenishmentCount={replenishmentRows.length}
+          summary={summary}
+        />
 
-        {hasNoSales ? (
-          <Notice>
-            No hay ventas en este período. Probá elegir otro rango de fechas.
-          </Notice>
-        ) : null}
-
-        {!salesResult.error && !hasNoSales ? (
+        {!salesResult.error ? (
           <>
-            <DailySalesTable days={dailySales} />
-            <DailySalesChart days={dailySales} />
-            <PaymentSummary
-              byPaymentMethod={summary.byPaymentMethod}
-              totalSold={summary.totalSold}
-            />
-            <LatestSales sales={sales} />
+            <ProductMovementsTable movements={movements} />
+            <ReplenishmentTable rows={replenishmentRows} />
+            <TopMoneyTable movements={movements} />
+            <ProductsChart movements={movements} />
+            <LatestSales itemCounts={itemCounts} sales={sales} />
           </>
         ) : null}
       </div>

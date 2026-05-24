@@ -16,9 +16,9 @@ export default function AjustesConfiguracionPage() {
     <>
       <PageHeader
         title="Editar datos"
-        description="Cambiar productos, precios o datos de la ferreteria."
+        description="Opciones generales existentes del sistema."
         backHref="/ajustes"
-        backLabel="Volver a encargado"
+        backLabel="Volver a datos de factura"
       />
 
       <section

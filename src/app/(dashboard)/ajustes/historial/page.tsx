@@ -18,7 +18,7 @@ export default function HistorialPage() {
         title="Revisar ventas y clientes"
         description="Consulta ventas, presupuestos y clientes guardados."
         backHref="/ajustes"
-        backLabel="Volver a encargado"
+        backLabel="Volver a datos de factura"
       />
 
       <section
