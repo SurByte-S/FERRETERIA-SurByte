@@ -2,6 +2,12 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 
+import {
+  logServerInfo,
+  logServerWarn,
+} from "@/lib/server-log";
+import { getSupabaseBrowserEnv } from "@/lib/supabase/env";
+
 const ACCESS_TOKEN_COOKIE = "ferreteria_sb_access_token";
 const REFRESH_TOKEN_COOKIE = "ferreteria_sb_refresh_token";
 
@@ -10,17 +16,14 @@ type AuthUser = {
   email?: string;
 };
 
-function getSupabaseAuthClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+function getSupabaseAuthClient(source: string) {
+  const env = getSupabaseBrowserEnv(source);
 
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error(
-      "Faltan NEXT_PUBLIC_SUPABASE_URL o NEXT_PUBLIC_SUPABASE_ANON_KEY."
-    );
+  if (!env.ok) {
+    return null;
   }
 
-  return createClient(supabaseUrl, supabaseAnonKey, {
+  return createClient(env.supabaseUrl, env.supabaseAnonKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
@@ -68,20 +71,39 @@ export async function clearAuthCookies() {
   cookieStore.delete(REFRESH_TOKEN_COOKIE);
 }
 
-export async function getCurrentUser(): Promise<AuthUser | null> {
+export async function getCurrentUser(
+  source = "getCurrentUser"
+): Promise<AuthUser | null> {
   const cookieStore = await cookies();
   const accessToken = cookieStore.get(ACCESS_TOKEN_COOKIE)?.value;
 
   if (!accessToken) {
+    logServerInfo("Auth cookie not found", { source });
     return null;
   }
 
-  const supabase = getSupabaseAuthClient();
+  const supabase = getSupabaseAuthClient(source);
+
+  if (!supabase) {
+    logServerWarn("Auth client unavailable", { source });
+    return null;
+  }
+
   const { data, error } = await supabase.auth.getUser(accessToken);
 
   if (error || !data.user) {
+    logServerWarn("Authenticated user not found", {
+      source,
+      error: error?.message,
+    });
     return null;
   }
+
+  logServerInfo("Authenticated user found", {
+    source,
+    userId: data.user.id,
+    hasEmail: Boolean(data.user.email),
+  });
 
   return {
     id: data.user.id,
@@ -89,10 +111,11 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
   };
 }
 
-export async function requireUser(): Promise<AuthUser> {
-  const user = await getCurrentUser();
+export async function requireUser(source = "requireUser"): Promise<AuthUser> {
+  const user = await getCurrentUser(source);
 
   if (!user) {
+    logServerWarn("Redirecting unauthenticated request to login", { source });
     redirect("/login");
   }
 

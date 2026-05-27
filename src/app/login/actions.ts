@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 
 import { setAuthCookies } from "@/lib/auth/session";
+import { logServerWarn } from "@/lib/server-log";
+import { getSupabaseBrowserEnv } from "@/lib/supabase/env";
 
 export type LoginActionState = {
   ok: boolean;
@@ -11,16 +13,13 @@ export type LoginActionState = {
 };
 
 function getSupabaseLoginClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const env = getSupabaseBrowserEnv("loginAction");
 
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error(
-      "Faltan NEXT_PUBLIC_SUPABASE_URL o NEXT_PUBLIC_SUPABASE_ANON_KEY."
-    );
+  if (!env.ok) {
+    return null;
   }
 
-  return createClient(supabaseUrl, supabaseAnonKey, {
+  return createClient(env.supabaseUrl, env.supabaseAnonKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
@@ -44,12 +43,24 @@ export async function loginAction(
 
   try {
     const supabase = getSupabaseLoginClient();
+
+    if (!supabase) {
+      return {
+        ok: false,
+        message: "No se pudo ingresar. Revisa la configuracion.",
+      };
+    }
+
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
     if (error || !data.session) {
+      logServerWarn("Login rejected by Supabase", {
+        source: "loginAction",
+        error: error?.message,
+      });
       return {
         ok: false,
         message: "No se pudo ingresar. Revisa email y contrasena.",
@@ -61,7 +72,11 @@ export async function loginAction(
       refreshToken: data.session.refresh_token,
       expiresIn: data.session.expires_in,
     });
-  } catch {
+  } catch (error) {
+    logServerWarn("Login action failed", {
+      source: "loginAction",
+      error: error instanceof Error ? error.message : "unknown",
+    });
     return {
       ok: false,
       message: "No se pudo ingresar. Revisa la conexion.",

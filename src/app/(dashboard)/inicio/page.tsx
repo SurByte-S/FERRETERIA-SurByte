@@ -1,5 +1,6 @@
 import { QuickSalePos } from "@/components/pos/quick-sale-pos";
 import type { QuoteCustomerOption } from "@/components/presupuestos/quote-types";
+import { logServerWarn } from "@/lib/server-log";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { requireTenant } from "@/lib/tenant";
 
@@ -20,8 +21,8 @@ export default async function InicioPage({
   searchParams: Promise<{ sku?: string }>;
 }) {
   const { sku } = await searchParams;
-  const tenant = await requireTenant();
-  const supabase = getSupabaseServerClient();
+  const tenant = await requireTenant("/inicio");
+  const supabase = getSupabaseServerClient("/inicio");
   const [cashStatus, customers] = await Promise.all([
     loadCashStatus(tenant.id, supabase),
     loadCustomers(tenant.id, supabase),
@@ -36,13 +37,21 @@ async function loadCustomers(
   tenantId: string,
   supabase: ReturnType<typeof getSupabaseServerClient>
 ) {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("customers")
     .select("id,name,phone,email,address")
     .eq("tenant_id", tenantId)
     .is("deleted_at", null)
     .order("name")
     .limit(300);
+
+  if (error) {
+    logServerWarn("Could not load customers", {
+      source: "/inicio",
+      tenantId,
+      error: error.message,
+    });
+  }
 
   return (data ?? []) as unknown as QuoteCustomerOption[];
 }
@@ -55,7 +64,7 @@ async function loadCashStatus(
   | { open: false }
 > {
   try {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("cash_register_sessions")
       .select("id,opening_amount,opened_at")
       .eq("tenant_id", tenantId)
@@ -63,6 +72,16 @@ async function loadCashStatus(
       .order("opened_at", { ascending: false })
       .limit(1)
       .maybeSingle();
+
+    if (error) {
+      logServerWarn("Could not load open cash session", {
+        source: "/inicio",
+        tenantId,
+        error: error.message,
+      });
+      return { open: false };
+    }
+
     const session = (data ?? null) as CashSessionRow | null;
 
     if (!session) {
@@ -74,6 +93,15 @@ async function loadCashStatus(
       .select("paid_amount,payment_method")
       .eq("tenant_id", tenantId)
       .eq("cash_session_id", session.id);
+
+    if (salesResult.error) {
+      logServerWarn("Could not load cash session sales", {
+        source: "/inicio",
+        tenantId,
+        error: salesResult.error.message,
+      });
+    }
+
     const sales = (salesResult.data ?? []) as unknown as SaleRow[];
     const cashSales = sales
       .filter((sale) => sale.payment_method === "Efectivo")
@@ -84,7 +112,12 @@ async function loadCashStatus(
       openedAt: session.opened_at,
       expectedCash: Number(session.opening_amount ?? 0) + cashSales,
     };
-  } catch {
+  } catch (error) {
+    logServerWarn("Unexpected cash status error", {
+      source: "/inicio",
+      tenantId,
+      error: error instanceof Error ? error.message : "unknown",
+    });
     return { open: false };
   }
 }

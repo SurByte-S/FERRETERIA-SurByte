@@ -18,9 +18,10 @@ export function isTenantRoleForbiddenError(
 }
 
 export async function requireTenantRole(
-  allowedRoles: TenantRole[]
+  allowedRoles: TenantRole[],
+  source = "requireTenantRole"
 ): Promise<AuthenticatedTenant> {
-  const tenant = await requireTenant();
+  const tenant = await requireTenant(source);
 
   if (!allowedRoles.includes(tenant.role)) {
     throw new TenantRoleForbiddenError();

@@ -10,8 +10,8 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   await connection();
-  const user = await requireUser();
-  await requireTenant();
+  const user = await requireUser("/dashboard-layout");
+  await requireTenant("/dashboard-layout");
 
   return <DashboardShell userEmail={user.email}>{children}</DashboardShell>;
 }

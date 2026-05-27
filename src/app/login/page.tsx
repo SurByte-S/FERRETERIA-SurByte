@@ -8,7 +8,7 @@ import { ferreteriaGuemesBrand } from "@/lib/brand/ferreteria-guemes";
 import { LoginForm } from "./login-form";
 
 export default async function LoginPage() {
-  const user = await getCurrentUser();
+  const user = await getCurrentUser("/login");
 
   if (user) {
     redirect("/inicio");

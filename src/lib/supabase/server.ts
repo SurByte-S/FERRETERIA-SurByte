@@ -1,19 +1,25 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
+import { getSupabaseServerEnv } from "./env";
+
 let serverClient: SupabaseClient | null = null;
 
-export function getSupabaseServerClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+export class SupabaseServerConfigError extends Error {
+  constructor(missing: string[]) {
+    super(`Faltan variables de Supabase servidor: ${missing.join(", ")}.`);
+    this.name = "SupabaseServerConfigError";
+  }
+}
 
-  if (!supabaseUrl || !supabaseServiceRoleKey) {
-    throw new Error(
-      "Faltan NEXT_PUBLIC_SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY."
-    );
+export function getSupabaseServerClient(source = "getSupabaseServerClient") {
+  const env = getSupabaseServerEnv(source);
+
+  if (!env.ok) {
+    throw new SupabaseServerConfigError(env.missing);
   }
 
   if (!serverClient) {
-    serverClient = createClient(supabaseUrl, supabaseServiceRoleKey, {
+    serverClient = createClient(env.supabaseUrl, env.supabaseServiceRoleKey, {
       auth: {
         persistSession: false,
         autoRefreshToken: false,
