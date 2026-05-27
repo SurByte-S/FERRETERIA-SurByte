@@ -1,13 +1,28 @@
 export const ferreteriaGuemesBrand = {
-  brandName: "Ferretería Güemes",
+  brandName: "Ferreteria Guemes",
   slogan: "Cerca tuyo y de tu obra",
-  businessLine: "Ferretería / Herramientas / Bulonería / Sanitarios",
-  phone: "Teléfono no configurado",
+  businessLine: "Ferreteria / Herramientas / Buloneria / Sanitarios",
+  phone: "2604573711",
   whatsapp: "WhatsApp no configurado",
-  address: "Dirección no configurada",
-  email: "Email no configurado",
-  taxId: "CUIT no configurado",
+  address: "Ingeniero Barrera",
+  email: "serayo2018@gmail.com",
+  taxId: "",
   logoPath: "/brand/ferreteria-guemes-logo.png",
+} as const;
+
+export const defaultInvoiceSettings = {
+  fantasyName: "FERRETERIA GUEMES",
+  legalName: "FERRETERIA",
+  taxId: "",
+  ivaCondition: "",
+  address: "Ingeniero Barrera",
+  city: "Malargue",
+  province: "Mendoza",
+  phone: "2604573711",
+  email: "serayo2018@gmail.com",
+  receiptFooter:
+    "Todos los presupuestos estan afectados por la cotizacion del dolar o probabilidad de suba de precios por el mismo proveedor",
+  receiptMessage: "GRACIAS POR CONFIAR EN FERRETERIA GUEMES!",
 } as const;
 
 export const brandColors = {

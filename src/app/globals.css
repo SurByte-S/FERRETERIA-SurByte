@@ -640,8 +640,6 @@
   }
 
   .print-footer {
-    grid-template-columns: minmax(0, 1fr) minmax(180px, 0.75fr);
-    margin-top: 20px;
-    break-inside: avoid;
+    display: none !important;
   }
 }

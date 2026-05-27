@@ -125,7 +125,7 @@ export function InvoiceSettingsForm({
             label="Email"
             name="email"
             defaultValue={initialValues.email}
-            type="email"
+            type="text"
           />
         </div>
       </section>

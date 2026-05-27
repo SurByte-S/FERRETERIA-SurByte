@@ -19,6 +19,15 @@ function nullableText(formData: FormData, key: string) {
   return value ? value : null;
 }
 
+function nullableEmail(formData: FormData, key: string) {
+  const value = String(formData.get(key) ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ".");
+
+  return value ? value : null;
+}
+
 export async function saveInvoiceSettingsAction(
   _previousState: InvoiceSettingsActionState,
   formData: FormData
@@ -37,7 +46,7 @@ export async function saveInvoiceSettingsAction(
         city: nullableText(formData, "city"),
         province: nullableText(formData, "province"),
         phone: nullableText(formData, "phone"),
-        email: nullableText(formData, "email"),
+        email: nullableEmail(formData, "email"),
         receipt_footer: nullableText(formData, "receiptFooter"),
         receipt_message: nullableText(formData, "receiptMessage"),
       },

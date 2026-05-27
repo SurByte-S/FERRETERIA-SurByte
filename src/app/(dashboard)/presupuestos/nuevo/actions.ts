@@ -3,7 +3,11 @@
 import { revalidatePath } from "next/cache";
 
 import { getSupabaseServerClient } from "@/lib/supabase";
-import { sortProductsBySearchRank } from "@/lib/search-ranking";
+import {
+  getSearchTokens,
+  matchesAllSearchTokens,
+  sortProductsBySearchRank,
+} from "@/lib/search-ranking";
 import {
   FORBIDDEN_ACTION_MESSAGE,
   isTenantRoleForbiddenError,
@@ -250,6 +254,23 @@ function clampPosPageSize(pageSize: number) {
     : DEFAULT_POS_PAGE_SIZE;
 }
 
+function buildProductSearchParts(search: string) {
+  const tokens = getSearchTokens(search)
+    .map((token) => token.replace(/[%_]/g, ""))
+    .filter(Boolean);
+  const values = tokens.length > 1 ? tokens : [search.replace(/[%_]/g, "")];
+
+  return values
+    .filter(Boolean)
+    .flatMap((value) => [
+      `sku.ilike.%${value}%`,
+      `barcode.ilike.%${value}%`,
+      `name.ilike.%${value}%`,
+      `normalized_name.ilike.%${value}%`,
+      `description.ilike.%${value}%`,
+    ]);
+}
+
 function getSaveQuoteErrorMessage(message?: string) {
   if (!message) {
     return "No se pudo guardar el presupuesto.";
@@ -357,11 +378,9 @@ export async function searchQuoteProductsAction(
       )
       .eq("tenant_id", tenant.id)
       .eq("active", true)
-      .or(
-        `sku.ilike.%${search}%,barcode.ilike.%${search}%,name.ilike.%${search}%,normalized_name.ilike.%${search}%,description.ilike.%${search}%`
-      )
+      .or(buildProductSearchParts(search).join(","))
       .order("name")
-      .limit(30);
+      .limit(getSearchTokens(search).length > 1 ? 120 : 30);
 
     if (!includeOutOfStock) {
       query = query.gt("stock_quantity", 0);
@@ -379,12 +398,16 @@ export async function searchQuoteProductsAction(
       tenantId: tenant.id,
     });
 
+    const products = rows.map((row) => ({
+      ...mapProduct(row, saleUnitsByProductId.get(row.id)),
+      barcode: row.barcode,
+      normalizedName: row.normalized_name,
+    }));
+
     return sortProductsBySearchRank(
-      rows.map((row) => ({
-        ...mapProduct(row, saleUnitsByProductId.get(row.id)),
-        barcode: row.barcode,
-        normalizedName: row.normalized_name,
-      })),
+      getSearchTokens(search).length > 1
+        ? products.filter((product) => matchesAllSearchTokens(product, search))
+        : products,
       search
     ).slice(0, 30);
   } catch {
@@ -402,17 +425,21 @@ export async function searchProductsForPosAction(
   const safePage = Math.max(Number(page) || 1, 1);
   const safePageSize = clampPosPageSize(Number(pageSize) || DEFAULT_POS_PAGE_SIZE);
   const offset = (safePage - 1) * safePageSize;
+  const searchTokens = getSearchTokens(search);
 
   try {
     const tenant = await requireTenantRole(["owner", "admin", "seller"]);
     const supabase = getSupabaseServerClient();
-    const rpcResult = await supabase.rpc("search_pos_products", {
-      p_tenant_id: tenant.id,
-      p_query: search,
-      p_limit: safePageSize,
-      p_offset: offset,
-      p_include_out_of_stock: includeOutOfStock,
-    });
+    const rpcResult =
+      searchTokens.length > 1
+        ? { data: null, error: new Error("TOKENIZED_FALLBACK") }
+        : await supabase.rpc("search_pos_products", {
+            p_tenant_id: tenant.id,
+            p_query: search,
+            p_limit: safePageSize,
+            p_offset: offset,
+            p_include_out_of_stock: includeOutOfStock,
+          });
 
     if (!rpcResult.error) {
       const rows = (rpcResult.data ?? []) as PosProductSearchRow[];
@@ -434,8 +461,6 @@ export async function searchProductsForPosAction(
     }
 
     const safeSearch = search.replace(/[%_]/g, "");
-    const from = offset;
-    const to = from + safePageSize - 1;
     const [matchingBrands, matchingCategories] = safeSearch
       ? await Promise.all([
           supabase
@@ -458,13 +483,7 @@ export async function searchProductsForPosAction(
     const categoryIds = (
       (matchingCategories.data ?? []) as { id: string }[]
     ).map((item) => item.id);
-    const searchParts = [
-      `sku.ilike.%${safeSearch}%`,
-      `barcode.ilike.%${safeSearch}%`,
-      `name.ilike.%${safeSearch}%`,
-      `normalized_name.ilike.%${safeSearch}%`,
-      `description.ilike.%${safeSearch}%`,
-    ];
+    const searchParts = buildProductSearchParts(search);
 
     if (brandIds.length > 0) {
       searchParts.push(`brand_id.in.(${brandIds.join(",")})`);
@@ -482,8 +501,13 @@ export async function searchProductsForPosAction(
       )
       .eq("tenant_id", tenant.id)
       .eq("active", true)
-      .order("name")
-      .range(from, to);
+      .order("name");
+
+    if (searchTokens.length > 1) {
+      query = query.limit(1000);
+    } else {
+      query = query.range(offset, offset + safePageSize - 1);
+    }
 
     if (searchParts.length > 0 && safeSearch) {
       query = query.or(searchParts.join(","));
@@ -506,23 +530,39 @@ export async function searchProductsForPosAction(
       };
     }
 
-    const fallbackRows = (data ?? []) as unknown as ProductRow[];
+    const fallbackRows = ((data ?? []) as unknown as ProductRow[]).filter((row) =>
+      searchTokens.length > 1
+        ? matchesAllSearchTokens(
+            {
+              sku: row.sku,
+              barcode: row.barcode,
+              brand: row.brands?.name,
+              category: row.categories?.name,
+              name: row.name,
+              normalizedName: row.normalized_name,
+              description: row.description,
+            },
+            search
+          )
+        : true
+    );
     const saleUnitsByProductId = await loadSaleUnitsByProductId({
       productIds: fallbackRows.map((row) => row.id),
       tenantId: tenant.id,
     });
+    const sortedProducts = sortProductsBySearchRank(
+      fallbackRows.map((row) => ({
+        ...mapProduct(row, saleUnitsByProductId.get(row.id)),
+        barcode: row.barcode,
+        normalizedName: row.normalized_name,
+      })),
+      search
+    );
 
     return {
       ok: true,
-      items: sortProductsBySearchRank(
-        fallbackRows.map((row) => ({
-          ...mapProduct(row, saleUnitsByProductId.get(row.id)),
-          barcode: row.barcode,
-          normalizedName: row.normalized_name,
-        })),
-        search
-      ),
-      total: count ?? 0,
+      items: sortedProducts.slice(offset, offset + safePageSize),
+      total: searchTokens.length > 1 ? sortedProducts.length : (count ?? 0),
       page: safePage,
       pageSize: safePageSize,
     };

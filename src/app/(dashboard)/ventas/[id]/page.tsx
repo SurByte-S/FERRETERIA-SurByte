@@ -7,7 +7,10 @@ import {
 } from "@/components/print/print-document";
 import { PageHeader } from "@/components/shell/page-header";
 import { PrintSaleButton } from "@/components/ventas/sale-actions";
-import { ferreteriaGuemesBrand } from "@/lib/brand/ferreteria-guemes";
+import {
+  defaultInvoiceSettings,
+  ferreteriaGuemesBrand,
+} from "@/lib/brand/ferreteria-guemes";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { requireTenant } from "@/lib/tenant";
 
@@ -111,15 +114,17 @@ function buildBusiness(
     subtitle: ferreteriaGuemesBrand.slogan,
     legalName: preferred(
       invoiceSettings?.legal_name,
-      tenantDetails?.business_name
+      tenantDetails?.business_name,
+      defaultInvoiceSettings.legalName
     ),
     address: preferred(
       invoiceSettings?.address,
       tenantDetails?.address,
       ferreteriaGuemesBrand.address
     ),
-    city: clean(invoiceSettings?.city),
-    province: clean(invoiceSettings?.province),
+    city: clean(invoiceSettings?.city) || defaultInvoiceSettings.city,
+    province:
+      clean(invoiceSettings?.province) || defaultInvoiceSettings.province,
     phone: preferred(
       invoiceSettings?.phone,
       tenantDetails?.phone,
@@ -135,9 +140,15 @@ function buildBusiness(
       tenantDetails?.tax_id,
       ferreteriaGuemesBrand.taxId
     ),
-    ivaCondition: clean(invoiceSettings?.iva_condition),
-    receiptFooter: clean(invoiceSettings?.receipt_footer),
-    receiptMessage: clean(invoiceSettings?.receipt_message),
+    ivaCondition:
+      clean(invoiceSettings?.iva_condition) ||
+      defaultInvoiceSettings.ivaCondition,
+    receiptFooter:
+      clean(invoiceSettings?.receipt_footer) ||
+      defaultInvoiceSettings.receiptFooter,
+    receiptMessage:
+      clean(invoiceSettings?.receipt_message) ||
+      defaultInvoiceSettings.receiptMessage,
     logoUrl: tenantDetails?.logo_url ?? ferreteriaGuemesBrand.logoPath,
   };
 }

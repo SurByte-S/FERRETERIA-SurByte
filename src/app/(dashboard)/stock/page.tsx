@@ -15,7 +15,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { formatStockQuantity } from "@/lib/format";
-import { sortProductsBySearchRank } from "@/lib/search-ranking";
+import {
+  getSearchTokens,
+  matchesAllSearchTokens,
+  sortProductsBySearchRank,
+} from "@/lib/search-ranking";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { requireTenant } from "@/lib/tenant";
 
@@ -211,6 +215,45 @@ function buildStockHref({
   return query ? `/stock?${query}` : "/stock";
 }
 
+function buildStockExportHref({
+  filter,
+  format,
+  q,
+}: {
+  filter: StockFilter;
+  format: "csv" | "pdf";
+  q: string;
+}) {
+  const params = new URLSearchParams({ format });
+
+  if (q) {
+    params.set("q", q);
+  }
+
+  if (filter !== "con-stock") {
+    params.set("filtro", filter);
+  }
+
+  return `/api/export/stock?${params.toString()}`;
+}
+
+function buildProductSearchParts(search: string) {
+  const tokens = getSearchTokens(search)
+    .map((token) => token.replace(/[%_]/g, ""))
+    .filter(Boolean);
+  const values = tokens.length > 1 ? tokens : [search.replace(/[%_]/g, "")];
+
+  return values
+    .filter(Boolean)
+    .flatMap((value) => [
+      `sku.ilike.%${value}%`,
+      `barcode.ilike.%${value}%`,
+      `name.ilike.%${value}%`,
+      `normalized_name.ilike.%${value}%`,
+      `description.ilike.%${value}%`,
+    ]);
+}
+
 function lastParam(value?: string | string[]) {
   return Array.isArray(value) ? value.at(-1) : value;
 }
@@ -275,8 +318,16 @@ export default async function StockPage({ searchParams }: StockPageProps) {
                 </form>
                 <div className="flex flex-wrap items-end gap-2">
                   <ExportMenuButton
-                    csvHref="/api/export/stock?format=csv"
-                    pdfHref="/api/export/stock?format=pdf"
+                    csvHref={buildStockExportHref({
+                      filter,
+                      format: "csv",
+                      q,
+                    })}
+                    pdfHref={buildStockExportHref({
+                      filter,
+                      format: "pdf",
+                      q,
+                    })}
                   />
                   <NewProductForm
                     brands={result.brands}
@@ -483,7 +534,9 @@ async function loadStockProducts({
       .limit(
         filter === "bajo-minimo"
           ? PAGE_SIZE * 10
-          : q.length >= 1
+          : getSearchTokens(q).length > 1
+            ? 1000
+            : q.length >= 1
             ? PAGE_SIZE * 3
             : PAGE_SIZE
       );
@@ -497,10 +550,7 @@ async function loadStockProducts({
     }
 
     if (q.length >= 1) {
-      const safe = q.replace(/[%_]/g, "");
-      query = query.or(
-        `sku.ilike.%${safe}%,barcode.ilike.%${safe}%,name.ilike.%${safe}%,normalized_name.ilike.%${safe}%,description.ilike.%${safe}%`
-      );
+      query = query.or(buildProductSearchParts(q).join(","));
     }
 
     const { data, error } = await query;
@@ -518,26 +568,34 @@ async function loadStockProducts({
       tenantId: tenant.id,
     });
 
+    const products = rows
+      .map((row) => ({
+        ...mapProduct(row),
+        saleUnits: saleUnitsByProductId.get(row.id) ?? [],
+        normalizedName: row.normalized_name,
+      }))
+      .filter((product) => {
+        if (q.length >= 1 && getSearchTokens(q).length > 1) {
+          return matchesAllSearchTokens(product, q);
+        }
+
+        return true;
+      })
+      .filter((product) => {
+        if (filter === "bajo-minimo") {
+          return (
+            product.stockQuantity > 0 &&
+            product.minStock > 0 &&
+            product.stockQuantity <= product.minStock
+          );
+        }
+
+        return true;
+      });
+
     return {
       ok: true,
-      products: sortProductsBySearchRank(
-        rows.map((row) => ({
-          ...mapProduct(row),
-          saleUnits: saleUnitsByProductId.get(row.id) ?? [],
-          normalizedName: row.normalized_name,
-        })).filter((product) => {
-          if (filter === "bajo-minimo") {
-            return (
-              product.stockQuantity > 0 &&
-              product.minStock > 0 &&
-              product.stockQuantity <= product.minStock
-            );
-          }
-
-          return true;
-        }),
-        q
-      ).slice(0, PAGE_SIZE),
+      products: sortProductsBySearchRank(products, q).slice(0, PAGE_SIZE),
       outOfStockCount: outOfStockResult.count ?? 0,
       canAdjustStock,
       canCreateProduct,

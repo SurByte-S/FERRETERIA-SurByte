@@ -248,15 +248,16 @@ export function QuickSalePos({
     [isQuoteMode, startTransition]
   );
 
-  const addProduct = useCallback((product: QuoteProduct, saleUnit?: ProductSaleUnit) => {
+  const addProduct = useCallback((product: QuoteProduct, saleUnit?: ProductSaleUnit, options?: { keepSearch?: boolean }) => {
     const selectedSaleUnit = saleUnit ?? getDefaultSaleUnit(product);
     const lineKey = getLineKey(product.id, selectedSaleUnit.id);
+    const keepSearch = options?.keepSearch ?? false;
 
     const nextConsumption =
       getProductBaseConsumption(linesRef.current, product.id) +
       selectedSaleUnit.quantityInBaseUnit;
 
-    if (nextConsumption - product.stockQuantity > EPSILON) {
+    if (!isQuoteMode && nextConsumption - product.stockQuantity > EPSILON) {
       setMessage(
         getGroupedStockMessage({
           productName: product.name || product.description,
@@ -296,15 +297,21 @@ export function QuickSalePos({
             },
           ]
     );
-    setSearch("");
-    setResults([]);
-    setResultsTotal(0);
-    setPage(1);
-    setSearchStatus("idle");
-    latestSearchRequestRef.current += 1;
-    setMessage("Producto agregado a la venta.");
+    if (!keepSearch) {
+      setSearch("");
+      setResults([]);
+      setResultsTotal(0);
+      setPage(1);
+      setSearchStatus("idle");
+      latestSearchRequestRef.current += 1;
+    }
+    setMessage(
+      isQuoteMode
+        ? "Producto agregado al presupuesto."
+        : "Producto agregado a la venta."
+    );
     window.setTimeout(() => searchInputRef.current?.focus(), 0);
-  }, []);
+  }, [isQuoteMode]);
 
   useEffect(() => {
     if (!initialSku) {
@@ -451,7 +458,7 @@ export function QuickSalePos({
       getProductBaseConsumption(lines, selectedLine.id) +
       selectedLine.quantityInBaseUnit;
 
-    if (nextConsumption - selectedLine.stockQuantity > EPSILON) {
+    if (!isQuoteMode && nextConsumption - selectedLine.stockQuantity > EPSILON) {
       setMessage(
         getGroupedStockMessage({
           productName: selectedLine.name || selectedLine.description,
@@ -730,7 +737,9 @@ export function QuickSalePos({
                     <ProductRow
                       key={product.id}
                       product={product}
-                      onAdd={(saleUnit) => addProduct(product, saleUnit)}
+                      onAdd={(saleUnit) =>
+                        addProduct(product, saleUnit, { keepSearch: true })
+                      }
                     />
                   ))}
                 </div>

@@ -3,6 +3,7 @@ import {
   type InvoiceSettingsFormValues,
 } from "@/components/ajustes/invoice-settings-form";
 import { PageHeader } from "@/components/shell/page-header";
+import { defaultInvoiceSettings } from "@/lib/brand/ferreteria-guemes";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { requireTenant } from "@/lib/tenant";
 
@@ -38,18 +39,38 @@ function buildInitialValues(
   settings: InvoiceSettingsRow | null
 ): InvoiceSettingsFormValues {
   return {
-    fantasyName: clean(settings?.fantasy_name) || clean(tenantDetails?.name),
+    fantasyName:
+      clean(settings?.fantasy_name) ||
+      clean(tenantDetails?.name) ||
+      defaultInvoiceSettings.fantasyName,
     legalName:
-      clean(settings?.legal_name) || clean(tenantDetails?.business_name),
-    taxId: clean(settings?.tax_id) || clean(tenantDetails?.tax_id),
-    ivaCondition: clean(settings?.iva_condition),
-    address: clean(settings?.address) || clean(tenantDetails?.address),
-    city: clean(settings?.city),
-    province: clean(settings?.province),
-    phone: clean(settings?.phone) || clean(tenantDetails?.phone),
-    email: clean(settings?.email) || clean(tenantDetails?.email),
-    receiptFooter: clean(settings?.receipt_footer),
-    receiptMessage: clean(settings?.receipt_message),
+      clean(settings?.legal_name) ||
+      clean(tenantDetails?.business_name) ||
+      defaultInvoiceSettings.legalName,
+    taxId:
+      clean(settings?.tax_id) ||
+      clean(tenantDetails?.tax_id) ||
+      defaultInvoiceSettings.taxId,
+    ivaCondition:
+      clean(settings?.iva_condition) || defaultInvoiceSettings.ivaCondition,
+    address:
+      clean(settings?.address) ||
+      clean(tenantDetails?.address) ||
+      defaultInvoiceSettings.address,
+    city: clean(settings?.city) || defaultInvoiceSettings.city,
+    province: clean(settings?.province) || defaultInvoiceSettings.province,
+    phone:
+      clean(settings?.phone) ||
+      clean(tenantDetails?.phone) ||
+      defaultInvoiceSettings.phone,
+    email:
+      clean(settings?.email) ||
+      clean(tenantDetails?.email) ||
+      defaultInvoiceSettings.email,
+    receiptFooter:
+      clean(settings?.receipt_footer) || defaultInvoiceSettings.receiptFooter,
+    receiptMessage:
+      clean(settings?.receipt_message) || defaultInvoiceSettings.receiptMessage,
   };
 }
 
