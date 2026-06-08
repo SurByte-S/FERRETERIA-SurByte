@@ -1,0 +1,518 @@
+"use client";
+
+import { startTransition, useEffect, useRef, useState } from "react";
+import { Barcode, PackagePlus, Search, X } from "lucide-react";
+
+import {
+  assignBarcodeToProductAction,
+  createBarcodeProductAction,
+  lookupBarcodeStockAction,
+  searchProductsForBarcodeAction,
+  type BarcodeLookupResult,
+  type BarcodeMutationResult,
+  type BarcodeProductSearchResult,
+} from "@/app/(dashboard)/stock/actions";
+import { Button } from "@/components/ui/button";
+import { formatStockQuantity } from "@/lib/format";
+import type { ProductListItem } from "./product-types";
+import { StockAdjustForm } from "./stock-adjust-form";
+
+const emptyLookup: BarcodeLookupResult | null = null;
+const emptyProductSearch: BarcodeProductSearchResult = {
+  ok: false,
+  message: "",
+  products: [],
+};
+
+function normalizeInputCode(value: string) {
+  return value.replace(/[\u200B-\u200D\u2060]/g, "").trim().toUpperCase();
+}
+
+export function BarcodeStockPanel({
+  canCreate,
+}: {
+  canCreate: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [code, setCode] = useState("");
+  const [nameSearch, setNameSearch] = useState("");
+  const [lookup, setLookup] = useState<BarcodeLookupResult | null>(emptyLookup);
+  const [productSearch, setProductSearch] =
+    useState<BarcodeProductSearchResult>(emptyProductSearch);
+  const [selectedProduct, setSelectedProduct] = useState<ProductListItem | null>(
+    null
+  );
+  const [mutation, setMutation] = useState<BarcodeMutationResult | null>(null);
+  const [pending, setPending] = useState(false);
+  const codeInputRef = useRef<HTMLInputElement>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    const focusTimeout = window.setTimeout(() => {
+      codeInputRef.current?.focus();
+      codeInputRef.current?.select();
+    }, 80);
+
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    }
+
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      window.clearTimeout(focusTimeout);
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [open]);
+
+  function resetFlow(nextCode = "") {
+    setCode(nextCode);
+    setLookup(null);
+    setProductSearch(emptyProductSearch);
+    setSelectedProduct(null);
+    setMutation(null);
+    setNameSearch("");
+  }
+
+  function runBarcodeLookup(rawCode = code) {
+    const nextCode = normalizeInputCode(rawCode);
+
+    if (!nextCode) {
+      setLookup({
+        ok: false,
+        status: "error",
+        code: "",
+        message: "Escanea o escribi un codigo.",
+      });
+      return;
+    }
+
+    setPending(true);
+    setCode(nextCode);
+    setLookup(null);
+    setProductSearch(emptyProductSearch);
+    setSelectedProduct(null);
+    setMutation(null);
+    startTransition(async () => {
+      const result = await lookupBarcodeStockAction(nextCode);
+      setLookup(result);
+      setSelectedProduct(result.status === "found" ? result.product : null);
+      setPending(false);
+
+      if (result.status === "not_found") {
+        window.setTimeout(() => nameInputRef.current?.focus(), 80);
+      }
+    });
+  }
+
+  function runNameSearch() {
+    const term = nameSearch.trim();
+
+    if (term.length < 2) {
+      setProductSearch({
+        ok: false,
+        message: "Escribi al menos 2 letras del producto.",
+        products: [],
+      });
+      return;
+    }
+
+    setPending(true);
+    setProductSearch({
+      ok: true,
+      message: "Buscando productos...",
+      products: [],
+    });
+    startTransition(async () => {
+      const result = await searchProductsForBarcodeAction(term);
+      setProductSearch(result);
+      setPending(false);
+    });
+  }
+
+  function assignCode(product: ProductListItem) {
+    setPending(true);
+    setMutation(null);
+    startTransition(async () => {
+      const result = await assignBarcodeToProductAction({
+        code,
+        productId: product.id,
+      });
+      setMutation(result);
+      setSelectedProduct(result.product ?? product);
+      setPending(false);
+    });
+  }
+
+  function createProduct(formData: FormData) {
+    setPending(true);
+    setMutation(null);
+    startTransition(async () => {
+      const result = await createBarcodeProductAction({
+        barcode: code,
+        name: String(formData.get("name") ?? ""),
+        salePrice: String(formData.get("salePrice") ?? ""),
+        sku: String(formData.get("sku") ?? ""),
+        unit: String(formData.get("unit") ?? ""),
+      });
+      setMutation(result);
+      setSelectedProduct(result.product ?? null);
+      setPending(false);
+    });
+  }
+
+  return (
+    <>
+      <Button
+        type="button"
+        onClick={() => {
+          resetFlow();
+          setOpen(true);
+        }}
+        variant="outline"
+        className="h-12 gap-2 px-4 text-base xl:h-14 xl:px-6 xl:text-lg"
+      >
+        <Barcode className="size-5" aria-hidden="true" />
+        Código de barras
+      </Button>
+
+      {open ? (
+        <div className="fixed inset-0 z-40 grid place-items-center bg-black/35 p-3 sm:p-4">
+          <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-lg border border-border bg-card shadow-xl">
+            <div className="sticky top-0 z-20 flex shrink-0 items-start justify-between gap-3 border-b border-border bg-card/95 px-3 py-3 backdrop-blur sm:px-4">
+              <div className="min-w-0 pr-2">
+                <p className="truncate text-lg font-bold">Código de barras</p>
+                <p className="text-sm font-semibold text-muted-foreground">
+                  Escanea, busca el producto y carga stock sin crear duplicados.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => setOpen(false)}
+                aria-label="Cerrar"
+                className="shrink-0 text-red-600 hover:bg-red-50 hover:text-red-700 focus-visible:ring-red-500"
+              >
+                <X className="size-4" aria-hidden="true" />
+              </Button>
+            </div>
+
+            <div className="min-h-0 overflow-x-hidden overflow-y-auto p-3 sm:p-4">
+              <div className="grid gap-4">
+                <section className="grid gap-3 rounded-lg border border-border bg-background p-4">
+                  <form
+                    action={() => runBarcodeLookup()}
+                    className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]"
+                  >
+                    <label className="grid gap-2 text-base font-bold">
+                      <span>Escanear o escribir codigo</span>
+                      <input
+                        ref={codeInputRef}
+                        value={code}
+                        onChange={(event) => setCode(event.target.value)}
+                        placeholder="Ejemplo: 7791234567890"
+                        inputMode="numeric"
+                        className="h-14 rounded-lg border border-input bg-background px-4 font-mono text-xl font-bold"
+                      />
+                    </label>
+                    <Button
+                      type="submit"
+                      disabled={pending}
+                      className="h-14 gap-2 self-end px-5 text-base"
+                    >
+                      <Search className="size-5" aria-hidden="true" />
+                      {pending ? "Buscando..." : "Buscar"}
+                    </Button>
+                  </form>
+
+                  {lookup && lookup.status !== "found" && lookup.message ? (
+                    <StatusMessage ok={lookup.ok} message={lookup.message} />
+                  ) : null}
+                </section>
+
+                {selectedProduct ? (
+                  <ProductFound
+                    code={code}
+                    mutation={mutation}
+                    onAdjusted={() => runBarcodeLookup(code)}
+                    product={selectedProduct}
+                  />
+                ) : null}
+
+                {lookup?.status === "not_found" && !selectedProduct ? (
+                  <section className="grid gap-3 rounded-lg border border-border bg-background p-4">
+                    <div>
+                      <h3 className="text-base font-bold">Buscar por nombre</h3>
+                      <p className="mt-1 text-sm font-semibold text-muted-foreground">
+                        Si ya existe, asocia este codigo. No crees otro producto.
+                      </p>
+                    </div>
+                    <form
+                      action={runNameSearch}
+                      className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]"
+                    >
+                      <label className="grid gap-2 text-sm font-semibold">
+                        <span>Nombre del producto</span>
+                        <input
+                          ref={nameInputRef}
+                          value={nameSearch}
+                          onChange={(event) => setNameSearch(event.target.value)}
+                          placeholder="Ejemplo: cinta aisladora"
+                          className="h-12 rounded-lg border border-input bg-background px-3 text-base"
+                        />
+                      </label>
+                      <Button
+                        type="submit"
+                        disabled={pending}
+                        className="h-12 gap-2 self-end px-4 text-base"
+                      >
+                        <Search className="size-5" aria-hidden="true" />
+                        Buscar nombre
+                      </Button>
+                    </form>
+
+                    {productSearch.message ? (
+                      <StatusMessage
+                        ok={productSearch.ok}
+                        message={productSearch.message}
+                      />
+                    ) : null}
+
+                    {productSearch.products.length > 0 ? (
+                      <div className="grid gap-2">
+                        {productSearch.products.map((product) => (
+                          <div
+                            key={product.id}
+                            className="grid gap-3 rounded-lg border border-border bg-muted/30 p-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center"
+                          >
+                            <ProductSummary product={product} />
+                            <Button
+                              type="button"
+                              disabled={pending || Boolean(product.barcode)}
+                              onClick={() => assignCode(product)}
+                              className="h-11 gap-2 px-4 text-base"
+                            >
+                              <Barcode className="size-5" aria-hidden="true" />
+                              {product.barcode
+                                ? "Ya tiene codigo"
+                                : "Asociar codigo"}
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+
+                    {canCreate && productSearch.ok && productSearch.products.length === 0 ? (
+                      <CreateProductBox
+                        code={code}
+                        defaultName={nameSearch}
+                        pending={pending}
+                        onCreate={createProduct}
+                      />
+                    ) : null}
+
+                    {!canCreate && productSearch.ok && productSearch.products.length === 0 ? (
+                      <StatusMessage
+                        ok={false}
+                        message="Tu usuario puede cargar stock, pero no crear productos."
+                      />
+                    ) : null}
+                  </section>
+                ) : null}
+
+                <div className="flex justify-start">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      resetFlow();
+                      window.setTimeout(() => codeInputRef.current?.focus(), 50);
+                    }}
+                    className="h-11 px-4 text-base"
+                  >
+                    Escanear otro codigo
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+function ProductFound({
+  code,
+  mutation,
+  onAdjusted,
+  product,
+}: {
+  code: string;
+  mutation: BarcodeMutationResult | null;
+  onAdjusted: () => void;
+  product: ProductListItem;
+}) {
+  return (
+    <section className="grid gap-3 rounded-lg border border-emerald-500/40 bg-emerald-50/70 p-4">
+      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_170px] md:items-center">
+        <div>
+          <h3 className="text-base font-bold text-emerald-900">
+            Producto encontrado
+          </h3>
+          <p className="mt-1 font-mono text-sm font-semibold text-emerald-800">
+            Codigo: {code}
+          </p>
+        </div>
+        <div className="rounded-lg border border-emerald-500/40 bg-background p-3">
+          <p className="text-xs font-semibold text-muted-foreground">
+            Stock actual
+          </p>
+          <p className="mt-1 text-xl font-bold">
+            {formatStockQuantity(product.stockQuantity)} {product.unit}
+          </p>
+        </div>
+      </div>
+
+      {mutation?.message ? (
+        <StatusMessage ok={mutation.ok} message={mutation.message} />
+      ) : null}
+
+      <ProductSummary product={product} />
+
+      <StockAdjustForm product={product} onAdjusted={onAdjusted} />
+    </section>
+  );
+}
+
+function ProductSummary({ product }: { product: ProductListItem }) {
+  return (
+    <div className="min-w-0">
+      <p className="font-mono text-xs font-semibold text-muted-foreground">
+        SKU: {product.sku} {product.barcode ? `| Barras: ${product.barcode}` : ""}
+      </p>
+      <p className="mt-1 line-clamp-2 text-lg font-bold">{product.name}</p>
+      <p className="mt-1 text-sm font-semibold text-muted-foreground">
+        Stock: {formatStockQuantity(product.stockQuantity)} {product.unit}
+      </p>
+    </div>
+  );
+}
+
+function CreateProductBox({
+  code,
+  defaultName,
+  onCreate,
+  pending,
+}: {
+  code: string;
+  defaultName: string;
+  onCreate: (formData: FormData) => void;
+  pending: boolean;
+}) {
+  return (
+    <form
+      action={onCreate}
+      className="grid gap-3 rounded-lg border border-yellow-500/40 bg-yellow-50 p-4"
+    >
+      <div>
+        <h3 className="text-base font-bold text-yellow-950">
+          Crear producto nuevo
+        </h3>
+        <p className="mt-1 text-sm font-semibold text-yellow-900">
+          Usalo solo si no aparece en la lista de arriba.
+        </p>
+      </div>
+      <div className="grid gap-3 md:grid-cols-2">
+        <TextField
+          label="Nombre"
+          name="name"
+          defaultValue={defaultName}
+          required
+        />
+        <TextField
+          label="SKU / codigo interno"
+          name="sku"
+          defaultValue={code}
+          required
+        />
+        <TextField label="Unidad" name="unit" defaultValue="unidad" />
+        <NumberField label="Precio venta" name="salePrice" />
+      </div>
+      <div className="rounded-lg border border-border bg-background p-3">
+        <p className="text-xs font-semibold text-muted-foreground">
+          Código de barras
+        </p>
+        <p className="mt-1 font-mono text-lg font-bold">{code}</p>
+      </div>
+      <Button
+        type="submit"
+        disabled={pending}
+        className="h-11 w-fit gap-2 px-4 text-base"
+      >
+        <PackagePlus className="size-5" aria-hidden="true" />
+        {pending ? "Creando..." : "Crear producto nuevo"}
+      </Button>
+    </form>
+  );
+}
+
+function TextField({
+  defaultValue,
+  label,
+  name,
+  required = false,
+}: {
+  defaultValue?: string;
+  label: string;
+  name: string;
+  required?: boolean;
+}) {
+  return (
+    <label className="grid gap-2 text-sm font-semibold">
+      <span>{label}</span>
+      <input
+        name={name}
+        defaultValue={defaultValue}
+        required={required}
+        className="h-11 rounded-lg border border-input bg-background px-3 text-base"
+      />
+    </label>
+  );
+}
+
+function NumberField({ label, name }: { label: string; name: string }) {
+  return (
+    <label className="grid gap-2 text-sm font-semibold">
+      <span>{label}</span>
+      <input
+        name={name}
+        type="number"
+        min="0"
+        step="0.01"
+        inputMode="decimal"
+        className="h-11 rounded-lg border border-input bg-background px-3 text-base"
+      />
+    </label>
+  );
+}
+
+function StatusMessage({ ok, message }: { ok: boolean; message: string }) {
+  return (
+    <p
+      className={
+        ok
+          ? "rounded-lg border border-emerald-500/40 bg-emerald-50 p-3 text-sm font-semibold text-emerald-800"
+          : "rounded-lg border border-yellow-500/40 bg-yellow-50 p-3 text-sm font-semibold text-yellow-900"
+      }
+    >
+      {message}
+    </p>
+  );
+}

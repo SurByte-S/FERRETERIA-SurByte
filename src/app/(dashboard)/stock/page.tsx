@@ -2,6 +2,7 @@ import { AlertTriangle, Search } from "lucide-react";
 import Link from "next/link";
 
 import { ExportMenuButton } from "@/components/common/export-menu-button";
+import { BarcodeStockPanel } from "@/components/productos/barcode-stock-panel";
 import { StockAdjustDetails } from "@/components/productos/stock-adjust-details";
 import { StockSearchScrollAnchor } from "@/components/productos/stock-search-scroll-anchor";
 import type { ProductListItem } from "@/components/productos/product-types";
@@ -274,6 +275,9 @@ export default async function StockPage({ searchParams }: StockPageProps) {
                   </Button>
                 </form>
                 <div className="flex flex-wrap items-end gap-2">
+                  {result.canAdjustStock ? (
+                    <BarcodeStockPanel canCreate={result.canCreateProduct} />
+                  ) : null}
                   <ExportMenuButton
                     csvHref="/api/export/stock?format=csv"
                     pdfHref="/api/export/stock?format=pdf"
