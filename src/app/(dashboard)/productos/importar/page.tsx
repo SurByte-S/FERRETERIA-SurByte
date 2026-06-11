@@ -40,7 +40,7 @@ export default async function ImportarProductosPage() {
     <>
       <PageHeader
         title="Importar productos"
-        description="Carga un CSV, revisa una vista previa y actualiza el catalogo sin duplicar SKU."
+        description="Carga CSV, XLS o XLSX, revisa el plan y confirma antes de escribir en el catalogo."
         backHref="/productos"
         backLabel="Volver a productos"
       />
@@ -48,8 +48,8 @@ export default async function ImportarProductosPage() {
         <CardContent className="flex gap-3 p-5 text-lg font-semibold">
           <TriangleAlert className="mt-1 size-6 shrink-0" aria-hidden="true" />
           <p>
-            La importacion modifica productos en cantidad. Usar solo si estas
-            seguro.
+            La importacion no se aplica al subir el archivo. Primero muestra una
+            vista previa y requiere confirmacion.
           </p>
         </CardContent>
       </Card>
