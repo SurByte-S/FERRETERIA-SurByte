@@ -16,6 +16,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { formatStockQuantity } from "@/lib/format";
+import { cleanProductCodeSearch } from "@/lib/product-code";
 import { sortProductsBySearchRank } from "@/lib/search-ranking";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { requireTenant } from "@/lib/tenant";
@@ -78,6 +79,21 @@ type ProductSaleUnitRow = {
   barcode: string | null;
   is_default: boolean | null;
   active: boolean | null;
+};
+
+type CodeLookupRow = {
+  active: boolean | null;
+  conflict_sources: unknown;
+  matched_by: "sku" | "product_barcode" | "sale_unit_barcode" | null;
+  product_id: string | null;
+  status: "found" | "not_found" | "inactive" | "conflict" | string;
+};
+
+type StockSearchNotice = {
+  actionHref?: string;
+  actionLabel?: string;
+  message: string;
+  tone: "info" | "warning";
 };
 
 function formatMoney(value: number | null) {
@@ -205,6 +221,8 @@ function buildStockHref({
 
   if (filter !== "con-stock") {
     params.set("filtro", filter);
+  } else if (q) {
+    params.set("filtro", filter);
   }
 
   const query = params.toString();
@@ -234,10 +252,20 @@ function parseStockFilter(params: Awaited<StockPageProps["searchParams"]>): Stoc
   return "con-stock";
 }
 
+function hasExplicitStockFilter(params: Awaited<StockPageProps["searchParams"]>) {
+  return Boolean(
+    lastParam(params.filtro) ||
+      lastParam(params.sinStock) ||
+      lastParam(params.conStock)
+  );
+}
+
 export default async function StockPage({ searchParams }: StockPageProps) {
   const params = await searchParams;
   const q = (params.q ?? "").trim();
-  const filter = parseStockFilter(params);
+  const requestedFilter = parseStockFilter(params);
+  const explicitFilter = hasExplicitStockFilter(params);
+  const filter = q && !explicitFilter ? "todos" : requestedFilter;
   const result = await loadStockProducts({ q, filter });
 
   return (
@@ -251,7 +279,7 @@ export default async function StockPage({ searchParams }: StockPageProps) {
                   className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end"
                   action="/stock"
                 >
-                  {filter !== "con-stock" ? (
+                  {filter !== "con-stock" || q ? (
                     <input type="hidden" name="filtro" value={filter} />
                   ) : null}
                   <label className="grid gap-2 text-base font-semibold">
@@ -276,7 +304,12 @@ export default async function StockPage({ searchParams }: StockPageProps) {
                 </form>
                 <div className="flex flex-wrap items-end gap-2">
                   {result.canAdjustStock ? (
-                    <BarcodeStockPanel canCreate={result.canCreateProduct} />
+                    <BarcodeStockPanel
+                      brands={result.brands}
+                      canCreate={result.canCreateProduct}
+                      canEditPrice={result.canEditPrice}
+                      suppliers={result.suppliers}
+                    />
                   ) : null}
                   <ExportMenuButton
                     csvHref="/api/export/stock?format=csv"
@@ -289,6 +322,12 @@ export default async function StockPage({ searchParams }: StockPageProps) {
                   />
                 </div>
               </div>
+              {q && !explicitFilter ? (
+                <p className="rounded-lg border border-emerald-500/30 bg-emerald-50 p-3 text-sm font-semibold text-emerald-800">
+                  Buscando en todos los productos porque hay una busqueda activa.
+                </p>
+              ) : null}
+              {result.notice ? <StockNotice notice={result.notice} /> : null}
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex flex-wrap gap-2">
                   {stockFilters.map((item) => (
@@ -354,6 +393,25 @@ export default async function StockPage({ searchParams }: StockPageProps) {
         </Card>
       )}
     </>
+  );
+}
+
+function StockNotice({ notice }: { notice: StockSearchNotice }) {
+  return (
+    <div
+      className={
+        notice.tone === "warning"
+          ? "flex flex-wrap items-center justify-between gap-3 rounded-lg border border-yellow-500/40 bg-yellow-50 p-3 text-sm font-semibold text-yellow-900"
+          : "flex flex-wrap items-center justify-between gap-3 rounded-lg border border-emerald-500/30 bg-emerald-50 p-3 text-sm font-semibold text-emerald-800"
+      }
+    >
+      <span>{notice.message}</span>
+      {notice.actionHref && notice.actionLabel ? (
+        <Button asChild variant="outline" className="h-9 px-3 text-sm">
+          <Link href={notice.actionHref}>{notice.actionLabel}</Link>
+        </Button>
+      ) : null}
+    </div>
   );
 }
 
@@ -438,6 +496,7 @@ async function loadStockProducts({
       canCreateProduct: boolean;
       canEditPrice: boolean;
       brands: CatalogOption[];
+      notice?: StockSearchNotice;
       suppliers: CatalogOption[];
     }
   | { ok: false; message: string }
@@ -475,6 +534,41 @@ async function loadStockProducts({
       .eq("tenant_id", tenant.id)
       .eq("active", true)
       .lte("stock_quantity", 0);
+    const safeSearch = cleanProductCodeSearch(q);
+    let exactLookup: CodeLookupRow | null = null;
+    let saleUnitMatchedProductIds: string[] = [];
+
+    if (q.length >= 1 && safeSearch) {
+      const [exactResult, saleUnitResult] = await Promise.all([
+        supabase.rpc("find_product_by_code", {
+          input_tenant_id: tenant.id,
+          input_code: safeSearch,
+        }),
+        supabase
+          .from("product_sale_units")
+          .select("product_id")
+          .eq("tenant_id", tenant.id)
+          .eq("active", true)
+          .ilike("barcode", `%${safeSearch}%`)
+          .limit(PAGE_SIZE * 3),
+      ]);
+
+      if (!exactResult.error) {
+        exactLookup = (Array.isArray(exactResult.data)
+          ? exactResult.data[0]
+          : exactResult.data) as CodeLookupRow | null;
+      }
+
+      if (!saleUnitResult.error) {
+        saleUnitMatchedProductIds = [
+          ...new Set(
+            ((saleUnitResult.data ?? []) as { product_id: string }[]).map(
+              (row) => row.product_id
+            )
+          ),
+        ];
+      }
+    }
 
     let query = supabase
       .from("products")
@@ -500,11 +594,20 @@ async function loadStockProducts({
       query = query.is("supplier_id", null);
     }
 
-    if (q.length >= 1) {
-      const safe = q.replace(/[%_]/g, "");
-      query = query.or(
-        `sku.ilike.%${safe}%,barcode.ilike.%${safe}%,name.ilike.%${safe}%,normalized_name.ilike.%${safe}%,description.ilike.%${safe}%`
-      );
+    if (q.length >= 1 && safeSearch) {
+      const searchFilters = [
+        `sku.ilike.%${safeSearch}%`,
+        `barcode.ilike.%${safeSearch}%`,
+        `name.ilike.%${safeSearch}%`,
+        `normalized_name.ilike.%${safeSearch}%`,
+        `description.ilike.%${safeSearch}%`,
+      ];
+
+      if (saleUnitMatchedProductIds.length > 0) {
+        searchFilters.push(`id.in.(${saleUnitMatchedProductIds.join(",")})`);
+      }
+
+      query = query.or(searchFilters.join(","));
     }
 
     const { data, error } = await query;
@@ -521,15 +624,21 @@ async function loadStockProducts({
       productIds: rows.map((row) => row.id),
       tenantId: tenant.id,
     });
+    const products = sortProductsBySearchRank(
+      rows
+        .map((row) => {
+          const saleUnits = saleUnitsByProductId.get(row.id) ?? [];
 
-    return {
-      ok: true,
-      products: sortProductsBySearchRank(
-        rows.map((row) => ({
-          ...mapProduct(row),
-          saleUnits: saleUnitsByProductId.get(row.id) ?? [],
-          normalizedName: row.normalized_name,
-        })).filter((product) => {
+          return {
+            ...mapProduct(row),
+            saleUnits,
+            saleUnitBarcodes: saleUnits
+              .map((unit) => unit.barcode)
+              .filter(Boolean),
+            normalizedName: row.normalized_name,
+          };
+        })
+        .filter((product) => {
           if (filter === "bajo-minimo") {
             return (
               product.stockQuantity > 0 &&
@@ -540,13 +649,45 @@ async function loadStockProducts({
 
           return true;
         }),
-        q
-      ).slice(0, PAGE_SIZE),
+      q
+    ).slice(0, PAGE_SIZE);
+    let notice: StockSearchNotice | undefined;
+
+    if (exactLookup?.status === "conflict") {
+      notice = {
+        message:
+          "El codigo exacto aparece en mas de un producto. Revisa el diagnostico antes de cargar stock.",
+        tone: "warning",
+      };
+    } else if (exactLookup?.status === "inactive") {
+      notice = {
+        message:
+          "El codigo exacto pertenece a un producto inactivo. No crees otro producto con el mismo codigo.",
+        tone: "warning",
+      };
+    } else if (
+      exactLookup?.status === "found" &&
+      exactLookup.product_id &&
+      !products.some((product) => product.id === exactLookup?.product_id)
+    ) {
+      notice = {
+        actionHref: `/stock?q=${encodeURIComponent(q)}&filtro=todos`,
+        actionLabel: "Mostrar producto",
+        message:
+          "Encontramos el codigo exacto, pero el filtro actual lo oculta.",
+        tone: "warning",
+      };
+    }
+
+    return {
+      ok: true,
+      products,
       outOfStockCount: outOfStockResult.count ?? 0,
       canAdjustStock,
       canCreateProduct,
       canEditPrice,
       brands: (brandsResult.data ?? []) as CatalogOption[],
+      notice,
       suppliers: (suppliersResult.data ?? []) as CatalogOption[],
     };
   } catch {

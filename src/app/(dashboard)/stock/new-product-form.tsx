@@ -20,7 +20,11 @@ type CatalogOption = {
 type NewProductFormProps = {
   brands: CatalogOption[];
   canCreate: boolean;
+  initialBarcode?: string;
+  initialName?: string;
+  initialSku?: string;
   suppliers: CatalogOption[];
+  triggerLabel?: string;
 };
 
 const initialState: ProductActionState = {
@@ -39,7 +43,11 @@ function moneyValue(value: number) {
 export function NewProductForm({
   brands,
   canCreate,
+  initialBarcode = "",
+  initialName = "",
+  initialSku = "",
   suppliers,
+  triggerLabel = "Nuevo producto",
 }: NewProductFormProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -98,6 +106,11 @@ export function NewProductForm({
   useEffect(() => {
     if (state.ok) {
       router.refresh();
+
+      if ((state.stockQuantity ?? 0) <= 0) {
+        return;
+      }
+
       const closeTimeout = window.setTimeout(() => {
         setFormKey((current) => current + 1);
         setCostWithoutTax("");
@@ -110,7 +123,7 @@ export function NewProductForm({
 
       return () => window.clearTimeout(closeTimeout);
     }
-  }, [router, state.ok]);
+  }, [router, state.ok, state.stockQuantity]);
 
   useEffect(() => {
     if (!open) {
@@ -139,7 +152,7 @@ export function NewProductForm({
         className="h-12 gap-2 bg-emerald-600 px-4 text-base text-white hover:bg-emerald-700 xl:h-14 xl:px-6 xl:text-lg"
       >
         <PackagePlus className="size-5" aria-hidden="true" />
-        Nuevo producto
+        {triggerLabel}
       </Button>
 
       {open ? (
@@ -169,9 +182,23 @@ export function NewProductForm({
                 <section className="grid gap-3 rounded-lg border border-border bg-background p-4">
                   <h3 className="text-base font-bold">Datos principales</h3>
                   <div className="grid gap-3 md:grid-cols-2">
-                    <TextField label="Nombre" name="name" required />
-                    <TextField label="SKU / codigo interno" name="sku" required />
-                    <TextField label="Codigo de barras" name="barcode" />
+                    <TextField
+                      label="Nombre"
+                      name="name"
+                      defaultValue={initialName}
+                      required
+                    />
+                    <TextField
+                      label="SKU / codigo interno"
+                      name="sku"
+                      defaultValue={initialSku}
+                      required
+                    />
+                    <TextField
+                      label="Codigo de barras"
+                      name="barcode"
+                      defaultValue={initialBarcode}
+                    />
                     <TextField label="Unidad" name="unit" defaultValue="unidad" />
                     <label className="grid gap-2 text-sm font-semibold md:col-span-2">
                       <span>Descripcion</span>
@@ -316,13 +343,35 @@ export function NewProductForm({
                     {pending ? "Creando..." : "Crear producto"}
                   </Button>
                   {state.message ? (
-                    <p
-                      className={`text-base font-semibold ${
-                        state.ok ? "text-emerald-700" : "text-destructive"
-                      }`}
-                    >
-                      {state.message}
-                    </p>
+                    <div className="flex flex-col gap-2">
+                      <p
+                        className={`text-base font-semibold ${
+                          state.ok ? "text-emerald-700" : "text-destructive"
+                        }`}
+                      >
+                        {state.message}
+                      </p>
+                      {state.ok && (state.stockQuantity ?? 0) <= 0 ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            const searchCode =
+                              state.barcode || state.sku || initialBarcode || initialSku;
+
+                            if (searchCode) {
+                              setOpen(false);
+                              router.push(
+                                `/stock?q=${encodeURIComponent(searchCode)}&filtro=todos`
+                              );
+                            }
+                          }}
+                          className="h-10 w-fit px-3 text-sm"
+                        >
+                          Cargar stock ahora
+                        </Button>
+                      ) : null}
+                    </div>
                   ) : null}
                 </div>
               </form>

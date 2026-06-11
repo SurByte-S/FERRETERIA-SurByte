@@ -4,6 +4,7 @@ type SearchableProduct = {
   description?: string | null;
   name: string;
   normalizedName?: string | null;
+  saleUnitBarcodes?: string[] | null;
   sku: string;
 };
 
@@ -41,6 +42,7 @@ function fieldRank(value: string | null | undefined, search: string, exactRank: 
 
 export function getProductSearchRank(product: SearchableProduct, rawSearch: string) {
   const search = normalizeSearchText(rawSearch);
+  const saleUnitBarcodes = product.saleUnitBarcodes?.join(" ") ?? "";
 
   if (!search) {
     return 0;
@@ -50,6 +52,7 @@ export function getProductSearchRank(product: SearchableProduct, rawSearch: stri
     fieldRank(product.sku, search, 0, 2, 5),
     fieldRank(product.barcode, search, 0, 2, 5),
     fieldRank(product.code, search, 0, 2, 5),
+    fieldRank(saleUnitBarcodes, search, 0, 2, 5),
     fieldRank(product.name, search, 1, 3, 6),
     fieldRank(product.normalizedName, search, 1, 3, 6),
     fieldRank(product.description, search, 4, 4, 7)

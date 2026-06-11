@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 
+import { createProductAction } from "@/app/(dashboard)/productos/actions";
 import { requireUser } from "@/lib/auth/session";
-import { normalizeName } from "@/lib/csv/productos";
 import {
   type ConsolidatedStockCsvRow,
   normalizeStockCode,
@@ -66,6 +66,17 @@ type BarcodeSaleUnitRow = {
   active: boolean | null;
 };
 
+type CodeLookupRow = {
+  active: boolean | null;
+  conflict_count: number | null;
+  conflict_sources: unknown;
+  matched_by: "sku" | "product_barcode" | "sale_unit_barcode" | null;
+  product_id: string | null;
+  sale_unit_id: string | null;
+  status: "found" | "not_found" | "inactive" | "conflict" | string;
+  tenant_id: string | null;
+};
+
 export type BarcodeLookupResult =
   | {
       ok: true;
@@ -73,6 +84,20 @@ export type BarcodeLookupResult =
       code: string;
       product: ProductListItem;
       matchedBy: "sku" | "product_barcode" | "sale_unit_barcode";
+    }
+  | {
+      ok: true;
+      status: "inactive";
+      code: string;
+      message: string;
+      product?: ProductListItem;
+    }
+  | {
+      ok: false;
+      status: "conflict";
+      code: string;
+      message: string;
+      conflictSources?: unknown;
     }
   | {
       ok: true;
@@ -167,17 +192,25 @@ async function loadSaleUnitsByProductId(tenantId: string, productId: string) {
   }));
 }
 
-async function loadProductForBarcodePanel(tenantId: string, productId: string) {
+async function loadProductForBarcodePanel(
+  tenantId: string,
+  productId: string,
+  options: { includeInactive?: boolean } = {}
+) {
   const supabase = getSupabaseServerClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from("products")
     .select(
       "id,sku,barcode,name,normalized_name,description,unit,cost_without_tax,cost_with_tax,sale_price,tax_rate,profit_margin_percent,stock_quantity,min_stock,active,image_url,category_id,brand_id,supplier_id,brands(name),suppliers(name)"
     )
     .eq("tenant_id", tenantId)
-    .eq("id", productId)
-    .eq("active", true)
-    .maybeSingle();
+    .eq("id", productId);
+
+  if (!options.includeInactive) {
+    query = query.eq("active", true);
+  }
+
+  const { data, error } = await query.maybeSingle();
 
   if (error || !data) {
     return null;
@@ -203,58 +236,19 @@ function isUuid(value: string) {
   );
 }
 
-async function findProductBarcodeOwner(tenantId: string, code: string) {
+async function findProductByExactCode(tenantId: string, code: string) {
   const supabase = getSupabaseServerClient();
   const { data, error } = await supabase
-    .from("products")
-    .select("id")
-    .eq("tenant_id", tenantId)
-    .eq("barcode", code)
-    .eq("active", true)
-    .limit(1)
-    .maybeSingle();
+    .rpc("find_product_by_code", {
+      input_tenant_id: tenantId,
+      input_code: code,
+    });
 
   if (error) {
-    throw new Error("No se pudo revisar si el codigo ya existe.");
+    throw new Error("Falta aplicar la migracion 021 de codigos de producto.");
   }
 
-  return (data as { id: string } | null)?.id ?? null;
-}
-
-async function findProductSkuOwner(tenantId: string, code: string) {
-  const supabase = getSupabaseServerClient();
-  const { data, error } = await supabase
-    .from("products")
-    .select("id")
-    .eq("tenant_id", tenantId)
-    .eq("sku", code)
-    .eq("active", true)
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    throw new Error("No se pudo revisar si el codigo interno ya existe.");
-  }
-
-  return (data as { id: string } | null)?.id ?? null;
-}
-
-async function findSaleUnitBarcodeOwner(tenantId: string, code: string) {
-  const supabase = getSupabaseServerClient();
-  const { data, error } = await supabase
-    .from("product_sale_units")
-    .select("product_id")
-    .eq("tenant_id", tenantId)
-    .eq("barcode", code)
-    .eq("active", true)
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    throw new Error("No se pudo revisar las presentaciones.");
-  }
-
-  return (data as { product_id: string } | null)?.product_id ?? null;
+  return (Array.isArray(data) ? data[0] : data) as CodeLookupRow | null;
 }
 
 async function ensureBarcodeIsFree({
@@ -266,23 +260,24 @@ async function ensureBarcodeIsFree({
   productId?: string;
   tenantId: string;
 }) {
-  const [productOwnerId, saleUnitOwnerId] = await Promise.all([
-    findProductBarcodeOwner(tenantId, code),
-    findSaleUnitBarcodeOwner(tenantId, code),
-  ]);
-  const skuOwnerId = await findProductSkuOwner(tenantId, code);
+  const result = await findProductByExactCode(tenantId, code);
 
-  if (productOwnerId && productOwnerId !== productId) {
-    throw new Error("Ese codigo de barras ya esta usado por otro producto.");
+  if (!result || result.status === "not_found") {
+    return;
   }
 
-  if (skuOwnerId && skuOwnerId !== productId) {
-    throw new Error("Ese codigo ya esta usado como codigo interno de otro producto.");
+  if (
+    (result.status === "found" || result.status === "inactive") &&
+    result.product_id === productId
+  ) {
+    return;
   }
 
-  if (saleUnitOwnerId && saleUnitOwnerId !== productId) {
-    throw new Error("Ese codigo de barras ya esta usado en otra presentacion.");
+  if (result.status === "conflict") {
+    throw new Error("Ese codigo esta duplicado en mas de un producto.");
   }
+
+  throw new Error("Ese codigo ya esta usado por otro producto o presentacion.");
 }
 
 function stockCsvErrorMessage(message?: string) {
@@ -329,49 +324,47 @@ export async function lookupBarcodeStockAction(
 
   try {
     const tenant = await requireTenantRole(["owner", "admin", "seller"]);
-    const supabase = getSupabaseServerClient();
-    const saleUnitResult = await supabase
-      .from("product_sale_units")
-      .select("product_id")
-      .eq("tenant_id", tenant.id)
-      .eq("active", true)
-      .ilike("barcode", code)
-      .limit(1)
-      .maybeSingle();
+    const result = await findProductByExactCode(tenant.id, code);
 
-    if (!saleUnitResult.error && saleUnitResult.data) {
-      const product = await loadProductForBarcodePanel(
-        tenant.id,
-        (saleUnitResult.data as { product_id: string }).product_id
-      );
-
-      if (product) {
-        return {
-          ok: true,
-          status: "found",
-          code,
-          product,
-          matchedBy: "sale_unit_barcode",
-        };
-      }
+    if (!result || result.status === "not_found") {
+      return {
+        ok: true,
+        status: "not_found",
+        code,
+        message: "No hay producto con ese codigo. Buscalo por nombre para asociarlo.",
+      };
     }
 
-    const productResult = await supabase
-      .from("products")
-      .select("id,sku,barcode")
-      .eq("tenant_id", tenant.id)
-      .eq("active", true)
-      .or(`sku.ilike.${code},barcode.ilike.${code}`)
-      .limit(1)
-      .maybeSingle();
-
-    if (!productResult.error && productResult.data) {
-      const row = productResult.data as {
-        id: string;
-        sku: string;
-        barcode: string | null;
+    if (result.status === "conflict") {
+      return {
+        ok: false,
+        status: "conflict",
+        code,
+        message:
+          "Ese codigo aparece en mas de un producto. Revisa el diagnostico antes de vender o cargar stock.",
+        conflictSources: result.conflict_sources,
       };
-      const product = await loadProductForBarcodePanel(tenant.id, row.id);
+    }
+
+    if (result.status === "inactive" && result.product_id) {
+      const product = await loadProductForBarcodePanel(
+        tenant.id,
+        result.product_id,
+        { includeInactive: true }
+      );
+
+      return {
+        ok: true,
+        status: "inactive",
+        code,
+        product: product ?? undefined,
+        message:
+          "El codigo pertenece a un producto inactivo. No crees otro producto con el mismo codigo.",
+      };
+    }
+
+    if (result.status === "found" && result.product_id && result.matched_by) {
+      const product = await loadProductForBarcodePanel(tenant.id, result.product_id);
 
       if (product) {
         return {
@@ -379,19 +372,16 @@ export async function lookupBarcodeStockAction(
           status: "found",
           code,
           product,
-          matchedBy:
-            normalizeStockCode(row.barcode ?? "") === code
-              ? "product_barcode"
-              : "sku",
+          matchedBy: result.matched_by,
         };
       }
     }
 
     return {
-      ok: true,
-      status: "not_found",
+      ok: false,
+      status: "error",
       code,
-      message: "No hay producto con ese codigo. Buscalo por nombre para asociarlo.",
+      message: "No se pudo cargar el producto encontrado.",
     };
   } catch (error) {
     if (isTenantRoleForbiddenError(error)) {
@@ -610,139 +600,56 @@ export async function createBarcodeProductAction({
   }
 
   try {
-    const [tenant, user] = await Promise.all([
-      requireTenantRole(["owner", "admin"]),
-      requireUser(),
-    ]);
-    const supabase = getSupabaseServerClient();
-    const normalizedProductName = normalizeName(name);
+    const tenant = await requireTenantRole(["owner", "admin"]);
+    const formData = new FormData();
 
-    await ensureBarcodeIsFree({ code: barcode, tenantId: tenant.id });
+    formData.set("name", name);
+    formData.set("sku", sku);
+    formData.set("barcode", barcode);
+    formData.set("description", name);
+    formData.set("unit", unit);
+    formData.set("taxRate", "21");
+    formData.set("profitMarginPercent", "0");
+    formData.set("stockQuantity", String(stockQuantity));
+    formData.set("minStock", "0");
+    formData.set("active", "true");
 
-    const { data: existingName, error: nameError } = await supabase
-      .from("products")
-      .select("id")
-      .eq("tenant_id", tenant.id)
-      .eq("normalized_name", normalizedProductName)
-      .eq("active", true)
-      .limit(1)
-      .maybeSingle();
+    if (salePrice !== null) {
+      formData.set("salePrice", String(salePrice));
+    }
 
-    if (nameError) {
+    formData.set(
+      "saleUnits",
+      JSON.stringify([
+        {
+          id: "",
+          name: "Unidad",
+          quantityInBaseUnit: 1,
+          salePrice: salePrice ?? 0,
+          barcode: "",
+          isDefault: true,
+          active: true,
+        },
+      ])
+    );
+
+    const created = await createProductAction({ ok: false, message: "" }, formData);
+
+    if (!created.ok || !created.productId) {
       return {
         ok: false,
-        message: "No se pudo revisar si el producto ya existe.",
+        message: created.message || "No se pudo crear el producto.",
       };
     }
 
-    if (existingName) {
-      return {
-        ok: false,
-        message:
-          "Ya existe un producto con ese nombre. Buscalo y asociale el codigo.",
-      };
-    }
-
-    const { data: existingSku, error: skuError } = await supabase
-      .from("products")
-      .select("id")
-      .eq("tenant_id", tenant.id)
-      .eq("sku", sku)
-      .maybeSingle();
-
-    if (skuError) {
-      return {
-        ok: false,
-        message: "No se pudo revisar si el codigo interno ya existe.",
-      };
-    }
-
-    if (existingSku) {
-      return {
-        ok: false,
-        message: "Ya existe un producto con ese codigo interno.",
-      };
-    }
-
-    const { data: product, error: insertError } = await supabase
-      .from("products")
-      .insert({
-        tenant_id: tenant.id,
-        sku,
-        barcode,
-        name,
-        normalized_name: normalizedProductName,
-        description: name,
-        unit,
-        sale_price: salePrice,
-        tax_rate: 21,
-        profit_margin_percent: 0,
-        stock_quantity: stockQuantity,
-        min_stock: 0,
-        active: true,
-      })
-      .select("id")
-      .single();
-
-    if (insertError || !product) {
-      return {
-        ok: false,
-        message: "No se pudo crear el producto.",
-      };
-    }
-
-    const productId = (product as { id: string }).id;
-    const { error: saleUnitError } = await supabase
-      .from("product_sale_units")
-      .insert({
-        tenant_id: tenant.id,
-        product_id: productId,
-        name: "Unidad",
-        quantity_in_base_unit: 1,
-        sale_price: salePrice ?? 0,
-        barcode: null,
-        is_default: true,
-        active: true,
-      });
-
-    if (saleUnitError) {
-      return {
-        ok: false,
-        message: "Producto creado, pero no se pudo crear la presentacion.",
-      };
-    }
-
-    if (stockQuantity > 0) {
-      const { error: movementError } = await supabase
-        .from("inventory_movements")
-        .insert({
-          tenant_id: tenant.id,
-          product_id: productId,
-          movement_type: "initial",
-          quantity: stockQuantity,
-          unit_cost: null,
-          notes: "Stock inicial desde codigo de barras",
-          created_by: user.id,
-        });
-
-      if (movementError) {
-        return {
-          ok: false,
-          message:
-            "Producto creado, pero no se pudo registrar el movimiento inicial.",
-        };
-      }
-    }
-
-    revalidatePath("/stock");
-    revalidatePath("/productos");
-    revalidatePath("/inicio");
-
-    const createdProduct = await loadProductForBarcodePanel(tenant.id, productId);
+    const createdProduct = await loadProductForBarcodePanel(
+      tenant.id,
+      created.productId
+    );
 
     return {
       ok: true,
-      message: "Producto creado correctamente.",
+      message: created.message,
       product: createdProduct ?? undefined,
     };
   } catch (error) {

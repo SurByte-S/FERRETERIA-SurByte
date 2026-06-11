@@ -1,4 +1,5 @@
 import { parseCsv } from "@/lib/csv/productos";
+import { normalizeProductCode } from "@/lib/product-code";
 
 export type StockCsvInputRow = {
   rowNumber: number;
@@ -15,11 +16,7 @@ export type ConsolidatedStockCsvRow = {
 };
 
 export function normalizeStockCode(value: string) {
-  return String(value ?? "")
-    .replace(/^\uFEFF/, "")
-    .replace(/[\u200B-\u200D\u2060]/g, "")
-    .trim()
-    .toUpperCase();
+  return normalizeProductCode(value);
 }
 
 export function parseStockCsv(text: string) {

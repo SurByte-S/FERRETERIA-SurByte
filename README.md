@@ -48,6 +48,15 @@ Aplicar las migraciones en este orden:
 9. `010_seed_demo_tenant.sql`
 10. `011_storage_product_images_policies.sql`
 11. `012_harden_sale_conversion_cash_and_stock.sql`
+12. `013_bulk_add_stock_csv.sql`
+13. `014_pos_product_search.sql`
+14. `015_product_sale_units.sql`
+15. `016_soft_delete_customers_quotes.sql`
+16. `017_fix_soft_delete_columns.sql`
+17. `018_product_profit_margin.sql`
+18. `019_fix_bulk_add_stock_csv_uuid_match.sql`
+19. `020_normalize_bulk_add_stock_csv_matching.sql`
+20. `021_stock_barcode_unification.sql`
 
 No existe migracion `002` por un salto historico de numeracion. No renombrar migraciones ya aplicadas.
 

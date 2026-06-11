@@ -1,21 +1,26 @@
 "use client";
 
 import { startTransition, useEffect, useRef, useState } from "react";
-import { Barcode, PackagePlus, Search, X } from "lucide-react";
+import { Barcode, Search, X } from "lucide-react";
 
 import {
   assignBarcodeToProductAction,
-  createBarcodeProductAction,
   lookupBarcodeStockAction,
   searchProductsForBarcodeAction,
   type BarcodeLookupResult,
   type BarcodeMutationResult,
   type BarcodeProductSearchResult,
 } from "@/app/(dashboard)/stock/actions";
+import { NewProductForm } from "@/app/(dashboard)/stock/new-product-form";
 import { Button } from "@/components/ui/button";
 import { formatStockQuantity } from "@/lib/format";
 import type { ProductListItem } from "./product-types";
-import { StockAdjustForm } from "./stock-adjust-form";
+import { StockAdjustDetails } from "./stock-adjust-details";
+
+type CatalogOption = {
+  id: string;
+  name: string;
+};
 
 const emptyLookup: BarcodeLookupResult | null = null;
 const emptyProductSearch: BarcodeProductSearchResult = {
@@ -29,9 +34,15 @@ function normalizeInputCode(value: string) {
 }
 
 export function BarcodeStockPanel({
+  brands,
   canCreate,
+  canEditPrice,
+  suppliers,
 }: {
+  brands: CatalogOption[];
   canCreate: boolean;
+  canEditPrice: boolean;
+  suppliers: CatalogOption[];
 }) {
   const [open, setOpen] = useState(false);
   const [code, setCode] = useState("");
@@ -149,23 +160,6 @@ export function BarcodeStockPanel({
     });
   }
 
-  function createProduct(formData: FormData) {
-    setPending(true);
-    setMutation(null);
-    startTransition(async () => {
-      const result = await createBarcodeProductAction({
-        barcode: code,
-        name: String(formData.get("name") ?? ""),
-        salePrice: String(formData.get("salePrice") ?? ""),
-        sku: String(formData.get("sku") ?? ""),
-        unit: String(formData.get("unit") ?? ""),
-      });
-      setMutation(result);
-      setSelectedProduct(result.product ?? null);
-      setPending(false);
-    });
-  }
-
   return (
     <>
       <Button
@@ -178,7 +172,7 @@ export function BarcodeStockPanel({
         className="h-12 gap-2 px-4 text-base xl:h-14 xl:px-6 xl:text-lg"
       >
         <Barcode className="size-5" aria-hidden="true" />
-        Código de barras
+        Codigo de barras
       </Button>
 
       {open ? (
@@ -186,7 +180,7 @@ export function BarcodeStockPanel({
           <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-lg border border-border bg-card shadow-xl">
             <div className="sticky top-0 z-20 flex shrink-0 items-start justify-between gap-3 border-b border-border bg-card/95 px-3 py-3 backdrop-blur sm:px-4">
               <div className="min-w-0 pr-2">
-                <p className="truncate text-lg font-bold">Código de barras</p>
+                <p className="truncate text-lg font-bold">Codigo de barras</p>
                 <p className="text-sm font-semibold text-muted-foreground">
                   Escanea, busca el producto y carga stock sin crear duplicados.
                 </p>
@@ -238,10 +232,14 @@ export function BarcodeStockPanel({
 
                 {selectedProduct ? (
                   <ProductFound
+                    key={selectedProduct.id}
+                    brands={brands}
+                    canEditPrice={canEditPrice}
                     code={code}
                     mutation={mutation}
                     onAdjusted={() => runBarcodeLookup(code)}
                     product={selectedProduct}
+                    suppliers={suppliers}
                   />
                 ) : null}
 
@@ -309,11 +307,14 @@ export function BarcodeStockPanel({
                     ) : null}
 
                     {canCreate && productSearch.ok && productSearch.products.length === 0 ? (
-                      <CreateProductBox
-                        code={code}
-                        defaultName={nameSearch}
-                        pending={pending}
-                        onCreate={createProduct}
+                      <NewProductForm
+                        brands={brands}
+                        canCreate={canCreate}
+                        initialBarcode={code}
+                        initialName={nameSearch}
+                        initialSku={code}
+                        suppliers={suppliers}
+                        triggerLabel="Crear producto nuevo"
                       />
                     ) : null}
 
@@ -349,15 +350,21 @@ export function BarcodeStockPanel({
 }
 
 function ProductFound({
+  brands,
+  canEditPrice,
   code,
   mutation,
   onAdjusted,
   product,
+  suppliers,
 }: {
+  brands: CatalogOption[];
+  canEditPrice: boolean;
   code: string;
   mutation: BarcodeMutationResult | null;
   onAdjusted: () => void;
   product: ProductListItem;
+  suppliers: CatalogOption[];
 }) {
   return (
     <section className="grid gap-3 rounded-lg border border-emerald-500/40 bg-emerald-50/70 p-4">
@@ -386,7 +393,14 @@ function ProductFound({
 
       <ProductSummary product={product} />
 
-      <StockAdjustForm product={product} onAdjusted={onAdjusted} />
+      <StockAdjustDetails
+        brands={brands}
+        canEditPrice={canEditPrice}
+        defaultOpen
+        onAdjusted={onAdjusted}
+        product={product}
+        suppliers={suppliers}
+      />
     </section>
   );
 }
@@ -402,104 +416,6 @@ function ProductSummary({ product }: { product: ProductListItem }) {
         Stock: {formatStockQuantity(product.stockQuantity)} {product.unit}
       </p>
     </div>
-  );
-}
-
-function CreateProductBox({
-  code,
-  defaultName,
-  onCreate,
-  pending,
-}: {
-  code: string;
-  defaultName: string;
-  onCreate: (formData: FormData) => void;
-  pending: boolean;
-}) {
-  return (
-    <form
-      action={onCreate}
-      className="grid gap-3 rounded-lg border border-yellow-500/40 bg-yellow-50 p-4"
-    >
-      <div>
-        <h3 className="text-base font-bold text-yellow-950">
-          Crear producto nuevo
-        </h3>
-        <p className="mt-1 text-sm font-semibold text-yellow-900">
-          Usalo solo si no aparece en la lista de arriba.
-        </p>
-      </div>
-      <div className="grid gap-3 md:grid-cols-2">
-        <TextField
-          label="Nombre"
-          name="name"
-          defaultValue={defaultName}
-          required
-        />
-        <TextField
-          label="SKU / codigo interno"
-          name="sku"
-          defaultValue={code}
-          required
-        />
-        <TextField label="Unidad" name="unit" defaultValue="unidad" />
-        <NumberField label="Precio venta" name="salePrice" />
-      </div>
-      <div className="rounded-lg border border-border bg-background p-3">
-        <p className="text-xs font-semibold text-muted-foreground">
-          Código de barras
-        </p>
-        <p className="mt-1 font-mono text-lg font-bold">{code}</p>
-      </div>
-      <Button
-        type="submit"
-        disabled={pending}
-        className="h-11 w-fit gap-2 px-4 text-base"
-      >
-        <PackagePlus className="size-5" aria-hidden="true" />
-        {pending ? "Creando..." : "Crear producto nuevo"}
-      </Button>
-    </form>
-  );
-}
-
-function TextField({
-  defaultValue,
-  label,
-  name,
-  required = false,
-}: {
-  defaultValue?: string;
-  label: string;
-  name: string;
-  required?: boolean;
-}) {
-  return (
-    <label className="grid gap-2 text-sm font-semibold">
-      <span>{label}</span>
-      <input
-        name={name}
-        defaultValue={defaultValue}
-        required={required}
-        className="h-11 rounded-lg border border-input bg-background px-3 text-base"
-      />
-    </label>
-  );
-}
-
-function NumberField({ label, name }: { label: string; name: string }) {
-  return (
-    <label className="grid gap-2 text-sm font-semibold">
-      <span>{label}</span>
-      <input
-        name={name}
-        type="number"
-        min="0"
-        step="0.01"
-        inputMode="decimal"
-        className="h-11 rounded-lg border border-input bg-background px-3 text-base"
-      />
-    </label>
   );
 }
 

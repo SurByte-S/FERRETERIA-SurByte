@@ -41,6 +41,8 @@ function moneyValue(value: number) {
 export function StockAdjustDetails({
   brands = [],
   children,
+  defaultOpen = false,
+  onAdjusted,
   triggerAriaLabel,
   triggerClassName,
   product,
@@ -49,13 +51,15 @@ export function StockAdjustDetails({
 }: {
   brands?: CatalogOption[];
   children?: ReactNode;
+  defaultOpen?: boolean;
+  onAdjusted?: () => void;
   triggerAriaLabel?: string;
   triggerClassName?: string;
   product: ProductListItem;
   canEditPrice: boolean;
   suppliers?: CatalogOption[];
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -127,7 +131,10 @@ export function StockAdjustDetails({
                 <section className="min-w-0">
                   <StockAdjustForm
                     product={product}
-                    onAdjusted={() => setOpen(false)}
+                    onAdjusted={() => {
+                      setOpen(false);
+                      onAdjusted?.();
+                    }}
                   />
                 </section>
 

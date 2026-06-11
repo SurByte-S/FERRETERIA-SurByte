@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { requireUser } from "@/lib/auth/session";
 import { normalizeName, parseBoolean } from "@/lib/csv/productos";
+import { normalizeProductCode } from "@/lib/product-code";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import {
   FORBIDDEN_ACTION_MESSAGE,
@@ -14,6 +15,10 @@ import {
 export type ProductActionState = {
   ok: boolean;
   message: string;
+  barcode?: string;
+  productId?: string;
+  sku?: string;
+  stockQuantity?: number;
 };
 
 export type CatalogCreateState = {
@@ -52,6 +57,15 @@ function textValue(formData: FormData, key: string) {
 
 function optionalText(formData: FormData, key: string) {
   const clean = textValue(formData, key);
+  return clean || null;
+}
+
+function codeValue(formData: FormData, key: string) {
+  return normalizeProductCode(String(formData.get(key) ?? ""));
+}
+
+function optionalCodeValue(formData: FormData, key: string) {
+  const clean = codeValue(formData, key);
   return clean || null;
 }
 
@@ -97,7 +111,7 @@ function parseSaleUnitsInput(formData: FormData, fallbackSalePrice: number | nul
         String(record.quantityInBaseUnit ?? "1")
       );
       const salePrice = numberValue(String(record.salePrice ?? fallback));
-      const barcode = String(record.barcode ?? "").trim();
+      const barcode = normalizeProductCode(String(record.barcode ?? ""));
 
       return {
         id: id || undefined,
@@ -255,6 +269,80 @@ async function syncProductSaleUnits({
   }
 }
 
+type CodeLookupRow = {
+  status?: string | null;
+  product_id?: string | null;
+  conflict_count?: number | null;
+};
+
+async function ensureProductCodesAvailable({
+  barcode,
+  productId,
+  saleUnits,
+  sku,
+  tenantId,
+}: {
+  barcode?: string | null;
+  productId: string;
+  saleUnits: SaleUnitInput[];
+  sku?: string | null;
+  tenantId: string;
+}) {
+  const supabase = getSupabaseServerClient();
+  const activeSaleUnitCodes = saleUnits
+    .filter((unit) => unit.active)
+    .map((unit) => unit.barcode)
+    .filter(Boolean);
+  const repeatedSaleUnitCodes = activeSaleUnitCodes.filter(
+    (code, index) => activeSaleUnitCodes.indexOf(code) !== index
+  );
+
+  if (repeatedSaleUnitCodes.length > 0) {
+    throw new Error("Hay presentaciones con el mismo codigo de barras.");
+  }
+
+  const codes = [
+    { code: normalizeProductCode(sku ?? ""), label: "El SKU" },
+    { code: normalizeProductCode(barcode ?? ""), label: "El codigo de barras" },
+    ...activeSaleUnitCodes.map((code) => ({
+      code,
+      label: "Un codigo de presentacion",
+    })),
+  ].filter((item) => item.code);
+
+  const uniqueCodes = [...new Map(codes.map((item) => [item.code, item])).values()];
+
+  for (const item of uniqueCodes) {
+    const { data, error } = await supabase.rpc("find_product_by_code", {
+      input_tenant_id: tenantId,
+      input_code: item.code,
+    });
+
+    if (error) {
+      throw new Error("Falta aplicar la migracion 021 de codigos de producto.");
+    }
+
+    const result = (Array.isArray(data) ? data[0] : data) as CodeLookupRow | null;
+
+    if (!result || result.status === "not_found") {
+      continue;
+    }
+
+    if (
+      (result.status === "found" || result.status === "inactive") &&
+      result.product_id === productId
+    ) {
+      continue;
+    }
+
+    if (result.status === "conflict") {
+      throw new Error(`${item.label} esta duplicado en mas de un producto.`);
+    }
+
+    throw new Error(`${item.label} ya esta usado por otro producto.`);
+  }
+}
+
 function nonNegativeNumberValue({
   fieldName,
   label,
@@ -301,6 +389,54 @@ function stockErrorMessage(message?: string) {
   }
 
   return "No se pudo ajustar el stock. Revisa la conexion y las migraciones.";
+}
+
+function createProductErrorMessage(message?: string) {
+  if (message?.includes("PRODUCT_NAME_REQUIRED")) {
+    return "El nombre es obligatorio.";
+  }
+
+  if (message?.includes("PRODUCT_SKU_REQUIRED")) {
+    return "El SKU o codigo interno es obligatorio.";
+  }
+
+  if (message?.includes("PRODUCT_SKU_CONFLICT")) {
+    return "Ya existe un producto o presentacion con ese SKU.";
+  }
+
+  if (message?.includes("PRODUCT_BARCODE_CONFLICT")) {
+    return "Ya existe un producto o presentacion con ese codigo de barras.";
+  }
+
+  if (message?.includes("PRODUCT_SALE_UNIT_BARCODE_DUPLICATE")) {
+    return "Hay presentaciones con el mismo codigo de barras.";
+  }
+
+  if (message?.includes("PRODUCT_SALE_UNIT_BARCODE_CONFLICT")) {
+    return "Un codigo de presentacion ya esta usado por otro producto.";
+  }
+
+  if (message?.includes("PRODUCT_BRAND_INVALID")) {
+    return "La marca no pertenece a esta ferreteria.";
+  }
+
+  if (message?.includes("PRODUCT_SUPPLIER_INVALID")) {
+    return "El proveedor no pertenece a esta ferreteria.";
+  }
+
+  if (message?.includes("PRODUCT_NUMERIC_INVALID")) {
+    return "Revisa precios y stock. No pueden ser negativos.";
+  }
+
+  if (message?.includes("PRODUCT_SALE_UNITS_INVALID")) {
+    return "Revisa las presentaciones de venta.";
+  }
+
+  if (message?.includes("Could not find the function")) {
+    return "Falta aplicar la migracion 021 de stock y codigos.";
+  }
+
+  return "No se pudo crear el producto.";
 }
 
 async function validateTenantCatalogId({
@@ -505,10 +641,10 @@ export async function updateProductAction(
 ): Promise<ProductActionState> {
   const productId = textValue(formData, "productId");
   const currentSku = textValue(formData, "currentSku");
-  const nextSku = textValue(formData, "sku");
+  const nextSku = codeValue(formData, "sku");
   const name = textValue(formData, "name");
   const description = textValue(formData, "description");
-  const barcode = textValue(formData, "barcode");
+  const barcode = optionalCodeValue(formData, "barcode");
   const unit = textValue(formData, "unit") || "unidad";
   const imageFile = formData.get("image");
   let imageUrl = textValue(formData, "currentImageUrl");
@@ -569,6 +705,13 @@ export async function updateProductAction(
       }),
     ];
     const saleUnits = parseSaleUnitsInput(formData, salePrice);
+    await ensureProductCodesAvailable({
+      barcode,
+      productId,
+      saleUnits,
+      sku: nextSku,
+      tenantId: tenant.id,
+    });
     const [brandId, supplierId] = await Promise.all([
       validateTenantCatalogId({
         fieldName: textValue(formData, "brandId"),
@@ -596,7 +739,7 @@ export async function updateProductAction(
       .from("products")
       .update({
         sku: nextSku,
-        barcode: barcode || null,
+        barcode,
         name,
         description: description || name,
         normalized_name: normalizeName(name),
@@ -654,8 +797,8 @@ export async function createProductAction(
   formData: FormData
 ): Promise<ProductActionState> {
   const name = textValue(formData, "name");
-  const sku = textValue(formData, "sku");
-  const barcode = textValue(formData, "barcode");
+  const sku = codeValue(formData, "sku");
+  const barcode = optionalCodeValue(formData, "barcode");
   const description = textValue(formData, "description");
   const unit = textValue(formData, "unit") || "unidad";
   const active = textValue(formData, "active") === "true";
@@ -746,27 +889,6 @@ export async function createProductAction(
         formData,
       }),
     ]);
-    const { data: existingSku, error: skuError } = await supabase
-      .from("products")
-      .select("id")
-      .eq("tenant_id", tenant.id)
-      .eq("sku", sku)
-      .maybeSingle();
-
-    if (skuError) {
-      return {
-        ok: false,
-        message: "No se pudo revisar si el SKU ya existe.",
-      };
-    }
-
-    if (existingSku) {
-      return {
-        ok: false,
-        message: "Ya existe un producto con ese SKU en esta ferreteria.",
-      };
-    }
-
     const cleanTaxRate = taxRate ?? 0;
     const cleanProfitMarginPercent = profitMarginPercent ?? 0;
     const cleanStockQuantity = stockQuantity ?? 0;
@@ -775,63 +897,40 @@ export async function createProductAction(
       costWithTax ??
       (costWithoutTax === null ? null : costWithoutTax * (1 + cleanTaxRate / 100));
     const saleUnits = parseSaleUnitsInput(formData, salePrice);
-    const { data: product, error: insertError } = await supabase
-      .from("products")
-      .insert({
-        tenant_id: tenant.id,
-        sku,
-        barcode: barcode || null,
-        name,
-        normalized_name: normalizeName(name),
-        description: description || name,
-        brand_id: brandId,
-        supplier_id: supplierId,
-        unit,
-        cost_without_tax: costWithoutTax,
-        cost_with_tax: finalCostWithTax,
-        sale_price: salePrice,
-        tax_rate: cleanTaxRate,
-        profit_margin_percent: cleanProfitMarginPercent,
-        stock_quantity: cleanStockQuantity,
-        min_stock: cleanMinStock,
-        active,
-      })
-      .select("id")
-      .single();
-
-    if (insertError || !product) {
-      return {
-        ok: false,
-        message: "No se pudo crear el producto.",
-      };
-    }
-
-    await syncProductSaleUnits({
-      productId: (product as { id: string }).id,
-      saleUnits,
-      tenantId: tenant.id,
+    const { data: productId, error } = await supabase.rpc("create_product_atomic", {
+      input_active: active,
+      input_barcode: barcode,
+      input_brand_id: brandId,
+      input_cost_with_tax: finalCostWithTax,
+      input_cost_without_tax: costWithoutTax,
+      input_description: description || name,
+      input_min_stock: cleanMinStock,
+      input_name: name,
+      input_normalized_name: normalizeName(name),
+      input_profit_margin_percent: cleanProfitMarginPercent,
+      input_sale_price: salePrice,
+      input_sale_units: saleUnits.map((unit) => ({
+        name: unit.name,
+        quantityInBaseUnit: unit.quantityInBaseUnit,
+        salePrice: unit.salePrice,
+        barcode: unit.barcode,
+        isDefault: unit.isDefault,
+        active: unit.active,
+      })),
+      input_sku: sku,
+      input_stock_quantity: cleanStockQuantity,
+      input_supplier_id: supplierId,
+      input_tax_rate: cleanTaxRate,
+      input_tenant_id: tenant.id,
+      input_unit: unit,
+      input_user_id: user.id,
     });
 
-    if (cleanStockQuantity > 0) {
-      const { error: movementError } = await supabase
-        .from("inventory_movements")
-        .insert({
-          tenant_id: tenant.id,
-          product_id: (product as { id: string }).id,
-          movement_type: "initial",
-          quantity: cleanStockQuantity,
-          unit_cost: finalCostWithTax,
-          notes: "Stock inicial al crear producto",
-          created_by: user.id,
-        });
-
-      if (movementError) {
-        return {
-          ok: false,
-          message:
-            "Producto creado, pero no se pudo registrar el movimiento inicial.",
-        };
-      }
+    if (error || !productId) {
+      return {
+        ok: false,
+        message: createProductErrorMessage(error?.message),
+      };
     }
 
     revalidatePath("/stock");
@@ -840,7 +939,14 @@ export async function createProductAction(
 
     return {
       ok: true,
-      message: "Producto creado correctamente.",
+      message:
+        cleanStockQuantity > 0
+          ? "Producto creado correctamente."
+          : "Producto creado correctamente. Tiene stock 0 y puede verse con el filtro Todos.",
+      barcode: barcode ?? undefined,
+      productId: String(productId),
+      sku,
+      stockQuantity: cleanStockQuantity,
     };
   } catch (error) {
     if (isTenantRoleForbiddenError(error)) {
@@ -995,6 +1101,11 @@ export async function updateProductStockCommercialAction(
         tenantId: tenant.id,
       }),
     ]);
+    await ensureProductCodesAvailable({
+      productId,
+      saleUnits,
+      tenantId: tenant.id,
+    });
     const { data, error } = await supabase
       .from("products")
       .update({
