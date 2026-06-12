@@ -14,7 +14,10 @@ import {
 import { NewProductForm } from "@/app/(dashboard)/stock/new-product-form";
 import { Button } from "@/components/ui/button";
 import { formatStockQuantity } from "@/lib/format";
-import { isInheritedProductBarcode, normalizeProductCode } from "@/lib/product-code";
+import {
+  getBarcodeAssociationState,
+  normalizeProductCode,
+} from "@/lib/product-code";
 import type { ProductListItem } from "./product-types";
 import { StockAdjustDetails } from "./stock-adjust-details";
 
@@ -34,38 +37,16 @@ function normalizeInputCode(value: string) {
   return normalizeProductCode(value);
 }
 
-function getBarcodeAssociationState(product: ProductListItem) {
-  const barcode = normalizeProductCode(product.barcode);
-
-  if (!barcode) {
-    return {
-      canAssign: true,
-      message: "",
-      statusLabel: "",
-      buttonLabel: "Asociar codigo real",
-    };
+function getLookupCodeLabel(product: ProductListItem, code: string) {
+  if (product.matchedBy === "product_barcode") {
+    return `Codigo de barras: ${code}`;
   }
 
-  if (
-    isInheritedProductBarcode({
-      barcode: product.barcode,
-      sku: product.sku,
-    })
-  ) {
-    return {
-      canAssign: true,
-      message: "Codigo interno heredado",
-      statusLabel: "Codigo interno heredado",
-      buttonLabel: "Asociar codigo real",
-    };
+  if (product.matchedBy === "sale_unit_barcode") {
+    return `Codigo de presentacion: ${code}`;
   }
 
-  return {
-    canAssign: false,
-    message: "Este producto ya tiene otro codigo. Revisalo antes de reemplazarlo.",
-    statusLabel: "Ya tiene otro codigo",
-    buttonLabel: "Ya tiene otro codigo",
-  };
+  return `Codigo interno: ${code}`;
 }
 
 export function BarcodeStockPanel({
@@ -420,7 +401,7 @@ function ProductFound({
             Producto encontrado
           </h3>
           <p className="mt-1 font-mono text-sm font-semibold text-emerald-800">
-            Codigo: {code}
+            {getLookupCodeLabel(product, code)}
           </p>
         </div>
         <div className="rounded-lg border border-emerald-500/40 bg-background p-3">
@@ -453,21 +434,15 @@ function ProductFound({
 
 function ProductSummary({ product }: { product: ProductListItem }) {
   const association = getBarcodeAssociationState(product);
-  const barcode = normalizeProductCode(product.barcode);
 
   return (
     <div className="min-w-0">
       <p className="font-mono text-xs font-semibold text-muted-foreground">
-        SKU: {product.sku}
-        {barcode && association.statusLabel !== "Codigo interno heredado"
-          ? ` | Barras: ${barcode}`
-          : ""}
+        Codigo interno: {product.sku}
       </p>
-      {association.statusLabel === "Codigo interno heredado" ? (
-        <p className="mt-1 text-xs font-bold text-yellow-800">
-          Codigo interno heredado
-        </p>
-      ) : null}
+      <p className="mt-1 text-xs font-bold text-yellow-800">
+        {association.statusLabel}
+      </p>
       <p className="mt-1 line-clamp-2 text-lg font-bold">{product.name}</p>
       <p className="mt-1 text-sm font-semibold text-muted-foreground">
         Stock: {formatStockQuantity(product.stockQuantity)} {product.unit}

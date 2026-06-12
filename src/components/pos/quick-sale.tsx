@@ -70,6 +70,9 @@ function formatDate(value: string) {
 
 function getDefaultSaleUnit(product: QuoteProduct): ProductSaleUnit {
   return (
+    product.saleUnits.find(
+      (unit) => unit.id === product.matchedSaleUnitId && unit.active
+    ) ??
     product.saleUnits.find((unit) => unit.isDefault && unit.active) ??
     product.saleUnits.find((unit) => unit.active) ?? {
       id: "",
@@ -81,6 +84,56 @@ function getDefaultSaleUnit(product: QuoteProduct): ProductSaleUnit {
       active: true,
     }
   );
+}
+
+function getSaleUnitBarcode(saleUnit: ProductSaleUnit | null | undefined) {
+  return saleUnit?.barcode?.trim() ?? "";
+}
+
+function getCodeDisplay(product: QuoteProduct) {
+  const matchedSaleUnit = product.matchedSaleUnitId
+    ? product.saleUnits.find((unit) => unit.id === product.matchedSaleUnitId)
+    : null;
+  const matchedSaleUnitBarcode = getSaleUnitBarcode(matchedSaleUnit);
+
+  if (product.matchedBy === "sale_unit_barcode" && matchedSaleUnitBarcode) {
+    return {
+      label: `Codigo de presentacion: ${matchedSaleUnitBarcode}`,
+      secondaryLabel: `Presentacion: ${matchedSaleUnit?.name ?? "Unidad"}`,
+    };
+  }
+
+  if (product.matchedBy === "product_barcode" && product.productBarcode) {
+    return {
+      label: `Codigo de barras: ${product.productBarcode}`,
+      secondaryLabel: `Codigo interno: ${product.sku}`,
+    };
+  }
+
+  return {
+    label: `Codigo interno: ${product.sku}`,
+    secondaryLabel:
+      product.productBarcode && product.productBarcode !== product.sku
+        ? `Codigo de barras: ${product.productBarcode}`
+        : "",
+  };
+}
+
+function getLineCodeDisplay(line: QuoteLine) {
+  const selectedSaleUnit = line.selectedSaleUnitId
+    ? line.saleUnits.find((unit) => unit.id === line.selectedSaleUnitId)
+    : null;
+  const selectedSaleUnitBarcode = getSaleUnitBarcode(selectedSaleUnit);
+
+  if (selectedSaleUnitBarcode) {
+    return `Codigo de presentacion: ${selectedSaleUnitBarcode}`;
+  }
+
+  if (line.productBarcode && line.productBarcode !== line.sku) {
+    return `Codigo de barras: ${line.productBarcode}`;
+  }
+
+  return `Codigo interno: ${line.sku}`;
 }
 
 function getLineKey(productId: string, saleUnitId: string) {
@@ -299,7 +352,12 @@ export function QuickSale({
         ...current,
         {
           ...product,
-          code: saleUnit.barcode || product.code,
+          code: getSaleUnitBarcode(saleUnit) || product.displayCode,
+          displayCode: getSaleUnitBarcode(saleUnit) || product.displayCode,
+          matchedBy: getSaleUnitBarcode(saleUnit)
+            ? "sale_unit_barcode"
+            : product.matchedBy,
+          matchedSaleUnitId: saleUnit.id || product.matchedSaleUnitId,
           price: saleUnit.salePrice,
           quantity: safeQty,
           selectedSaleUnitId: saleUnit.id,
@@ -607,7 +665,7 @@ export function QuickSale({
                           {line.description}
                         </p>
                         <p className="font-mono text-xs text-muted-foreground">
-                          {line.code}
+                          {getLineCodeDisplay(line)}
                         </p>
                         <p className="text-xs font-semibold text-muted-foreground">
                           {line.selectedSaleUnitName} x{" "}
@@ -898,12 +956,18 @@ function ProductResult({
   onAdd: () => void;
 }) {
   const inStock = product.availableForSale;
+  const codeDisplay = getCodeDisplay(product);
 
   return (
-    <div className="grid gap-3 rounded-lg border border-border bg-background p-3 lg:grid-cols-[110px_minmax(0,1fr)_120px_100px_96px_auto] lg:items-center">
+    <div className="grid gap-3 rounded-lg border border-border bg-background p-3 lg:grid-cols-[170px_minmax(0,1fr)_120px_100px_96px_auto] lg:items-center">
       <div>
-        <p className="text-sm font-semibold text-muted-foreground">Código</p>
-        <p className="font-mono text-base font-bold">{product.code}</p>
+        <p className="text-sm font-semibold text-muted-foreground">Referencia</p>
+        <p className="font-mono text-sm font-bold">{codeDisplay.label}</p>
+        {codeDisplay.secondaryLabel ? (
+          <p className="mt-1 font-mono text-xs font-semibold text-muted-foreground">
+            {codeDisplay.secondaryLabel}
+          </p>
+        ) : null}
       </div>
       <div className="min-w-0">
         <p className="text-sm font-semibold text-muted-foreground">Producto</p>

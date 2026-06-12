@@ -16,7 +16,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { formatStockQuantity } from "@/lib/format";
-import { cleanProductCodeSearch } from "@/lib/product-code";
+import {
+  cleanProductCodeSearch,
+  hasRealProductBarcode,
+  isInheritedProductBarcode,
+  normalizeProductCode,
+} from "@/lib/product-code";
 import { sortProductsBySearchRank } from "@/lib/search-ranking";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { requireTenant } from "@/lib/tenant";
@@ -112,12 +117,20 @@ function mapProduct(row: ProductRow): ProductListItem {
   const costWithoutTax = row.cost_without_tax;
   const taxRate = row.tax_rate ?? 21;
   const stockQuantity = row.stock_quantity ?? 0;
+  const productBarcode = normalizeProductCode(row.barcode);
+  const displayCode = productBarcode || row.sku;
 
   return {
     id: row.id,
     sku: row.sku,
-    code: row.barcode ?? row.sku,
-    barcode: row.barcode ?? "",
+    code: displayCode,
+    displayCode,
+    barcode: productBarcode,
+    productBarcode,
+    hasProductBarcode: hasRealProductBarcode({
+      barcode: productBarcode,
+      sku: row.sku,
+    }),
     name: row.name,
     description: row.description ?? row.name,
     category: "",
@@ -137,6 +150,7 @@ function mapProduct(row: ProductRow): ProductListItem {
     minStock: row.min_stock ?? 0,
     active: row.active,
     imageUrl: row.image_url ?? "",
+    matchedBy: "text",
     saleUnits: [],
   };
 }
@@ -176,7 +190,7 @@ async function loadSaleUnitsByProductId({
       name: row.name,
       quantityInBaseUnit: Number(row.quantity_in_base_unit ?? 1),
       salePrice: Number(row.sale_price ?? 0),
-      barcode: row.barcode ?? "",
+      barcode: normalizeProductCode(row.barcode),
       isDefault: Boolean(row.is_default),
       active: row.active !== false,
     });
@@ -204,6 +218,23 @@ function stockStatus(product: ProductListItem) {
     label: "Stock OK",
     className: "border-emerald-500/40 bg-emerald-50 text-emerald-800",
   };
+}
+
+function productBarcodeSummary(product: ProductListItem) {
+  if (!product.productBarcode) {
+    return "";
+  }
+
+  if (
+    isInheritedProductBarcode({
+      barcode: product.productBarcode,
+      sku: product.sku,
+    })
+  ) {
+    return "Codigo interno heredado";
+  }
+
+  return `Codigo de barras: ${product.productBarcode}`;
 }
 
 function buildStockHref({
@@ -429,12 +460,18 @@ function StockProductCard({
   suppliers: CatalogOption[];
 }) {
   const status = stockStatus(product);
+  const barcodeSummary = productBarcodeSummary(product);
   const content = (
     <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_150px_150px] md:items-center md:gap-3">
       <div className="min-w-0">
         <p className="font-mono text-[11px] font-semibold leading-tight text-muted-foreground">
-          Codigo: {product.code}
+          Codigo interno: {product.sku}
         </p>
+        {barcodeSummary ? (
+          <p className="mt-0.5 font-mono text-[11px] font-semibold leading-tight text-muted-foreground">
+            {barcodeSummary}
+          </p>
+        ) : null}
         <p className="mt-0.5 line-clamp-1 text-base font-semibold leading-tight text-foreground md:text-lg">
           {product.name}
         </p>

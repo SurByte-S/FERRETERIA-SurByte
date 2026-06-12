@@ -7,6 +7,7 @@ import type {
 } from "@/components/productos/product-types";
 import { PageHeader } from "@/components/shell/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { hasRealProductBarcode, normalizeProductCode } from "@/lib/product-code";
 import { sortProductsBySearchRank } from "@/lib/search-ranking";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { requireTenant } from "@/lib/tenant";
@@ -142,12 +143,20 @@ export default async function ProductosPage({ searchParams }: ProductsPageProps)
 
 function mapRpcRow(row: ProductSearchRow): ProductListItem {
   const stockQuantity = row.stock_quantity ?? 0;
+  const productBarcode = normalizeProductCode(row.barcode);
+  const displayCode = productBarcode || row.sku;
 
   return {
     id: row.id,
     sku: row.sku,
-    code: row.barcode ?? row.sku,
-    barcode: row.barcode ?? "",
+    code: displayCode,
+    displayCode,
+    barcode: productBarcode,
+    productBarcode,
+    hasProductBarcode: hasRealProductBarcode({
+      barcode: productBarcode,
+      sku: row.sku,
+    }),
     name: row.name,
     description: row.description ?? row.name,
     category: row.category_name ?? "",
@@ -167,18 +176,27 @@ function mapRpcRow(row: ProductSearchRow): ProductListItem {
     minStock: row.min_stock ?? 0,
     active: row.active,
     imageUrl: row.image_url ?? "",
+    matchedBy: "text",
     saleUnits: [],
   };
 }
 
 function mapFallbackRow(row: ProductFallbackRow): ProductListItem {
   const stockQuantity = row.stock_quantity ?? 0;
+  const productBarcode = normalizeProductCode(row.barcode);
+  const displayCode = productBarcode || row.sku;
 
   return {
     id: row.id,
     sku: row.sku,
-    code: row.barcode ?? row.sku,
-    barcode: row.barcode ?? "",
+    code: displayCode,
+    displayCode,
+    barcode: productBarcode,
+    productBarcode,
+    hasProductBarcode: hasRealProductBarcode({
+      barcode: productBarcode,
+      sku: row.sku,
+    }),
     name: row.name,
     description: row.description ?? row.name,
     category: row.categories?.name ?? "",
@@ -198,6 +216,7 @@ function mapFallbackRow(row: ProductFallbackRow): ProductListItem {
     minStock: row.min_stock ?? 0,
     active: row.active,
     imageUrl: row.image_url ?? "",
+    matchedBy: "text",
     saleUnits: [],
   };
 }
@@ -237,13 +256,50 @@ async function loadSaleUnitsByProductId({
       name: row.name,
       quantityInBaseUnit: Number(row.quantity_in_base_unit ?? 1),
       salePrice: Number(row.sale_price ?? 0),
-      barcode: row.barcode ?? "",
+      barcode: normalizeProductCode(row.barcode),
       isDefault: Boolean(row.is_default),
       active: row.active !== false,
     });
     map.set(row.product_id, current);
     return map;
   }, new Map<string, ProductListItem["saleUnits"]>());
+}
+
+async function loadSaleUnitProductMatches({
+  rawCode,
+  tenantId,
+}: {
+  rawCode: string;
+  tenantId: string;
+}) {
+  const safeCode = normalizeProductCode(rawCode).replace(/[%_]/g, "");
+
+  if (!safeCode) {
+    return [];
+  }
+
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("product_sale_units")
+    .select("product_id")
+    .eq("tenant_id", tenantId)
+    .eq("active", true)
+    .ilike("barcode", `%${safeCode}%`)
+    .limit(pageSizeForSaleUnitMatches());
+
+  if (error) {
+    return [];
+  }
+
+  return [
+    ...new Set(
+      ((data ?? []) as { product_id: string }[]).map((row) => row.product_id)
+    ),
+  ];
+}
+
+function pageSizeForSaleUnitMatches() {
+  return PAGE_SIZE * 3;
 }
 
 async function loadProducts({
@@ -300,6 +356,9 @@ async function loadProducts({
       .select("id", { count: "exact", head: true })
       .eq("tenant_id", tenant.id);
     const lowStockCount = lowStockResult.count ?? 0;
+    const saleUnitMatchedProductIds = code
+      ? await loadSaleUnitProductMatches({ rawCode: code, tenantId: tenant.id })
+      : [];
 
     if (categoriesResult.error || brandsResult.error || suppliersResult.error) {
       return {
@@ -345,7 +404,11 @@ async function loadProducts({
       page_offset: 0,
     });
 
-    if (mode !== "administracion" && !rpcResult.error) {
+    if (
+      mode !== "administracion" &&
+      !rpcResult.error &&
+      saleUnitMatchedProductIds.length === 0
+    ) {
       const rows = (rpcResult.data ?? []) as ProductSearchRow[];
       const total = Number(rows[0]?.total_count ?? 0);
       const saleUnitsByProductId = await loadSaleUnitsByProductId({
@@ -388,7 +451,16 @@ async function loadProducts({
 
     if (code) {
       const safeCode = code.replace(/[%_]/g, "");
-      query = query.or(`sku.ilike.%${safeCode}%,barcode.ilike.%${safeCode}%`);
+      const codeParts = [
+        `sku.ilike.%${safeCode}%`,
+        `barcode.ilike.%${safeCode}%`,
+      ];
+
+      if (saleUnitMatchedProductIds.length > 0) {
+        codeParts.push(`id.in.(${saleUnitMatchedProductIds.join(",")})`);
+      }
+
+      query = query.or(codeParts.join(","));
     }
 
     if (name.length >= 2) {

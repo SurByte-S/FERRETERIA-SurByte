@@ -365,7 +365,7 @@ function PurchaseRowsTable({
                 <td className="max-w-[320px] p-3">
                   <p className="font-semibold">{row.description}</p>
                   <p className="mt-1 font-mono text-xs text-muted-foreground">
-                    Prov: {row.supplierSku || "-"} | SKU: {row.sku || "-"} | Barras: {row.barcode || "-"}
+                    Prov: {row.supplierSku || "-"} | SKU: {row.sku || "-"} | Codigo de barras: {row.barcode || "-"}
                   </p>
                   {row.messages.length > 0 ? (
                     <p className="mt-2 text-xs font-semibold text-yellow-900">

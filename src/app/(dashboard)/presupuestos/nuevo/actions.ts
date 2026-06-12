@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { getSupabaseServerClient } from "@/lib/supabase";
+import { hasRealProductBarcode, normalizeProductCode } from "@/lib/product-code";
 import { sortProductsBySearchRank } from "@/lib/search-ranking";
 import {
   FORBIDDEN_ACTION_MESSAGE,
@@ -59,7 +60,11 @@ type PosProductSearchRow = {
   rank: number;
   score: number;
   total_count?: number;
+  matched_by?: ProductMatchSource | null;
+  matched_sale_unit_id?: string | null;
 };
+
+type ProductMatchSource = "sku" | "product_barcode" | "sale_unit_barcode" | "text";
 
 export type PosProductSearchResult = {
   ok: boolean;
@@ -112,7 +117,7 @@ function mapSaleUnit(row: ProductSaleUnitRow): ProductSaleUnit {
     name: row.name,
     quantityInBaseUnit: Number(row.quantity_in_base_unit ?? 1),
     salePrice: Number(row.sale_price ?? 0),
-    barcode: row.barcode ?? "",
+    barcode: normalizeProductCode(row.barcode),
     isDefault: Boolean(row.is_default),
     active: row.active !== false,
   };
@@ -131,18 +136,98 @@ function getDefaultSaleUnit(
   );
 }
 
+function findSaleUnitByBarcode(
+  saleUnits: ProductSaleUnit[],
+  rawCode: string | null | undefined
+) {
+  const cleanCode = normalizeProductCode(rawCode);
+
+  if (!cleanCode) {
+    return null;
+  }
+
+  return (
+    saleUnits.find(
+      (unit) => unit.active && normalizeProductCode(unit.barcode) === cleanCode
+    ) ?? null
+  );
+}
+
+function inferMatchSource({
+  explicitMatchedBy,
+  productBarcode,
+  rawSearch,
+  row,
+  saleUnits,
+}: {
+  explicitMatchedBy?: ProductMatchSource | null;
+  productBarcode: string;
+  rawSearch?: string;
+  row: Pick<ProductRow, "sku">;
+  saleUnits: ProductSaleUnit[];
+}): ProductMatchSource {
+  if (explicitMatchedBy) {
+    return explicitMatchedBy;
+  }
+
+  const cleanSearch = normalizeProductCode(rawSearch);
+
+  if (!cleanSearch) {
+    return "text";
+  }
+
+  if (normalizeProductCode(row.sku) === cleanSearch) {
+    return "sku";
+  }
+
+  if (productBarcode && productBarcode === cleanSearch) {
+    return "product_barcode";
+  }
+
+  if (findSaleUnitByBarcode(saleUnits, cleanSearch)) {
+    return "sale_unit_barcode";
+  }
+
+  return "text";
+}
+
 function mapProduct(
   row: ProductRow,
   saleUnits: ProductSaleUnit[] = [],
-  preferredSaleUnitId = ""
+  options: {
+    matchedBy?: ProductMatchSource | null;
+    preferredSaleUnitId?: string | null;
+    rawSearch?: string;
+  } = {}
 ): QuoteProduct {
   const finalSaleUnits = saleUnits.length > 0 ? saleUnits : [fallbackSaleUnit(row)];
+  const productBarcode = normalizeProductCode(row.barcode);
+  const searchMatchedSaleUnit = findSaleUnitByBarcode(
+    finalSaleUnits,
+    options.rawSearch
+  );
+  const preferredSaleUnitId =
+    options.preferredSaleUnitId || searchMatchedSaleUnit?.id || "";
   const defaultSaleUnit = getDefaultSaleUnit(row, finalSaleUnits, preferredSaleUnitId);
+  const matchedBy = inferMatchSource({
+    explicitMatchedBy: options.matchedBy,
+    productBarcode,
+    rawSearch: options.rawSearch,
+    row,
+    saleUnits: finalSaleUnits,
+  });
+  const matchedSaleUnitId =
+    matchedBy === "sale_unit_barcode"
+      ? preferredSaleUnitId || searchMatchedSaleUnit?.id || undefined
+      : undefined;
+  const displayCode = productBarcode || row.sku;
 
   return {
     id: row.id,
     sku: row.sku,
-    code: defaultSaleUnit.barcode || row.barcode || row.sku,
+    code: displayCode,
+    displayCode,
+    productBarcode,
     name: row.name,
     description: row.description ?? row.name,
     brand: row.brands?.name ?? "",
@@ -153,6 +238,12 @@ function mapProduct(
     minStock: row.min_stock ?? 0,
     availableForSale:
       (row.stock_quantity ?? 0) >= defaultSaleUnit.quantityInBaseUnit,
+    hasProductBarcode: hasRealProductBarcode({
+      barcode: productBarcode,
+      sku: row.sku,
+    }),
+    matchedBy,
+    matchedSaleUnitId,
     saleUnits: finalSaleUnits,
   };
 }
@@ -160,7 +251,11 @@ function mapProduct(
 function mapPosProduct(
   row: PosProductSearchRow,
   saleUnits: ProductSaleUnit[] = [],
-  preferredSaleUnitId = ""
+  options: {
+    matchedBy?: ProductMatchSource | null;
+    preferredSaleUnitId?: string | null;
+    rawSearch?: string;
+  } = {}
 ): QuoteProduct {
   const productRow = {
     ...row,
@@ -169,28 +264,53 @@ function mapPosProduct(
   } satisfies ProductRow;
   const finalSaleUnits =
     saleUnits.length > 0 ? saleUnits : [fallbackSaleUnit(productRow)];
-  const defaultSaleUnit = getDefaultSaleUnit(
-    productRow,
-    finalSaleUnits,
-    preferredSaleUnitId
-  );
+  const mapped = mapProduct(productRow, finalSaleUnits, {
+    matchedBy: options.matchedBy,
+    preferredSaleUnitId: options.preferredSaleUnitId,
+    rawSearch: options.rawSearch,
+  });
 
   return {
-    id: row.id,
-    sku: row.sku,
-    code: defaultSaleUnit.barcode || row.barcode || row.sku,
-    name: row.name,
-    description: row.description ?? row.name,
+    ...mapped,
     brand: row.brand_name ?? "",
     category: row.category_name ?? "",
-    unit: row.unit,
-    price: defaultSaleUnit.salePrice,
-    stockQuantity: row.stock_quantity ?? 0,
-    minStock: row.min_stock ?? 0,
-    availableForSale:
-      (row.stock_quantity ?? 0) >= defaultSaleUnit.quantityInBaseUnit,
-    saleUnits: finalSaleUnits,
   };
+}
+
+async function loadSaleUnitProductMatches({
+  rawSearch,
+  tenantId,
+}: {
+  rawSearch: string;
+  tenantId: string;
+}) {
+  const safeSearch = normalizeProductCode(rawSearch).replace(/[%_]/g, "");
+  const matches = new Map<string, string>();
+
+  if (!safeSearch) {
+    return matches;
+  }
+
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("product_sale_units")
+    .select("id,product_id")
+    .eq("tenant_id", tenantId)
+    .eq("active", true)
+    .ilike("barcode", `%${safeSearch}%`)
+    .limit(100);
+
+  if (error) {
+    return matches;
+  }
+
+  for (const row of (data ?? []) as { id: string; product_id: string }[]) {
+    if (!matches.has(row.product_id)) {
+      matches.set(row.product_id, row.id);
+    }
+  }
+
+  return matches;
 }
 
 async function loadSaleUnitsByProductId({
@@ -350,6 +470,22 @@ export async function searchQuoteProductsAction(
   try {
     const tenant = await requireTenantRole(["owner", "admin", "seller"]);
     const supabase = getSupabaseServerClient();
+    const saleUnitMatches = await loadSaleUnitProductMatches({
+      rawSearch: search,
+      tenantId: tenant.id,
+    });
+    const searchParts = [
+      `sku.ilike.%${search}%`,
+      `barcode.ilike.%${search}%`,
+      `name.ilike.%${search}%`,
+      `normalized_name.ilike.%${search}%`,
+      `description.ilike.%${search}%`,
+    ];
+
+    if (saleUnitMatches.size > 0) {
+      searchParts.push(`id.in.(${[...saleUnitMatches.keys()].join(",")})`);
+    }
+
     let query = supabase
       .from("products")
       .select(
@@ -357,9 +493,7 @@ export async function searchQuoteProductsAction(
       )
       .eq("tenant_id", tenant.id)
       .eq("active", true)
-      .or(
-        `sku.ilike.%${search}%,barcode.ilike.%${search}%,name.ilike.%${search}%,normalized_name.ilike.%${search}%,description.ilike.%${search}%`
-      )
+      .or(searchParts.join(","))
       .order("name")
       .limit(30);
 
@@ -381,9 +515,15 @@ export async function searchQuoteProductsAction(
 
     return sortProductsBySearchRank(
       rows.map((row) => ({
-        ...mapProduct(row, saleUnitsByProductId.get(row.id)),
+        ...mapProduct(row, saleUnitsByProductId.get(row.id), {
+          preferredSaleUnitId: saleUnitMatches.get(row.id),
+          rawSearch: search,
+        }),
         barcode: row.barcode,
         normalizedName: row.normalized_name,
+        saleUnitBarcodes: (saleUnitsByProductId.get(row.id) ?? [])
+          .map((unit) => unit.barcode)
+          .filter(Boolean),
       })),
       search
     ).slice(0, 30);
@@ -425,7 +565,11 @@ export async function searchProductsForPosAction(
       return {
         ok: true,
         items: rows.map((row) =>
-          mapPosProduct(row, saleUnitsByProductId.get(row.id))
+          mapPosProduct(row, saleUnitsByProductId.get(row.id), {
+            matchedBy: row.matched_by,
+            preferredSaleUnitId: row.matched_sale_unit_id,
+            rawSearch: search,
+          })
         ),
         total: Number(rows[0]?.total_count ?? 0),
         page: safePage,
@@ -465,6 +609,10 @@ export async function searchProductsForPosAction(
       `normalized_name.ilike.%${safeSearch}%`,
       `description.ilike.%${safeSearch}%`,
     ];
+    const saleUnitMatches = await loadSaleUnitProductMatches({
+      rawSearch: safeSearch,
+      tenantId: tenant.id,
+    });
 
     if (brandIds.length > 0) {
       searchParts.push(`brand_id.in.(${brandIds.join(",")})`);
@@ -472,6 +620,10 @@ export async function searchProductsForPosAction(
 
     if (categoryIds.length > 0) {
       searchParts.push(`category_id.in.(${categoryIds.join(",")})`);
+    }
+
+    if (saleUnitMatches.size > 0) {
+      searchParts.push(`id.in.(${[...saleUnitMatches.keys()].join(",")})`);
     }
 
     let query = supabase
@@ -516,9 +668,15 @@ export async function searchProductsForPosAction(
       ok: true,
       items: sortProductsBySearchRank(
         fallbackRows.map((row) => ({
-          ...mapProduct(row, saleUnitsByProductId.get(row.id)),
+          ...mapProduct(row, saleUnitsByProductId.get(row.id), {
+            preferredSaleUnitId: saleUnitMatches.get(row.id),
+            rawSearch: search,
+          }),
           barcode: row.barcode,
           normalizedName: row.normalized_name,
+          saleUnitBarcodes: (saleUnitsByProductId.get(row.id) ?? [])
+            .map((unit) => unit.barcode)
+            .filter(Boolean),
         })),
         search
       ),
@@ -580,7 +738,11 @@ export async function getQuoteProductBySkuAction(
         return mapProduct(
           product,
           saleUnitsByProductId.get(product.id),
-          saleUnitRow.id
+          {
+            matchedBy: "sale_unit_barcode",
+            preferredSaleUnitId: saleUnitRow.id,
+            rawSearch: sku,
+          }
         );
       }
     }
@@ -605,7 +767,10 @@ export async function getQuoteProductBySkuAction(
         tenantId: tenant.id,
       });
 
-      return mapProduct(row, saleUnitsByProductId.get(row.id));
+      return mapProduct(row, saleUnitsByProductId.get(row.id), {
+        matchedBy: "sku",
+        rawSearch: sku,
+      });
     }
 
     let barcodeQuery = supabase
@@ -631,7 +796,10 @@ export async function getQuoteProductBySkuAction(
       tenantId: tenant.id,
     });
 
-    return mapProduct(row, saleUnitsByProductId.get(row.id));
+    return mapProduct(row, saleUnitsByProductId.get(row.id), {
+      matchedBy: "product_barcode",
+      rawSearch: sku,
+    });
   } catch {
     return null;
   }

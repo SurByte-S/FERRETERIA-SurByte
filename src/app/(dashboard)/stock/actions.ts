@@ -10,7 +10,12 @@ import {
   parseStockCsv,
 } from "@/lib/csv/stock";
 import type { ProductListItem } from "@/components/productos/product-types";
-import { isInheritedProductBarcode, normalizeProductCode } from "@/lib/product-code";
+import {
+  hasNormalizedProductCode,
+  hasRealProductBarcode,
+  isInheritedProductBarcode,
+  normalizeProductCode,
+} from "@/lib/product-code";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import {
   FORBIDDEN_ACTION_MESSAGE,
@@ -138,11 +143,20 @@ function mapBarcodeProduct(
   row: BarcodeProductRow,
   saleUnits: ProductListItem["saleUnits"] = []
 ): ProductListItem {
+  const productBarcode = normalizeProductCode(row.barcode);
+  const displayCode = productBarcode || row.sku;
+
   return {
     id: row.id,
     sku: row.sku,
-    code: row.barcode ?? row.sku,
-    barcode: row.barcode ?? "",
+    code: displayCode,
+    displayCode,
+    barcode: productBarcode,
+    productBarcode,
+    hasProductBarcode: hasRealProductBarcode({
+      barcode: productBarcode,
+      sku: row.sku,
+    }),
     name: row.name,
     description: row.description ?? row.name,
     category: "",
@@ -162,6 +176,7 @@ function mapBarcodeProduct(
     minStock: Number(row.min_stock ?? 0),
     active: row.active,
     imageUrl: row.image_url ?? "",
+    matchedBy: "text",
     saleUnits,
   };
 }
@@ -187,7 +202,7 @@ async function loadSaleUnitsByProductId(tenantId: string, productId: string) {
     name: row.name,
     quantityInBaseUnit: Number(row.quantity_in_base_unit ?? 1),
     salePrice: Number(row.sale_price ?? 0),
-    barcode: row.barcode ?? "",
+    barcode: normalizeProductCode(row.barcode),
     isDefault: Boolean(row.is_default),
     active: row.active !== false,
   }));
@@ -372,7 +387,11 @@ export async function lookupBarcodeStockAction(
           ok: true,
           status: "found",
           code,
-          product,
+          product: {
+            ...product,
+            matchedBy: result.matched_by,
+            matchedSaleUnitId: result.sale_unit_id ?? undefined,
+          },
           matchedBy: result.matched_by,
         };
       }
@@ -515,6 +534,18 @@ export async function assignBarcodeToProductAction({
       barcode: string | null;
       sku: string | null;
     };
+    const saleUnits = await loadSaleUnitsByProductId(tenant.id, productId);
+    const saleUnitWithBarcode = saleUnits.find((unit) =>
+      hasNormalizedProductCode(unit.barcode)
+    );
+
+    if (saleUnitWithBarcode) {
+      return {
+        ok: false,
+        message: `La presentacion ${saleUnitWithBarcode.name} ya tiene codigo: ${saleUnitWithBarcode.barcode}. Revisalo antes de modificar.`,
+      };
+    }
+
     const currentBarcode = normalizeProductCode(currentProduct.barcode);
     const canReplaceInheritedBarcode =
       !currentBarcode ||
@@ -527,7 +558,7 @@ export async function assignBarcodeToProductAction({
       return {
         ok: false,
         message:
-          "Este producto ya tiene otro codigo. Revisalo antes de reemplazarlo.",
+          "Este producto ya tiene otro codigo de barras. Revisalo antes de reemplazarlo.",
       };
     }
 

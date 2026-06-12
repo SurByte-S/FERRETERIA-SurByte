@@ -66,6 +66,9 @@ function formatMoney(value: number) {
 
 function getDefaultSaleUnit(product: QuoteProduct) {
   return (
+    product.saleUnits.find(
+      (unit) => unit.id === product.matchedSaleUnitId && unit.active
+    ) ??
     product.saleUnits.find((unit) => unit.isDefault && unit.active) ??
     product.saleUnits.find((unit) => unit.active) ?? {
       id: "",
@@ -77,6 +80,47 @@ function getDefaultSaleUnit(product: QuoteProduct) {
       active: true,
     }
   );
+}
+
+function getSaleUnitBarcode(saleUnit: ProductSaleUnit | null | undefined) {
+  return saleUnit?.barcode?.trim() ?? "";
+}
+
+function getCodeDisplay(
+  product: QuoteProduct,
+  saleUnit?: ProductSaleUnit | null
+) {
+  const saleUnitBarcode = getSaleUnitBarcode(saleUnit);
+
+  if (saleUnitBarcode) {
+    return {
+      label: `Codigo de presentacion: ${saleUnitBarcode}`,
+      secondaryLabel: `Presentacion: ${saleUnit?.name ?? "Unidad"}`,
+    };
+  }
+
+  if (product.matchedBy === "product_barcode" && product.productBarcode) {
+    return {
+      label: `Codigo de barras: ${product.productBarcode}`,
+      secondaryLabel: `Codigo interno: ${product.sku}`,
+    };
+  }
+
+  return {
+    label: `Codigo interno: ${product.sku}`,
+    secondaryLabel:
+      product.productBarcode && product.productBarcode !== product.sku
+        ? `Codigo de barras: ${product.productBarcode}`
+        : "",
+  };
+}
+
+function getLineCodeDisplay(line: QuoteLine) {
+  const selectedSaleUnit = line.selectedSaleUnitId
+    ? line.saleUnits.find((unit) => unit.id === line.selectedSaleUnitId)
+    : null;
+
+  return getCodeDisplay(line, selectedSaleUnit).label;
 }
 
 function getLineKey(productId: string, saleUnitId: string) {
@@ -285,7 +329,13 @@ export function QuickSalePos({
             ...current,
             {
               ...product,
-              code: selectedSaleUnit.barcode || product.code,
+              code: getSaleUnitBarcode(selectedSaleUnit) || product.displayCode,
+              displayCode:
+                getSaleUnitBarcode(selectedSaleUnit) || product.displayCode,
+              matchedBy: getSaleUnitBarcode(selectedSaleUnit)
+                ? "sale_unit_barcode"
+                : product.matchedBy,
+              matchedSaleUnitId: selectedSaleUnit.id || product.matchedSaleUnitId,
               price: selectedSaleUnit.salePrice,
               quantity: 1,
               selectedSaleUnitId: selectedSaleUnit.id,
@@ -1111,6 +1161,7 @@ function ProductRow({
   const selectedSaleUnit =
     product.saleUnits.find((unit) => unit.id === selectedSaleUnitId) ??
     defaultSaleUnit;
+  const codeDisplay = getCodeDisplay(product, selectedSaleUnit);
 
   return (
     <div className="grid gap-2 rounded-md border border-border bg-card p-2 shadow-sm md:grid-cols-[minmax(0,1fr)_9.6rem_6.3rem_7.2rem_7.2rem] md:items-center">
@@ -1119,8 +1170,13 @@ function ProductRow({
           {product.name || product.description}
         </p>
         <p className="font-mono text-sm font-semibold text-muted-foreground">
-          Codigo: {product.code}
+          {codeDisplay.label}
         </p>
+        {codeDisplay.secondaryLabel ? (
+          <p className="font-mono text-xs font-semibold text-muted-foreground">
+            {codeDisplay.secondaryLabel}
+          </p>
+        ) : null}
         {product.brand || product.category ? (
           <p className="truncate text-sm font-semibold text-muted-foreground">
             {[product.brand, product.category].filter(Boolean).join(" - ")}
@@ -1183,7 +1239,7 @@ function TicketLine({
             {line.description}
           </p>
           <p className="font-mono text-xs font-semibold text-muted-foreground">
-            Codigo: {line.code}
+            {getLineCodeDisplay(line)}
           </p>
           <p className="text-xs font-semibold text-muted-foreground">
             {line.selectedSaleUnitName} x {formatStockQuantity(line.quantityInBaseUnit)} {line.unit}
