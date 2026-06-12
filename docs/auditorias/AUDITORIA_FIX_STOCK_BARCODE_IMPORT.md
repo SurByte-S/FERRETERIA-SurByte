@@ -189,32 +189,3 @@ Pendientes propuestos:
 5. Aplicar importacion con movimientos de inventario y lote.
 6. Unificar scripts CLI y flujo web sobre helpers reutilizables.
 7. Agregar documentacion y checklist de importacion inteligente.
-
-## 11. Incidente: barcode heredado confundido con codigo de barras real
-
-Hallazgo visual posterior:
-- En el lector, al buscar por nombre aparecen productos con valores como `SKU: 17458 | Barras: 17458`.
-- La interfaz interpreta cualquier `products.barcode` no vacio como codigo de barras real.
-- Por eso deshabilita la asociacion y muestra `Ya tiene codigo`, aunque el valor parece ser codigo interno heredado.
-
-Causa probable:
-- Una importacion historica copio codigos internos, codigos de proveedor o codigos heredados dentro de `products.barcode`.
-- El modelo actual no distingue entre:
-  - SKU interno (`products.sku`);
-  - codigo de barras real escaneable (`products.barcode`);
-  - codigo de presentacion (`product_sale_units.barcode`);
-  - codigo legado/de proveedor/busqueda.
-
-Riesgo:
-- Bloquea la carga de codigos de barras reales.
-- Genera mensajes falsos para usuarios de mostrador.
-- Puede inducir a crear productos duplicados si el usuario cree que no puede asociar el codigo verdadero.
-- Puede mezclar codigos de proveedor con codigos escaneables.
-
-Correccion requerida:
-- Crear una tabla de alias/codigos heredados para conservar informacion sin tratarla como barcode real.
-- Detectar `barcode = sku` y otros patrones sospechosos como `codigo heredado pendiente de revision`.
-- Cambiar la UI del lector para no usar `Boolean(product.barcode)` como decision.
-- Al asociar un codigo real, preservar el valor anterior como alias antes de reemplazarlo.
-- Extender la busqueda unica para consultar `product_code_aliases` ademas de SKU, barcode principal y barcode de presentacion.
-- Preparar scripts de preflight/aplicacion/rollback; no limpiar `products.barcode` masivamente sin aprobacion humana.

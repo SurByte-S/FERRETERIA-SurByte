@@ -10,6 +10,7 @@ import {
   parseStockCsv,
 } from "@/lib/csv/stock";
 import type { ProductListItem } from "@/components/productos/product-types";
+import { isInheritedProductBarcode, normalizeProductCode } from "@/lib/product-code";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import {
   FORBIDDEN_ACTION_MESSAGE,
@@ -497,7 +498,7 @@ export async function assignBarcodeToProductAction({
     const supabase = getSupabaseServerClient();
     const { data: current, error: currentError } = await supabase
       .from("products")
-      .select("id,barcode")
+      .select("id,sku,barcode")
       .eq("tenant_id", tenant.id)
       .eq("id", productId)
       .eq("active", true)
@@ -510,10 +511,23 @@ export async function assignBarcodeToProductAction({
       };
     }
 
-    if ((current as { barcode: string | null }).barcode) {
+    const currentProduct = current as {
+      barcode: string | null;
+      sku: string | null;
+    };
+    const currentBarcode = normalizeProductCode(currentProduct.barcode);
+    const canReplaceInheritedBarcode =
+      !currentBarcode ||
+      isInheritedProductBarcode({
+        barcode: currentProduct.barcode,
+        sku: currentProduct.sku,
+      });
+
+    if (!canReplaceInheritedBarcode) {
       return {
         ok: false,
-        message: "Ese producto ya tiene codigo de barras.",
+        message:
+          "Este producto ya tiene otro codigo. Revisalo antes de reemplazarlo.",
       };
     }
 

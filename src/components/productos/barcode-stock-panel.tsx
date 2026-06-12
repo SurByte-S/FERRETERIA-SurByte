@@ -14,6 +14,7 @@ import {
 import { NewProductForm } from "@/app/(dashboard)/stock/new-product-form";
 import { Button } from "@/components/ui/button";
 import { formatStockQuantity } from "@/lib/format";
+import { isInheritedProductBarcode, normalizeProductCode } from "@/lib/product-code";
 import type { ProductListItem } from "./product-types";
 import { StockAdjustDetails } from "./stock-adjust-details";
 
@@ -30,7 +31,41 @@ const emptyProductSearch: BarcodeProductSearchResult = {
 };
 
 function normalizeInputCode(value: string) {
-  return value.replace(/[\u200B-\u200D\u2060]/g, "").trim().toUpperCase();
+  return normalizeProductCode(value);
+}
+
+function getBarcodeAssociationState(product: ProductListItem) {
+  const barcode = normalizeProductCode(product.barcode);
+
+  if (!barcode) {
+    return {
+      canAssign: true,
+      message: "",
+      statusLabel: "",
+      buttonLabel: "Asociar codigo real",
+    };
+  }
+
+  if (
+    isInheritedProductBarcode({
+      barcode: product.barcode,
+      sku: product.sku,
+    })
+  ) {
+    return {
+      canAssign: true,
+      message: "Codigo interno heredado",
+      statusLabel: "Codigo interno heredado",
+      buttonLabel: "Asociar codigo real",
+    };
+  }
+
+  return {
+    canAssign: false,
+    message: "Este producto ya tiene otro codigo. Revisalo antes de reemplazarlo.",
+    statusLabel: "Ya tiene otro codigo",
+    buttonLabel: "Ya tiene otro codigo",
+  };
 }
 
 export function BarcodeStockPanel({
@@ -284,25 +319,35 @@ export function BarcodeStockPanel({
 
                     {productSearch.products.length > 0 ? (
                       <div className="grid gap-2">
-                        {productSearch.products.map((product) => (
-                          <div
-                            key={product.id}
-                            className="grid gap-3 rounded-lg border border-border bg-muted/30 p-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center"
-                          >
-                            <ProductSummary product={product} />
-                            <Button
-                              type="button"
-                              disabled={pending || Boolean(product.barcode)}
-                              onClick={() => assignCode(product)}
-                              className="h-11 gap-2 px-4 text-base"
+                        {productSearch.products.map((product) => {
+                          const association =
+                            getBarcodeAssociationState(product);
+
+                          return (
+                            <div
+                              key={product.id}
+                              className="grid gap-3 rounded-lg border border-border bg-muted/30 p-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center"
                             >
-                              <Barcode className="size-5" aria-hidden="true" />
-                              {product.barcode
-                                ? "Ya tiene codigo"
-                                : "Asociar codigo"}
-                            </Button>
-                          </div>
-                        ))}
+                              <ProductSummary product={product} />
+                              <div className="grid gap-2 md:justify-items-end">
+                                {association.message ? (
+                                  <p className="max-w-xs text-sm font-semibold text-muted-foreground md:text-right">
+                                    {association.message}
+                                  </p>
+                                ) : null}
+                                <Button
+                                  type="button"
+                                  disabled={pending || !association.canAssign}
+                                  onClick={() => assignCode(product)}
+                                  className="h-11 gap-2 px-4 text-base"
+                                >
+                                  <Barcode className="size-5" aria-hidden="true" />
+                                  {association.buttonLabel}
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     ) : null}
 
@@ -313,6 +358,7 @@ export function BarcodeStockPanel({
                         initialBarcode={code}
                         initialName={nameSearch}
                         initialSku={code}
+                        onCreated={() => runBarcodeLookup(code)}
                         suppliers={suppliers}
                         triggerLabel="Crear producto nuevo"
                       />
@@ -406,11 +452,22 @@ function ProductFound({
 }
 
 function ProductSummary({ product }: { product: ProductListItem }) {
+  const association = getBarcodeAssociationState(product);
+  const barcode = normalizeProductCode(product.barcode);
+
   return (
     <div className="min-w-0">
       <p className="font-mono text-xs font-semibold text-muted-foreground">
-        SKU: {product.sku} {product.barcode ? `| Barras: ${product.barcode}` : ""}
+        SKU: {product.sku}
+        {barcode && association.statusLabel !== "Codigo interno heredado"
+          ? ` | Barras: ${barcode}`
+          : ""}
       </p>
+      {association.statusLabel === "Codigo interno heredado" ? (
+        <p className="mt-1 text-xs font-bold text-yellow-800">
+          Codigo interno heredado
+        </p>
+      ) : null}
       <p className="mt-1 line-clamp-2 text-lg font-bold">{product.name}</p>
       <p className="mt-1 text-sm font-semibold text-muted-foreground">
         Stock: {formatStockQuantity(product.stockQuantity)} {product.unit}

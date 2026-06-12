@@ -674,7 +674,9 @@ async function loadStockProducts({
         actionHref: `/stock?q=${encodeURIComponent(q)}&filtro=todos`,
         actionLabel: "Mostrar producto",
         message:
-          "Encontramos el codigo exacto, pero el filtro actual lo oculta.",
+          filter === "con-stock"
+            ? "Encontramos el producto, pero esta oculto por el filtro Con stock."
+            : "Encontramos el codigo exacto, pero el filtro actual lo oculta.",
         tone: "warning",
       };
     }

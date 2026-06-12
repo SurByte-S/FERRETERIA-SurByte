@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PackagePlus, Save, X } from "lucide-react";
 
@@ -23,6 +23,8 @@ type NewProductFormProps = {
   initialBarcode?: string;
   initialName?: string;
   initialSku?: string;
+  initiallyOpen?: boolean;
+  onCreated?: () => void;
   suppliers: CatalogOption[];
   triggerLabel?: string;
 };
@@ -46,12 +48,16 @@ export function NewProductForm({
   initialBarcode = "",
   initialName = "",
   initialSku = "",
+  initiallyOpen = false,
+  onCreated,
   suppliers,
   triggerLabel = "Nuevo producto",
 }: NewProductFormProps) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(initiallyOpen);
   const [formKey, setFormKey] = useState(0);
+  const handledCreatedKeyRef = useRef<string | null>(null);
+  const onCreatedRef = useRef(onCreated);
   const [state, formAction, pending] = useActionState(
     createProductAction,
     initialState
@@ -104,8 +110,22 @@ export function NewProductForm({
   }
 
   useEffect(() => {
+    onCreatedRef.current = onCreated;
+  }, [onCreated]);
+
+  useEffect(() => {
     if (state.ok) {
+      const createdKey =
+        state.productId ??
+        `${state.sku ?? ""}:${state.barcode ?? ""}:${state.stockQuantity ?? ""}`;
+
+      if (handledCreatedKeyRef.current === createdKey) {
+        return;
+      }
+
+      handledCreatedKeyRef.current = createdKey;
       router.refresh();
+      onCreatedRef.current?.();
 
       if ((state.stockQuantity ?? 0) <= 0) {
         return;
@@ -123,7 +143,14 @@ export function NewProductForm({
 
       return () => window.clearTimeout(closeTimeout);
     }
-  }, [router, state.ok, state.stockQuantity]);
+  }, [
+    router,
+    state.barcode,
+    state.ok,
+    state.productId,
+    state.sku,
+    state.stockQuantity,
+  ]);
 
   useEffect(() => {
     if (!open) {
