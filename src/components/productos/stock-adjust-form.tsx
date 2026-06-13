@@ -224,12 +224,12 @@ export function StockAdjustForm({
       <div className="grid gap-3 lg:grid-cols-2">
         <section className="grid gap-3 rounded-lg border border-border bg-muted/30 p-3">
           <div>
-            <h4 className="text-sm font-bold">Entrada de mercaderia</h4>
+            <h4 className="text-base font-bold">Entrada de mercaderia</h4>
             <p className="mt-1 text-sm font-semibold text-muted-foreground">
               Elegi la presentacion y escribi cuantas unidades entraron al local.
             </p>
           </div>
-          <label className="grid gap-1.5 text-sm font-semibold">
+          <label className="grid gap-1.5 text-base font-semibold">
             <span>Presentacion de carga</span>
             <select
               name="stockLoadSaleUnitId"
@@ -247,7 +247,7 @@ export function StockAdjustForm({
               ))}
             </select>
           </label>
-          <label className="grid gap-1.5 text-sm font-semibold">
+          <label className="grid gap-1.5 text-base font-semibold">
             <span>Cantidad que entra</span>
             <input
               name="addStockQuantity"
@@ -256,7 +256,6 @@ export function StockAdjustForm({
               step="0.001"
               inputMode="decimal"
               value={stockLoadQuantity}
-              placeholder="0"
               onChange={(event) => setStockLoadQuantity(event.target.value)}
               className="h-10 rounded-lg border border-input bg-background px-3 text-base"
             />
@@ -268,12 +267,12 @@ export function StockAdjustForm({
 
         <section className="grid content-start gap-3 rounded-lg border border-border bg-background p-3">
           <div>
-            <h4 className="text-sm font-bold">Ajuste manual de conteo</h4>
+            <h4 className="text-base font-bold">Ajuste manual de conteo</h4>
             <p className="mt-1 text-sm font-semibold text-muted-foreground">
               Usalo solo si contaste fisicamente el producto y queres corregir el stock final.
             </p>
           </div>
-          <label className="grid gap-1.5 text-sm font-semibold">
+          <label className="grid gap-1.5 text-base font-semibold">
             <span>Stock final contado</span>
             <input
               name="newStock"
@@ -283,7 +282,6 @@ export function StockAdjustForm({
               inputMode="numeric"
               pattern="[0-9]*"
               value={newStockValue}
-              placeholder="0"
               onKeyDown={(event) => {
                 if ([",", ".", "-", "+", "e", "E"].includes(event.key)) {
                   event.preventDefault();
@@ -352,7 +350,7 @@ export function StockAdjustForm({
 function SummaryBlock({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-border bg-background p-2.5">
-      <p className="text-xs font-semibold text-muted-foreground">{label}</p>
+      <p className="text-sm font-semibold text-muted-foreground">{label}</p>
       <p className="mt-1 truncate text-lg font-bold">{value}</p>
     </div>
   );

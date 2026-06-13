@@ -20,6 +20,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { formatStockQuantity } from "@/lib/format";
+import { isInheritedProductBarcode } from "@/lib/product-code";
 import { ProductEditForm } from "./product-edit-form";
 import type { ProductCatalogOption, ProductListItem } from "./product-types";
 import { StockAdjustDetails } from "./stock-adjust-details";
@@ -104,6 +105,23 @@ function stockStatus(product: ProductListItem) {
   };
 }
 
+function productBarcodeLabel(product: ProductListItem) {
+  if (!product.productBarcode) {
+    return "";
+  }
+
+  if (
+    isInheritedProductBarcode({
+      barcode: product.productBarcode,
+      sku: product.sku,
+    })
+  ) {
+    return "Codigo interno heredado";
+  }
+
+  return `Codigo de barras: ${product.productBarcode}`;
+}
+
 export function ProductsBrowser({
   products,
   brands,
@@ -134,7 +152,7 @@ export function ProductsBrowser({
   const canShowMore = showing < total;
   const selectedCategory = categories.find((item) => item.id === categoryId);
   const activeFilters = [
-    code ? { label: "Codigo", value: code } : null,
+    code ? { label: "Codigo interno o barras", value: code } : null,
     name ? { label: "Nombre", value: name } : null,
     categoryId
       ? { label: "Categoria", value: selectedCategory?.name ?? categoryId }
@@ -188,7 +206,7 @@ export function ProductsBrowser({
               <input
                 name="codigo"
                 defaultValue={code}
-                placeholder="Ej: 12345 o código de barra"
+                placeholder="Buscar por codigo o nombre"
                 className="h-11 rounded-lg border border-input bg-background px-3 text-base xl:h-14 xl:px-4 xl:text-lg"
               />
             </label>
@@ -200,7 +218,7 @@ export function ProductsBrowser({
                 <input
                   name="nombre"
                   defaultValue={name}
-                  placeholder="Ej: tornillo, pintura, llave"
+                placeholder="Escribir nombre del producto"
                   className="h-11 w-full rounded-lg border border-input bg-background pl-11 pr-3 text-base xl:h-14 xl:pl-12 xl:pr-4 xl:text-lg"
                 />
               </div>
@@ -304,6 +322,7 @@ export function ProductsBrowser({
         <div className="grid gap-4">
           {products.map((product) => {
             const status = stockStatus(product);
+            const barcodeLabel = productBarcodeLabel(product);
 
             return (
             <Card key={product.id}>
@@ -318,8 +337,13 @@ export function ProductsBrowser({
                   {mode === "administracion" ? <ProductThumb product={product} /> : null}
                   <div className="min-w-0">
                     <p className="mb-2 font-mono text-base text-muted-foreground">
-                      Código: {product.sku}
+                      Codigo interno: {product.sku}
                     </p>
+                    {barcodeLabel ? (
+                      <p className="mb-2 font-mono text-sm font-semibold text-muted-foreground">
+                        {barcodeLabel}
+                      </p>
+                    ) : null}
                     <CardTitle className="text-xl xl:text-2xl">{product.name}</CardTitle>
                     {mode === "administracion" ? (
                       <CardDescription className="mt-2">

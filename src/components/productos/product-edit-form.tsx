@@ -40,10 +40,10 @@ export function ProductEditForm({
         <Field label="Nombre">
           <input name="name" defaultValue={product.name} required className="h-12 rounded-lg border border-input bg-background px-3 text-base" />
         </Field>
-        <Field label="Codigo/SKU">
+        <Field label="Codigo interno">
           <input name="sku" defaultValue={product.sku} required className="h-12 rounded-lg border border-input bg-background px-3 text-base" />
         </Field>
-        <Field label="Codigo de barra">
+        <Field label="Codigo de barras del producto">
           <input name="barcode" defaultValue={product.barcode} className="h-12 rounded-lg border border-input bg-background px-3 text-base" />
         </Field>
         <label className="grid gap-2 text-base font-semibold md:col-span-2">

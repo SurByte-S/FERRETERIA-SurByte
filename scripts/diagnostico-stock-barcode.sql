@@ -22,6 +22,82 @@ left join public.products p on p.tenant_id = t.id
 group by t.id, t.slug, t.name;
 
 with params as (
+  select 'REEMPLAZAR_TENANT_ID'::uuid as tenant_id
+),
+product_status as (
+  select
+    p.id,
+    nullif(public.normalize_product_code(p.sku), '') as sku_norm,
+    nullif(public.normalize_product_code(p.barcode), '') as product_barcode_norm,
+    exists (
+      select 1
+      from public.product_sale_units psu
+      where psu.tenant_id = p.tenant_id
+        and psu.product_id = p.id
+        and psu.is_default = true
+        and psu.active = true
+    ) as has_default_sale_unit,
+    exists (
+      select 1
+      from public.product_sale_units psu
+      where psu.tenant_id = p.tenant_id
+        and psu.product_id = p.id
+        and psu.active = true
+        and nullif(public.normalize_product_code(psu.barcode), '') is not null
+    ) as has_sale_unit_barcode
+  from params
+  join public.products p on p.tenant_id = params.tenant_id
+),
+default_sale_units as (
+  select
+    psu.id,
+    nullif(public.normalize_product_code(psu.barcode), '') as barcode_norm
+  from params
+  join public.product_sale_units psu on psu.tenant_id = params.tenant_id
+  where psu.is_default = true
+    and psu.active = true
+)
+select 'products_total' as metric, count(*)::bigint as value
+from product_status
+union all
+select 'products_with_default_sale_unit', count(*) filter (where has_default_sale_unit)::bigint
+from product_status
+union all
+select 'default_sale_units_barcode_null', count(*) filter (where barcode_norm is null)::bigint
+from default_sale_units
+union all
+select 'default_sale_units_barcode_nonempty', count(*) filter (where barcode_norm is not null)::bigint
+from default_sale_units
+union all
+select 'products_without_product_barcode', count(*) filter (where product_barcode_norm is null)::bigint
+from product_status
+union all
+select 'products_product_barcode_equal_sku', count(*) filter (where product_barcode_norm = sku_norm)::bigint
+from product_status
+union all
+select 'products_with_real_product_barcode', count(*) filter (where product_barcode_norm is not null and product_barcode_norm <> sku_norm)::bigint
+from product_status
+union all
+select 'products_without_real_product_barcode_but_sale_unit_barcode',
+  count(*) filter (
+    where (product_barcode_norm is null or product_barcode_norm = sku_norm)
+      and has_sale_unit_barcode
+  )::bigint
+from product_status
+union all
+select 'products_without_any_real_barcode',
+  count(*) filter (
+    where (product_barcode_norm is null or product_barcode_norm = sku_norm)
+      and not has_sale_unit_barcode
+  )::bigint
+from product_status
+union all
+select 'products_frontend_display_falls_back_to_sku',
+  count(*) filter (where product_barcode_norm is null or product_barcode_norm = sku_norm)::bigint
+from product_status
+order by metric;
+
+with params as (
   select
     'REEMPLAZAR_TENANT_ID'::uuid as tenant_id,
     nullif(public.normalize_product_code('REEMPLAZAR_CODIGO_OPCIONAL'), '') as codigo

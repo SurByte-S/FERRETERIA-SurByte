@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState } from "react";
+import { useActionState, useMemo, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -92,64 +92,28 @@ export function ImportPurchaseForm() {
     initialState
   );
   const [fileName, setFileName] = useState("");
-  const [rows, setRows] = useState<PurchaseImportRow[]>([]);
   const preview = previewState.preview;
-  const summary = useMemo(
-    () =>
-      rows.reduce(
-        (acc, row) => {
-          acc.totalRows += 1;
-
-          if (row.decision !== "ignore") {
-            acc.totalUnits += row.quantity;
-            acc.totalAmount += row.lineTotal ?? row.quantity * (row.unitCostWithTax ?? 0);
-          }
-
-          if (row.status === "safe") acc.safe += 1;
-          if (row.status === "new") acc.new += 1;
-          if (row.status === "doubtful") acc.doubtful += 1;
-          if (row.status === "conflict") acc.conflicts += 1;
-          if (row.status === "ignored") acc.ignored += 1;
-
-          return acc;
-        },
-        {
-          conflicts: 0,
-          doubtful: 0,
-          ignored: 0,
-          new: 0,
-          safe: 0,
-          totalAmount: 0,
-          totalRows: 0,
-          totalUnits: 0,
-        }
-      ),
-    [rows]
-  );
-  const canConfirm =
-    Boolean(preview) &&
-    rows.length > 0 &&
-    rows.every((row) => row.status !== "conflict" && row.decision !== "choose_other");
-
-  useEffect(() => {
-    if (previewState.preview) {
-      setRows(previewState.preview.rows);
-    }
-  }, [previewState.preview]);
-
-  function updateDecision(rowIndex: number, decision: PurchaseImportDecision) {
-    setRows((current) =>
-      current.map((row, index) =>
-        index === rowIndex
-          ? {
-              ...row,
-              decision,
-              status: nextStatusForDecision(row, decision),
-            }
-          : row
-      )
-    );
-  }
+  const previewKey = preview
+    ? [
+        preview.supplierName,
+        preview.documentNumber,
+        preview.fileName,
+        preview.rows.length,
+        preview.rows
+          .map((row) =>
+            [
+              row.lineNumber,
+              row.sku,
+              row.barcode,
+              row.supplierSku,
+              row.description,
+              row.quantity,
+              row.unitCostWithTax,
+            ].join(":")
+          )
+          .join("|"),
+      ].join("|")
+    : "";
 
   return (
     <div className="grid gap-5">
@@ -226,41 +190,113 @@ export function ImportPurchaseForm() {
 
       {preview ? (
         <>
-          <Card>
-            <CardHeader>
-              <CardTitle>Dry-run</CardTitle>
-              <CardDescription>
-                {preview.supplierName} - {preview.documentNumber} - {preview.fileName}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-4">
-              <SummaryGrid summary={summary} />
-              <form action={confirmAction} className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <input type="hidden" name="supplierName" value={preview.supplierName} />
-                <input type="hidden" name="documentNumber" value={preview.documentNumber} />
-                <input type="hidden" name="fileName" value={preview.fileName} />
-                <input type="hidden" name="rows" value={JSON.stringify(rows)} />
-                <Button
-                  type="submit"
-                  disabled={!canConfirm || confirmPending}
-                  className="h-11 gap-2 px-5 text-base"
-                >
-                  <CheckCircle2 className="size-5" aria-hidden="true" />
-                  {confirmPending ? "Confirmando..." : "Confirmar compra"}
-                </Button>
-                <p className="text-sm font-semibold text-muted-foreground">
-                  {canConfirm
-                    ? "La confirmacion suma stock y registra movimientos purchase."
-                    : "Resolve filas dudosas o en conflicto antes de confirmar."}
-                </p>
-              </form>
-            </CardContent>
-          </Card>
-
-          <PurchaseRowsTable rows={rows} onDecision={updateDecision} />
+          <PurchaseImportReview
+            key={previewKey}
+            confirmAction={confirmAction}
+            confirmPending={confirmPending}
+            preview={preview}
+          />
         </>
       ) : null}
     </div>
+  );
+}
+
+function PurchaseImportReview({
+  confirmAction,
+  confirmPending,
+  preview,
+}: {
+  confirmAction: (payload: FormData) => void;
+  confirmPending: boolean;
+  preview: NonNullable<PurchaseImportState["preview"]>;
+}) {
+  const [rows, setRows] = useState<PurchaseImportRow[]>(() => preview.rows);
+  const summary = useMemo(
+    () =>
+      rows.reduce(
+        (acc, row) => {
+          acc.totalRows += 1;
+
+          if (row.decision !== "ignore") {
+            acc.totalUnits += row.quantity;
+            acc.totalAmount += row.lineTotal ?? row.quantity * (row.unitCostWithTax ?? 0);
+          }
+
+          if (row.status === "safe") acc.safe += 1;
+          if (row.status === "new") acc.new += 1;
+          if (row.status === "doubtful") acc.doubtful += 1;
+          if (row.status === "conflict") acc.conflicts += 1;
+          if (row.status === "ignored") acc.ignored += 1;
+
+          return acc;
+        },
+        {
+          conflicts: 0,
+          doubtful: 0,
+          ignored: 0,
+          new: 0,
+          safe: 0,
+          totalAmount: 0,
+          totalRows: 0,
+          totalUnits: 0,
+        }
+      ),
+    [rows]
+  );
+  const canConfirm =
+    rows.length > 0 &&
+    rows.every((row) => row.status !== "conflict" && row.decision !== "choose_other");
+
+  function updateDecision(rowIndex: number, decision: PurchaseImportDecision) {
+    setRows((current) =>
+      current.map((row, index) =>
+        index === rowIndex
+          ? {
+              ...row,
+              decision,
+              status: nextStatusForDecision(row, decision),
+            }
+          : row
+      )
+    );
+  }
+
+  return (
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle>Dry-run</CardTitle>
+          <CardDescription>
+            {preview.supplierName} - {preview.documentNumber} - {preview.fileName}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          <SummaryGrid summary={summary} />
+          <form action={confirmAction} className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <input type="hidden" name="supplierName" value={preview.supplierName} />
+            <input type="hidden" name="documentNumber" value={preview.documentNumber} />
+            <input type="hidden" name="fileName" value={preview.fileName} />
+            <input type="hidden" name="rows" value={JSON.stringify(rows)} />
+            <Button
+              type="submit"
+              disabled={!canConfirm || confirmPending}
+              className="h-11 gap-2 px-5 text-base"
+            >
+              <CheckCircle2 className="size-5" aria-hidden="true" />
+              {confirmPending ? "Confirmando..." : "Confirmar compra"}
+            </Button>
+            <p className="text-sm font-semibold text-muted-foreground">
+              {canConfirm
+                ? "La confirmacion suma stock y registra movimientos purchase."
+                : "Resolve filas dudosas o en conflicto antes de confirmar."}
+            </p>
+          </form>
+        </CardContent>
+      </Card>
+
+      <PurchaseRowsTable rows={rows} onDecision={updateDecision} />
+    </>
   );
 }
 
@@ -329,7 +365,7 @@ function PurchaseRowsTable({
                 <td className="max-w-[320px] p-3">
                   <p className="font-semibold">{row.description}</p>
                   <p className="mt-1 font-mono text-xs text-muted-foreground">
-                    Prov: {row.supplierSku || "-"} | SKU: {row.sku || "-"} | Barras: {row.barcode || "-"}
+                    Prov: {row.supplierSku || "-"} | SKU: {row.sku || "-"} | Codigo de barras: {row.barcode || "-"}
                   </p>
                   {row.messages.length > 0 ? (
                     <p className="mt-2 text-xs font-semibold text-yellow-900">

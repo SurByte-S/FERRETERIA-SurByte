@@ -140,9 +140,9 @@ export function SaleUnitsEditor({
           type="button"
           variant="outline"
           onClick={addUnit}
-          className="h-10 gap-2 px-3 text-sm font-bold"
+          className="h-10 gap-2 px-3 text-base font-bold"
         >
-          <Plus className="size-4" aria-hidden="true" />
+          <Plus className="size-5" aria-hidden="true" />
           Agregar
         </Button>
       </div>
@@ -160,7 +160,7 @@ export function SaleUnitsEditor({
                   onChange={(event) =>
                     updateUnit(unit.localId, "name", event.target.value)
                   }
-                  placeholder="Unidad"
+                  placeholder="Nombre de la presentacion"
                   className="h-10 w-full rounded-md border border-input bg-background px-3 text-base"
                 />
               </Field>
@@ -195,7 +195,10 @@ export function SaleUnitsEditor({
             </div>
 
             <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_180px_40px] md:items-end">
-              <Field label="Codigo de barras">
+              <Field
+                label="Codigo de esta presentacion (opcional)"
+                help="Usalo solamente si caja, blister o unidad tienen un codigo propio."
+              >
                 <input
                   value={unit.barcode}
                   onChange={(event) =>
@@ -204,7 +207,7 @@ export function SaleUnitsEditor({
                   className="h-10 w-full rounded-md border border-input bg-background px-3 text-base"
                 />
               </Field>
-              <label className="flex h-10 min-w-0 items-center gap-2 whitespace-nowrap rounded-md border border-border bg-background px-3 text-sm font-bold">
+              <label className="flex h-10 min-w-0 items-center gap-2 whitespace-nowrap rounded-md border border-border bg-background px-3 text-base font-bold">
                 <input
                   type="radio"
                   checked={unit.isDefault}
@@ -222,7 +225,7 @@ export function SaleUnitsEditor({
                 aria-label={`Quitar ${unit.name || "presentacion"}`}
                 className="size-10 text-red-600 hover:bg-red-50 hover:text-red-700 md:justify-self-end"
               >
-                <Trash2 className="size-4" aria-hidden="true" />
+                <Trash2 className="size-5" aria-hidden="true" />
               </Button>
             </div>
           </div>
@@ -234,15 +237,22 @@ export function SaleUnitsEditor({
 
 function Field({
   children,
+  help,
   label,
 }: {
   children: React.ReactNode;
+  help?: string;
   label: string;
 }) {
   return (
-    <label className="grid min-w-0 gap-1.5 text-xs font-medium">
+    <label className="grid min-w-0 gap-1.5 text-base font-semibold">
       <span>{label}</span>
       {children}
+      {help ? (
+        <span className="text-sm font-semibold text-muted-foreground">
+          {help}
+        </span>
+      ) : null}
     </label>
   );
 }

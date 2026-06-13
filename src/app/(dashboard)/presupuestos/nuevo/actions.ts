@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { getSupabaseServerClient } from "@/lib/supabase";
+import { hasRealProductBarcode, normalizeProductCode } from "@/lib/product-code";
 import { sortProductsBySearchRank } from "@/lib/search-ranking";
 import {
   FORBIDDEN_ACTION_MESSAGE,
@@ -59,6 +60,21 @@ type PosProductSearchRow = {
   rank: number;
   score: number;
   total_count?: number;
+  matched_by?: ProductMatchSource | null;
+  matched_sale_unit_id?: string | null;
+};
+
+type ProductMatchSource = "sku" | "product_barcode" | "sale_unit_barcode" | "text";
+
+type ProductCodeLookupRow = {
+  active: boolean | null;
+  conflict_count: number | null;
+  conflict_sources: unknown;
+  matched_by: ProductMatchSource | null;
+  product_id: string | null;
+  sale_unit_id: string | null;
+  status: "found" | "not_found" | "inactive" | "conflict" | string;
+  tenant_id: string | null;
 };
 
 export type PosProductSearchResult = {
@@ -68,6 +84,13 @@ export type PosProductSearchResult = {
   page: number;
   pageSize: number;
   message?: string;
+};
+
+export type QuoteProductCodeLookupResult = {
+  ok: boolean;
+  message?: string;
+  product?: QuoteProduct;
+  status: "found" | "not_found" | "out_of_stock" | "conflict" | "error";
 };
 
 export type SaveQuoteResult = {
@@ -93,6 +116,10 @@ const STOCK_NOT_ENOUGH_MESSAGE =
 
 const POS_PAGE_SIZE_OPTIONS = [20, 40, 80] as const;
 const DEFAULT_POS_PAGE_SIZE = 40;
+const CODE_CONFLICT_MESSAGE =
+  "Este codigo pertenece a otro producto. Revisalo antes de continuar.";
+const OUT_OF_STOCK_CODE_MESSAGE =
+  "Encontramos el producto, pero no tiene stock disponible.";
 
 function fallbackSaleUnit(row: Pick<ProductRow, "sale_price">): ProductSaleUnit {
   return {
@@ -112,7 +139,7 @@ function mapSaleUnit(row: ProductSaleUnitRow): ProductSaleUnit {
     name: row.name,
     quantityInBaseUnit: Number(row.quantity_in_base_unit ?? 1),
     salePrice: Number(row.sale_price ?? 0),
-    barcode: row.barcode ?? "",
+    barcode: normalizeProductCode(row.barcode),
     isDefault: Boolean(row.is_default),
     active: row.active !== false,
   };
@@ -131,18 +158,98 @@ function getDefaultSaleUnit(
   );
 }
 
+function findSaleUnitByBarcode(
+  saleUnits: ProductSaleUnit[],
+  rawCode: string | null | undefined
+) {
+  const cleanCode = normalizeProductCode(rawCode);
+
+  if (!cleanCode) {
+    return null;
+  }
+
+  return (
+    saleUnits.find(
+      (unit) => unit.active && normalizeProductCode(unit.barcode) === cleanCode
+    ) ?? null
+  );
+}
+
+function inferMatchSource({
+  explicitMatchedBy,
+  productBarcode,
+  rawSearch,
+  row,
+  saleUnits,
+}: {
+  explicitMatchedBy?: ProductMatchSource | null;
+  productBarcode: string;
+  rawSearch?: string;
+  row: Pick<ProductRow, "sku">;
+  saleUnits: ProductSaleUnit[];
+}): ProductMatchSource {
+  if (explicitMatchedBy) {
+    return explicitMatchedBy;
+  }
+
+  const cleanSearch = normalizeProductCode(rawSearch);
+
+  if (!cleanSearch) {
+    return "text";
+  }
+
+  if (normalizeProductCode(row.sku) === cleanSearch) {
+    return "sku";
+  }
+
+  if (productBarcode && productBarcode === cleanSearch) {
+    return "product_barcode";
+  }
+
+  if (findSaleUnitByBarcode(saleUnits, cleanSearch)) {
+    return "sale_unit_barcode";
+  }
+
+  return "text";
+}
+
 function mapProduct(
   row: ProductRow,
   saleUnits: ProductSaleUnit[] = [],
-  preferredSaleUnitId = ""
+  options: {
+    matchedBy?: ProductMatchSource | null;
+    preferredSaleUnitId?: string | null;
+    rawSearch?: string;
+  } = {}
 ): QuoteProduct {
   const finalSaleUnits = saleUnits.length > 0 ? saleUnits : [fallbackSaleUnit(row)];
+  const productBarcode = normalizeProductCode(row.barcode);
+  const searchMatchedSaleUnit = findSaleUnitByBarcode(
+    finalSaleUnits,
+    options.rawSearch
+  );
+  const preferredSaleUnitId =
+    options.preferredSaleUnitId || searchMatchedSaleUnit?.id || "";
   const defaultSaleUnit = getDefaultSaleUnit(row, finalSaleUnits, preferredSaleUnitId);
+  const matchedBy = inferMatchSource({
+    explicitMatchedBy: options.matchedBy,
+    productBarcode,
+    rawSearch: options.rawSearch,
+    row,
+    saleUnits: finalSaleUnits,
+  });
+  const matchedSaleUnitId =
+    matchedBy === "sale_unit_barcode"
+      ? preferredSaleUnitId || searchMatchedSaleUnit?.id || undefined
+      : undefined;
+  const displayCode = productBarcode || row.sku;
 
   return {
     id: row.id,
     sku: row.sku,
-    code: defaultSaleUnit.barcode || row.barcode || row.sku,
+    code: displayCode,
+    displayCode,
+    productBarcode,
     name: row.name,
     description: row.description ?? row.name,
     brand: row.brands?.name ?? "",
@@ -153,6 +260,12 @@ function mapProduct(
     minStock: row.min_stock ?? 0,
     availableForSale:
       (row.stock_quantity ?? 0) >= defaultSaleUnit.quantityInBaseUnit,
+    hasProductBarcode: hasRealProductBarcode({
+      barcode: productBarcode,
+      sku: row.sku,
+    }),
+    matchedBy,
+    matchedSaleUnitId,
     saleUnits: finalSaleUnits,
   };
 }
@@ -160,7 +273,11 @@ function mapProduct(
 function mapPosProduct(
   row: PosProductSearchRow,
   saleUnits: ProductSaleUnit[] = [],
-  preferredSaleUnitId = ""
+  options: {
+    matchedBy?: ProductMatchSource | null;
+    preferredSaleUnitId?: string | null;
+    rawSearch?: string;
+  } = {}
 ): QuoteProduct {
   const productRow = {
     ...row,
@@ -169,28 +286,53 @@ function mapPosProduct(
   } satisfies ProductRow;
   const finalSaleUnits =
     saleUnits.length > 0 ? saleUnits : [fallbackSaleUnit(productRow)];
-  const defaultSaleUnit = getDefaultSaleUnit(
-    productRow,
-    finalSaleUnits,
-    preferredSaleUnitId
-  );
+  const mapped = mapProduct(productRow, finalSaleUnits, {
+    matchedBy: options.matchedBy,
+    preferredSaleUnitId: options.preferredSaleUnitId,
+    rawSearch: options.rawSearch,
+  });
 
   return {
-    id: row.id,
-    sku: row.sku,
-    code: defaultSaleUnit.barcode || row.barcode || row.sku,
-    name: row.name,
-    description: row.description ?? row.name,
+    ...mapped,
     brand: row.brand_name ?? "",
     category: row.category_name ?? "",
-    unit: row.unit,
-    price: defaultSaleUnit.salePrice,
-    stockQuantity: row.stock_quantity ?? 0,
-    minStock: row.min_stock ?? 0,
-    availableForSale:
-      (row.stock_quantity ?? 0) >= defaultSaleUnit.quantityInBaseUnit,
-    saleUnits: finalSaleUnits,
   };
+}
+
+async function loadSaleUnitProductMatches({
+  rawSearch,
+  tenantId,
+}: {
+  rawSearch: string;
+  tenantId: string;
+}) {
+  const safeSearch = normalizeProductCode(rawSearch).replace(/[%_]/g, "");
+  const matches = new Map<string, string>();
+
+  if (!safeSearch) {
+    return matches;
+  }
+
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("product_sale_units")
+    .select("id,product_id")
+    .eq("tenant_id", tenantId)
+    .eq("active", true)
+    .ilike("barcode", `%${safeSearch}%`)
+    .limit(100);
+
+  if (error) {
+    return matches;
+  }
+
+  for (const row of (data ?? []) as { id: string; product_id: string }[]) {
+    if (!matches.has(row.product_id)) {
+      matches.set(row.product_id, row.id);
+    }
+  }
+
+  return matches;
 }
 
 async function loadSaleUnitsByProductId({
@@ -231,6 +373,182 @@ async function loadSaleUnitsByProductId({
     },
     new Map<string, ProductSaleUnit[]>()
   );
+}
+
+async function loadQuoteProductById({
+  matchedBy,
+  preferredSaleUnitId,
+  productId,
+  rawSearch,
+  tenantId,
+}: {
+  matchedBy?: ProductMatchSource | null;
+  preferredSaleUnitId?: string | null;
+  productId: string;
+  rawSearch: string;
+  tenantId: string;
+}) {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("products")
+    .select(
+      "id,sku,barcode,name,normalized_name,description,unit,sale_price,stock_quantity,min_stock"
+    )
+    .eq("tenant_id", tenantId)
+    .eq("id", productId)
+    .eq("active", true)
+    .maybeSingle();
+
+  if (error || !data) {
+    return null;
+  }
+
+  const row = data as unknown as ProductRow;
+  const saleUnitsByProductId = await loadSaleUnitsByProductId({
+    productIds: [row.id],
+    tenantId,
+  });
+
+  return mapProduct(row, saleUnitsByProductId.get(row.id), {
+    matchedBy,
+    preferredSaleUnitId,
+    rawSearch,
+  });
+}
+
+async function findProductByCodeRpc(tenantId: string, code: string) {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase.rpc("find_product_by_code", {
+    input_tenant_id: tenantId,
+    input_code: code,
+  });
+
+  if (error) {
+    return null;
+  }
+
+  return (Array.isArray(data) ? data[0] : data) as ProductCodeLookupRow | null;
+}
+
+async function fallbackQuoteProductCodeLookup({
+  code,
+  includeOutOfStock,
+  tenantId,
+}: {
+  code: string;
+  includeOutOfStock: boolean;
+  tenantId: string;
+}): Promise<QuoteProductCodeLookupResult> {
+  const supabase = getSupabaseServerClient();
+  const selectFields =
+    "id,sku,barcode,name,normalized_name,description,unit,sale_price,stock_quantity,min_stock";
+  const [skuResult, barcodeResult, saleUnitResult] = await Promise.all([
+    supabase
+      .from("products")
+      .select(selectFields)
+      .eq("tenant_id", tenantId)
+      .eq("active", true)
+      .ilike("sku", code)
+      .limit(2),
+    supabase
+      .from("products")
+      .select(selectFields)
+      .eq("tenant_id", tenantId)
+      .eq("active", true)
+      .ilike("barcode", code)
+      .limit(2),
+    supabase
+      .from("product_sale_units")
+      .select(
+        "id,product_id,name,quantity_in_base_unit,sale_price,barcode,is_default,active,products!inner(id,sku,barcode,name,normalized_name,description,unit,sale_price,stock_quantity,min_stock)"
+      )
+      .eq("tenant_id", tenantId)
+      .eq("active", true)
+      .ilike("barcode", code)
+      .limit(2),
+  ]);
+
+  if (skuResult.error || barcodeResult.error || saleUnitResult.error) {
+    return {
+      ok: false,
+      message: "No se pudo buscar el producto.",
+      status: "error",
+    };
+  }
+
+  const candidates: {
+    matchedBy: ProductMatchSource;
+    productId: string;
+    saleUnitId?: string;
+  }[] = [];
+
+  for (const row of (skuResult.data ?? []) as unknown as ProductRow[]) {
+    candidates.push({ matchedBy: "sku", productId: row.id });
+  }
+
+  for (const row of (barcodeResult.data ?? []) as unknown as ProductRow[]) {
+    candidates.push({ matchedBy: "product_barcode", productId: row.id });
+  }
+
+  for (const row of (saleUnitResult.data ?? []) as unknown as Array<
+    ProductSaleUnitRow & { products: ProductRow }
+  >) {
+    candidates.push({
+      matchedBy: "sale_unit_barcode",
+      productId: row.products.id,
+      saleUnitId: row.id,
+    });
+  }
+
+  const productIds = new Set(candidates.map((candidate) => candidate.productId));
+
+  if (productIds.size > 1) {
+    return {
+      ok: false,
+      message: CODE_CONFLICT_MESSAGE,
+      status: "conflict",
+    };
+  }
+
+  const candidate = candidates[0];
+
+  if (!candidate) {
+    return {
+      ok: false,
+      status: "not_found",
+    };
+  }
+
+  const product = await loadQuoteProductById({
+    matchedBy: candidate.matchedBy,
+    preferredSaleUnitId: candidate.saleUnitId,
+    productId: candidate.productId,
+    rawSearch: code,
+    tenantId,
+  });
+
+  if (!product) {
+    return {
+      ok: false,
+      message: "No se pudo cargar el producto.",
+      status: "error",
+    };
+  }
+
+  if (!includeOutOfStock && !product.availableForSale) {
+    return {
+      ok: false,
+      message: OUT_OF_STOCK_CODE_MESSAGE,
+      product,
+      status: "out_of_stock",
+    };
+  }
+
+  return {
+    ok: true,
+    product,
+    status: "found",
+  };
 }
 
 function cleanSearch(value: string) {
@@ -350,6 +668,22 @@ export async function searchQuoteProductsAction(
   try {
     const tenant = await requireTenantRole(["owner", "admin", "seller"]);
     const supabase = getSupabaseServerClient();
+    const saleUnitMatches = await loadSaleUnitProductMatches({
+      rawSearch: search,
+      tenantId: tenant.id,
+    });
+    const searchParts = [
+      `sku.ilike.%${search}%`,
+      `barcode.ilike.%${search}%`,
+      `name.ilike.%${search}%`,
+      `normalized_name.ilike.%${search}%`,
+      `description.ilike.%${search}%`,
+    ];
+
+    if (saleUnitMatches.size > 0) {
+      searchParts.push(`id.in.(${[...saleUnitMatches.keys()].join(",")})`);
+    }
+
     let query = supabase
       .from("products")
       .select(
@@ -357,9 +691,7 @@ export async function searchQuoteProductsAction(
       )
       .eq("tenant_id", tenant.id)
       .eq("active", true)
-      .or(
-        `sku.ilike.%${search}%,barcode.ilike.%${search}%,name.ilike.%${search}%,normalized_name.ilike.%${search}%,description.ilike.%${search}%`
-      )
+      .or(searchParts.join(","))
       .order("name")
       .limit(30);
 
@@ -381,9 +713,15 @@ export async function searchQuoteProductsAction(
 
     return sortProductsBySearchRank(
       rows.map((row) => ({
-        ...mapProduct(row, saleUnitsByProductId.get(row.id)),
+        ...mapProduct(row, saleUnitsByProductId.get(row.id), {
+          preferredSaleUnitId: saleUnitMatches.get(row.id),
+          rawSearch: search,
+        }),
         barcode: row.barcode,
         normalizedName: row.normalized_name,
+        saleUnitBarcodes: (saleUnitsByProductId.get(row.id) ?? [])
+          .map((unit) => unit.barcode)
+          .filter(Boolean),
       })),
       search
     ).slice(0, 30);
@@ -425,7 +763,11 @@ export async function searchProductsForPosAction(
       return {
         ok: true,
         items: rows.map((row) =>
-          mapPosProduct(row, saleUnitsByProductId.get(row.id))
+          mapPosProduct(row, saleUnitsByProductId.get(row.id), {
+            matchedBy: row.matched_by,
+            preferredSaleUnitId: row.matched_sale_unit_id,
+            rawSearch: search,
+          })
         ),
         total: Number(rows[0]?.total_count ?? 0),
         page: safePage,
@@ -465,6 +807,10 @@ export async function searchProductsForPosAction(
       `normalized_name.ilike.%${safeSearch}%`,
       `description.ilike.%${safeSearch}%`,
     ];
+    const saleUnitMatches = await loadSaleUnitProductMatches({
+      rawSearch: safeSearch,
+      tenantId: tenant.id,
+    });
 
     if (brandIds.length > 0) {
       searchParts.push(`brand_id.in.(${brandIds.join(",")})`);
@@ -472,6 +818,10 @@ export async function searchProductsForPosAction(
 
     if (categoryIds.length > 0) {
       searchParts.push(`category_id.in.(${categoryIds.join(",")})`);
+    }
+
+    if (saleUnitMatches.size > 0) {
+      searchParts.push(`id.in.(${[...saleUnitMatches.keys()].join(",")})`);
     }
 
     let query = supabase
@@ -516,9 +866,15 @@ export async function searchProductsForPosAction(
       ok: true,
       items: sortProductsBySearchRank(
         fallbackRows.map((row) => ({
-          ...mapProduct(row, saleUnitsByProductId.get(row.id)),
+          ...mapProduct(row, saleUnitsByProductId.get(row.id), {
+            preferredSaleUnitId: saleUnitMatches.get(row.id),
+            rawSearch: search,
+          }),
           barcode: row.barcode,
           normalizedName: row.normalized_name,
+          saleUnitBarcodes: (saleUnitsByProductId.get(row.id) ?? [])
+            .map((unit) => unit.barcode)
+            .filter(Boolean),
         })),
         search
       ),
@@ -538,103 +894,124 @@ export async function searchProductsForPosAction(
   }
 }
 
-export async function getQuoteProductBySkuAction(
+export async function lookupQuoteProductByCodeAction(
   rawSku: string,
   includeOutOfStock = false
-): Promise<QuoteProduct | null> {
+): Promise<QuoteProductCodeLookupResult> {
   const sku = cleanSearch(rawSku);
 
   if (!sku) {
-    return null;
+    return {
+      ok: false,
+      status: "not_found",
+    };
   }
 
   try {
     const tenant = await requireTenant();
-    const supabase = getSupabaseServerClient();
-    const selectFields =
-      "id,sku,barcode,name,normalized_name,description,unit,sale_price,stock_quantity,min_stock";
+    const rpcLookup = await findProductByCodeRpc(tenant.id, sku);
 
-    const saleUnitResult = await supabase
-      .from("product_sale_units")
-      .select(
-        "id,product_id,name,quantity_in_base_unit,sale_price,barcode,is_default,active,products!inner(id,sku,barcode,name,normalized_name,description,unit,sale_price,stock_quantity,min_stock)"
-      )
-      .eq("tenant_id", tenant.id)
-      .eq("active", true)
-      .ilike("barcode", sku)
-      .limit(1)
-      .maybeSingle();
-
-    if (!saleUnitResult.error && saleUnitResult.data) {
-      const saleUnitRow = saleUnitResult.data as unknown as ProductSaleUnitRow & {
-        products: ProductRow;
-      };
-      const product = saleUnitRow.products;
-
-      if (includeOutOfStock || (product.stock_quantity ?? 0) > 0) {
-        const saleUnitsByProductId = await loadSaleUnitsByProductId({
-          productIds: [product.id],
-          tenantId: tenant.id,
-        });
-
-        return mapProduct(
-          product,
-          saleUnitsByProductId.get(product.id),
-          saleUnitRow.id
-        );
-      }
-    }
-
-    let skuQuery = supabase
-      .from("products")
-      .select(selectFields)
-      .eq("tenant_id", tenant.id)
-      .eq("active", true)
-      .ilike("sku", sku);
-
-    if (!includeOutOfStock) {
-      skuQuery = skuQuery.gt("stock_quantity", 0);
-    }
-
-    const skuResult = await skuQuery.limit(1).maybeSingle();
-
-    if (!skuResult.error && skuResult.data) {
-      const row = skuResult.data as unknown as ProductRow;
-      const saleUnitsByProductId = await loadSaleUnitsByProductId({
-        productIds: [row.id],
+    if (!rpcLookup) {
+      return fallbackQuoteProductCodeLookup({
+        code: sku,
+        includeOutOfStock,
         tenantId: tenant.id,
       });
-
-      return mapProduct(row, saleUnitsByProductId.get(row.id));
     }
 
-    let barcodeQuery = supabase
-      .from("products")
-      .select(selectFields)
-      .eq("tenant_id", tenant.id)
-      .eq("active", true)
-      .ilike("barcode", sku);
-
-    if (!includeOutOfStock) {
-      barcodeQuery = barcodeQuery.gt("stock_quantity", 0);
+    if (rpcLookup.status === "not_found") {
+      return {
+        ok: false,
+        status: "not_found",
+      };
     }
 
-    const barcodeResult = await barcodeQuery.limit(1).maybeSingle();
-
-    if (barcodeResult.error || !barcodeResult.data) {
-      return null;
+    if (rpcLookup.status === "conflict") {
+      return {
+        ok: false,
+        message: CODE_CONFLICT_MESSAGE,
+        status: "conflict",
+      };
     }
 
-    const row = barcodeResult.data as unknown as ProductRow;
-    const saleUnitsByProductId = await loadSaleUnitsByProductId({
-      productIds: [row.id],
+    if (rpcLookup.status === "inactive") {
+      return {
+        ok: false,
+        message:
+          "El codigo pertenece a un producto inactivo. Revisalo antes de continuar.",
+        status: "error",
+      };
+    }
+
+    if (rpcLookup.status !== "found" || !rpcLookup.product_id) {
+      return {
+        ok: false,
+        message: "No se pudo buscar el producto.",
+        status: "error",
+      };
+    }
+
+    const product = await loadQuoteProductById({
+      matchedBy: rpcLookup.matched_by,
+      preferredSaleUnitId: rpcLookup.sale_unit_id,
+      productId: rpcLookup.product_id,
+      rawSearch: sku,
       tenantId: tenant.id,
     });
 
-    return mapProduct(row, saleUnitsByProductId.get(row.id));
-  } catch {
+    if (!product) {
+      return {
+        ok: false,
+        message: "No se pudo cargar el producto.",
+        status: "error",
+      };
+    }
+
+    if (!includeOutOfStock && !product.availableForSale) {
+      return {
+        ok: false,
+        message: OUT_OF_STOCK_CODE_MESSAGE,
+        product,
+        status: "out_of_stock",
+      };
+    }
+
+    return {
+      ok: true,
+      product,
+      status: "found",
+    };
+  } catch (error) {
+    if (isTenantRoleForbiddenError(error)) {
+      return {
+        ok: false,
+        message: FORBIDDEN_ACTION_MESSAGE,
+        status: "error",
+      };
+    }
+
+    return {
+      ok: false,
+      message: "No se pudo buscar el producto.",
+      status: "error",
+    };
+  }
+}
+
+export async function getQuoteProductBySkuAction(
+  rawSku: string,
+  includeOutOfStock = false
+): Promise<QuoteProduct | null> {
+  const result = await lookupQuoteProductByCodeAction(
+    rawSku,
+    includeOutOfStock
+  );
+
+  if (!result.ok) {
     return null;
   }
+
+  return result.product ?? null;
 }
 
 export async function saveQuoteAction({
