@@ -43,24 +43,24 @@ export function StockCsvUploadCard() {
       </CardHeader>
       <CardContent className="grid gap-4">
         <form action={previewAction} className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
-          <label className="grid gap-2 text-sm font-semibold">
+          <label className="grid gap-2 text-base font-semibold">
             <span>Archivo CSV</span>
             <input
               type="file"
               name="csvFile"
               accept=".csv,text/csv"
-              className="rounded-md border border-input bg-background px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-primary-foreground"
+              className="rounded-md border border-input bg-background px-3 py-2 text-base file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-primary-foreground"
             />
           </label>
           <Button type="submit" disabled={previewPending} className="h-10 gap-2 px-4">
-            <FileUp className="size-4" aria-hidden="true" />
+            <FileUp className="size-5" aria-hidden="true" />
             {previewPending ? "Leyendo..." : "Ver vista previa"}
           </Button>
         </form>
 
         <div className="rounded-md border border-border bg-background p-3 text-sm text-muted-foreground">
           <p className="font-semibold text-foreground">Formato esperado</p>
-          <pre className="mt-2 overflow-x-auto font-mono text-xs leading-5">
+          <pre className="mt-2 overflow-x-auto font-mono text-sm leading-5">
 {`codigo,cantidad
 47783,10
 47781,5
@@ -115,8 +115,8 @@ export function StockCsvUploadCard() {
                         <span
                           className={
                             row.status === "ok"
-                              ? "inline-flex rounded-full border border-emerald-500/40 bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-800"
-                              : "inline-flex rounded-full border border-destructive/40 bg-destructive/10 px-2 py-1 text-xs font-bold text-destructive"
+                              ? "inline-flex rounded-full border border-emerald-500/40 bg-emerald-50 px-2 py-1 text-sm font-bold text-emerald-800"
+                              : "inline-flex rounded-full border border-destructive/40 bg-destructive/10 px-2 py-1 text-sm font-bold text-destructive"
                           }
                         >
                           {row.message}
@@ -135,7 +135,7 @@ export function StockCsvUploadCard() {
                       <td className="p-2">-</td>
                       <td className="p-2">-</td>
                       <td className="p-2">
-                        <span className="inline-flex rounded-full border border-destructive/40 bg-destructive/10 px-2 py-1 text-xs font-bold text-destructive">
+                        <span className="inline-flex rounded-full border border-destructive/40 bg-destructive/10 px-2 py-1 text-sm font-bold text-destructive">
                           Fila {row.rowNumber}: {row.message}
                         </span>
                       </td>
@@ -157,7 +157,7 @@ export function StockCsvUploadCard() {
                 disabled={!previewState.ok || confirmPending}
                 className="h-10 gap-2 px-4"
               >
-                <PackagePlus className="size-4" aria-hidden="true" />
+                <PackagePlus className="size-5" aria-hidden="true" />
                 {confirmPending ? "Confirmando..." : "Confirmar carga"}
               </Button>
               {!previewState.ok ? (
@@ -224,7 +224,7 @@ function SummaryGrid({
 function SummaryItem({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="rounded-md border border-border bg-background p-3">
-      <p className="text-xs font-semibold text-muted-foreground">{label}</p>
+      <p className="text-sm font-semibold text-muted-foreground">{label}</p>
       <p className="mt-1 text-lg font-bold">{value}</p>
     </div>
   );

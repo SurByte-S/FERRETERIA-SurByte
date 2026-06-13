@@ -12,7 +12,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import {
-  getQuoteProductBySkuAction,
+  lookupQuoteProductByCodeAction,
   saveQuoteAction,
   saveQuoteAndConvertToSaleAction,
   searchProductsForPosAction,
@@ -28,7 +28,7 @@ import { Button } from "@/components/ui/button";
 import { formatStockQuantity } from "@/lib/format";
 
 const EMPTY_SEARCH_MESSAGE = "Busca un producto para empezar.";
-const SEARCH_PLACEHOLDER = "Codigo, codigo de barras o nombre del producto";
+const SEARCH_PLACEHOLDER = "Buscar por codigo o nombre";
 const CASH_REGISTER_CLOSED_MESSAGE = "Para vender necesitas abrir la caja.";
 const EPSILON = 0.000001;
 const PAGE_SIZE_OPTIONS = [20, 40, 80] as const;
@@ -121,6 +121,22 @@ function getLineCodeDisplay(line: QuoteLine) {
     : null;
 
   return getCodeDisplay(line, selectedSaleUnit).label;
+}
+
+function getMatchSourceLabel(product: QuoteProduct) {
+  if (product.matchedBy === "product_barcode") {
+    return "Encontrado por codigo de barras";
+  }
+
+  if (product.matchedBy === "sale_unit_barcode") {
+    return "Encontrado por codigo de presentacion";
+  }
+
+  if (product.matchedBy === "sku") {
+    return "Encontrado por codigo interno";
+  }
+
+  return "Encontrado por texto";
 }
 
 function getLineKey(productId: string, saleUnitId: string) {
@@ -362,10 +378,12 @@ export function QuickSalePos({
     }
 
     startTransition(async () => {
-      const product = await getQuoteProductBySkuAction(initialSku, isQuoteMode);
+      const result = await lookupQuoteProductByCodeAction(initialSku, isQuoteMode);
 
-      if (product) {
-        addProduct(product);
+      if (result.ok && result.product) {
+        addProduct(result.product);
+      } else if (result.message) {
+        setMessage(result.message);
       }
     });
   }, [addProduct, initialSku, isQuoteMode]);
@@ -424,14 +442,22 @@ export function QuickSalePos({
     setMessage("Buscando productos...");
     setSearchStatus("loading");
     startTransition(async () => {
-      const exact = await getQuoteProductBySkuAction(term, isQuoteMode);
+      const exact = await lookupQuoteProductByCodeAction(term, isQuoteMode);
 
       if (latestSearchRequestRef.current !== requestId) {
         return;
       }
 
-      if (exact) {
-        addProduct(exact);
+      if (exact.ok && exact.product) {
+        addProduct(exact.product);
+        return;
+      }
+
+      if (exact.status !== "not_found" && exact.message) {
+        setResults(exact.product ? [exact.product] : []);
+        setResultsTotal(exact.product ? 1 : 0);
+        setSearchStatus(exact.product ? "results" : "error");
+        setMessage(exact.message);
         return;
       }
 
@@ -1172,8 +1198,11 @@ function ProductRow({
         <p className="font-mono text-sm font-semibold text-muted-foreground">
           {codeDisplay.label}
         </p>
+        <p className="text-sm font-bold text-emerald-700">
+          {getMatchSourceLabel(product)}
+        </p>
         {codeDisplay.secondaryLabel ? (
-          <p className="font-mono text-xs font-semibold text-muted-foreground">
+          <p className="font-mono text-sm font-semibold text-muted-foreground">
             {codeDisplay.secondaryLabel}
           </p>
         ) : null}
@@ -1212,9 +1241,10 @@ function ProductRow({
       <Button
         type="button"
         onClick={() => onAdd(selectedSaleUnit)}
+        disabled={!product.availableForSale}
         className="h-10 px-3 text-base font-black"
       >
-        Agregar
+        {product.availableForSale ? "Agregar" : "Sin stock"}
       </Button>
     </div>
   );
@@ -1238,10 +1268,10 @@ function TicketLine({
           <p className="line-clamp-2 text-sm font-black leading-tight">
             {line.description}
           </p>
-          <p className="font-mono text-xs font-semibold text-muted-foreground">
+          <p className="font-mono text-sm font-semibold text-muted-foreground">
             {getLineCodeDisplay(line)}
           </p>
-          <p className="text-xs font-semibold text-muted-foreground">
+          <p className="text-sm font-semibold text-muted-foreground">
             {line.selectedSaleUnitName} x {formatStockQuantity(line.quantityInBaseUnit)} {line.unit}
           </p>
         </div>
@@ -1249,7 +1279,7 @@ function TicketLine({
           type="button"
           variant="outline"
           onClick={onRemove}
-          className="h-8 shrink-0 px-3 text-xs font-bold"
+          className="h-8 shrink-0 px-3 text-sm font-bold"
         >
           Quitar
         </Button>
@@ -1280,7 +1310,7 @@ function TicketLine({
           </Button>
         </div>
         <div className="text-right">
-          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+          <p className="text-sm font-bold uppercase tracking-wide text-muted-foreground">
             {formatMoney(line.price)} c/u
           </p>
           <p className="text-lg font-black text-primary">

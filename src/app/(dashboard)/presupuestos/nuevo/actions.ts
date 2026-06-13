@@ -66,6 +66,17 @@ type PosProductSearchRow = {
 
 type ProductMatchSource = "sku" | "product_barcode" | "sale_unit_barcode" | "text";
 
+type ProductCodeLookupRow = {
+  active: boolean | null;
+  conflict_count: number | null;
+  conflict_sources: unknown;
+  matched_by: ProductMatchSource | null;
+  product_id: string | null;
+  sale_unit_id: string | null;
+  status: "found" | "not_found" | "inactive" | "conflict" | string;
+  tenant_id: string | null;
+};
+
 export type PosProductSearchResult = {
   ok: boolean;
   items: QuoteProduct[];
@@ -73,6 +84,13 @@ export type PosProductSearchResult = {
   page: number;
   pageSize: number;
   message?: string;
+};
+
+export type QuoteProductCodeLookupResult = {
+  ok: boolean;
+  message?: string;
+  product?: QuoteProduct;
+  status: "found" | "not_found" | "out_of_stock" | "conflict" | "error";
 };
 
 export type SaveQuoteResult = {
@@ -98,6 +116,10 @@ const STOCK_NOT_ENOUGH_MESSAGE =
 
 const POS_PAGE_SIZE_OPTIONS = [20, 40, 80] as const;
 const DEFAULT_POS_PAGE_SIZE = 40;
+const CODE_CONFLICT_MESSAGE =
+  "Este codigo pertenece a otro producto. Revisalo antes de continuar.";
+const OUT_OF_STOCK_CODE_MESSAGE =
+  "Encontramos el producto, pero no tiene stock disponible.";
 
 function fallbackSaleUnit(row: Pick<ProductRow, "sale_price">): ProductSaleUnit {
   return {
@@ -351,6 +373,182 @@ async function loadSaleUnitsByProductId({
     },
     new Map<string, ProductSaleUnit[]>()
   );
+}
+
+async function loadQuoteProductById({
+  matchedBy,
+  preferredSaleUnitId,
+  productId,
+  rawSearch,
+  tenantId,
+}: {
+  matchedBy?: ProductMatchSource | null;
+  preferredSaleUnitId?: string | null;
+  productId: string;
+  rawSearch: string;
+  tenantId: string;
+}) {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("products")
+    .select(
+      "id,sku,barcode,name,normalized_name,description,unit,sale_price,stock_quantity,min_stock"
+    )
+    .eq("tenant_id", tenantId)
+    .eq("id", productId)
+    .eq("active", true)
+    .maybeSingle();
+
+  if (error || !data) {
+    return null;
+  }
+
+  const row = data as unknown as ProductRow;
+  const saleUnitsByProductId = await loadSaleUnitsByProductId({
+    productIds: [row.id],
+    tenantId,
+  });
+
+  return mapProduct(row, saleUnitsByProductId.get(row.id), {
+    matchedBy,
+    preferredSaleUnitId,
+    rawSearch,
+  });
+}
+
+async function findProductByCodeRpc(tenantId: string, code: string) {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase.rpc("find_product_by_code", {
+    input_tenant_id: tenantId,
+    input_code: code,
+  });
+
+  if (error) {
+    return null;
+  }
+
+  return (Array.isArray(data) ? data[0] : data) as ProductCodeLookupRow | null;
+}
+
+async function fallbackQuoteProductCodeLookup({
+  code,
+  includeOutOfStock,
+  tenantId,
+}: {
+  code: string;
+  includeOutOfStock: boolean;
+  tenantId: string;
+}): Promise<QuoteProductCodeLookupResult> {
+  const supabase = getSupabaseServerClient();
+  const selectFields =
+    "id,sku,barcode,name,normalized_name,description,unit,sale_price,stock_quantity,min_stock";
+  const [skuResult, barcodeResult, saleUnitResult] = await Promise.all([
+    supabase
+      .from("products")
+      .select(selectFields)
+      .eq("tenant_id", tenantId)
+      .eq("active", true)
+      .ilike("sku", code)
+      .limit(2),
+    supabase
+      .from("products")
+      .select(selectFields)
+      .eq("tenant_id", tenantId)
+      .eq("active", true)
+      .ilike("barcode", code)
+      .limit(2),
+    supabase
+      .from("product_sale_units")
+      .select(
+        "id,product_id,name,quantity_in_base_unit,sale_price,barcode,is_default,active,products!inner(id,sku,barcode,name,normalized_name,description,unit,sale_price,stock_quantity,min_stock)"
+      )
+      .eq("tenant_id", tenantId)
+      .eq("active", true)
+      .ilike("barcode", code)
+      .limit(2),
+  ]);
+
+  if (skuResult.error || barcodeResult.error || saleUnitResult.error) {
+    return {
+      ok: false,
+      message: "No se pudo buscar el producto.",
+      status: "error",
+    };
+  }
+
+  const candidates: {
+    matchedBy: ProductMatchSource;
+    productId: string;
+    saleUnitId?: string;
+  }[] = [];
+
+  for (const row of (skuResult.data ?? []) as unknown as ProductRow[]) {
+    candidates.push({ matchedBy: "sku", productId: row.id });
+  }
+
+  for (const row of (barcodeResult.data ?? []) as unknown as ProductRow[]) {
+    candidates.push({ matchedBy: "product_barcode", productId: row.id });
+  }
+
+  for (const row of (saleUnitResult.data ?? []) as unknown as Array<
+    ProductSaleUnitRow & { products: ProductRow }
+  >) {
+    candidates.push({
+      matchedBy: "sale_unit_barcode",
+      productId: row.products.id,
+      saleUnitId: row.id,
+    });
+  }
+
+  const productIds = new Set(candidates.map((candidate) => candidate.productId));
+
+  if (productIds.size > 1) {
+    return {
+      ok: false,
+      message: CODE_CONFLICT_MESSAGE,
+      status: "conflict",
+    };
+  }
+
+  const candidate = candidates[0];
+
+  if (!candidate) {
+    return {
+      ok: false,
+      status: "not_found",
+    };
+  }
+
+  const product = await loadQuoteProductById({
+    matchedBy: candidate.matchedBy,
+    preferredSaleUnitId: candidate.saleUnitId,
+    productId: candidate.productId,
+    rawSearch: code,
+    tenantId,
+  });
+
+  if (!product) {
+    return {
+      ok: false,
+      message: "No se pudo cargar el producto.",
+      status: "error",
+    };
+  }
+
+  if (!includeOutOfStock && !product.availableForSale) {
+    return {
+      ok: false,
+      message: OUT_OF_STOCK_CODE_MESSAGE,
+      product,
+      status: "out_of_stock",
+    };
+  }
+
+  return {
+    ok: true,
+    product,
+    status: "found",
+  };
 }
 
 function cleanSearch(value: string) {
@@ -696,113 +894,124 @@ export async function searchProductsForPosAction(
   }
 }
 
-export async function getQuoteProductBySkuAction(
+export async function lookupQuoteProductByCodeAction(
   rawSku: string,
   includeOutOfStock = false
-): Promise<QuoteProduct | null> {
+): Promise<QuoteProductCodeLookupResult> {
   const sku = cleanSearch(rawSku);
 
   if (!sku) {
-    return null;
+    return {
+      ok: false,
+      status: "not_found",
+    };
   }
 
   try {
     const tenant = await requireTenant();
-    const supabase = getSupabaseServerClient();
-    const selectFields =
-      "id,sku,barcode,name,normalized_name,description,unit,sale_price,stock_quantity,min_stock";
+    const rpcLookup = await findProductByCodeRpc(tenant.id, sku);
 
-    const saleUnitResult = await supabase
-      .from("product_sale_units")
-      .select(
-        "id,product_id,name,quantity_in_base_unit,sale_price,barcode,is_default,active,products!inner(id,sku,barcode,name,normalized_name,description,unit,sale_price,stock_quantity,min_stock)"
-      )
-      .eq("tenant_id", tenant.id)
-      .eq("active", true)
-      .ilike("barcode", sku)
-      .limit(1)
-      .maybeSingle();
-
-    if (!saleUnitResult.error && saleUnitResult.data) {
-      const saleUnitRow = saleUnitResult.data as unknown as ProductSaleUnitRow & {
-        products: ProductRow;
-      };
-      const product = saleUnitRow.products;
-
-      if (includeOutOfStock || (product.stock_quantity ?? 0) > 0) {
-        const saleUnitsByProductId = await loadSaleUnitsByProductId({
-          productIds: [product.id],
-          tenantId: tenant.id,
-        });
-
-        return mapProduct(
-          product,
-          saleUnitsByProductId.get(product.id),
-          {
-            matchedBy: "sale_unit_barcode",
-            preferredSaleUnitId: saleUnitRow.id,
-            rawSearch: sku,
-          }
-        );
-      }
-    }
-
-    let skuQuery = supabase
-      .from("products")
-      .select(selectFields)
-      .eq("tenant_id", tenant.id)
-      .eq("active", true)
-      .ilike("sku", sku);
-
-    if (!includeOutOfStock) {
-      skuQuery = skuQuery.gt("stock_quantity", 0);
-    }
-
-    const skuResult = await skuQuery.limit(1).maybeSingle();
-
-    if (!skuResult.error && skuResult.data) {
-      const row = skuResult.data as unknown as ProductRow;
-      const saleUnitsByProductId = await loadSaleUnitsByProductId({
-        productIds: [row.id],
+    if (!rpcLookup) {
+      return fallbackQuoteProductCodeLookup({
+        code: sku,
+        includeOutOfStock,
         tenantId: tenant.id,
       });
-
-      return mapProduct(row, saleUnitsByProductId.get(row.id), {
-        matchedBy: "sku",
-        rawSearch: sku,
-      });
     }
 
-    let barcodeQuery = supabase
-      .from("products")
-      .select(selectFields)
-      .eq("tenant_id", tenant.id)
-      .eq("active", true)
-      .ilike("barcode", sku);
-
-    if (!includeOutOfStock) {
-      barcodeQuery = barcodeQuery.gt("stock_quantity", 0);
+    if (rpcLookup.status === "not_found") {
+      return {
+        ok: false,
+        status: "not_found",
+      };
     }
 
-    const barcodeResult = await barcodeQuery.limit(1).maybeSingle();
-
-    if (barcodeResult.error || !barcodeResult.data) {
-      return null;
+    if (rpcLookup.status === "conflict") {
+      return {
+        ok: false,
+        message: CODE_CONFLICT_MESSAGE,
+        status: "conflict",
+      };
     }
 
-    const row = barcodeResult.data as unknown as ProductRow;
-    const saleUnitsByProductId = await loadSaleUnitsByProductId({
-      productIds: [row.id],
+    if (rpcLookup.status === "inactive") {
+      return {
+        ok: false,
+        message:
+          "El codigo pertenece a un producto inactivo. Revisalo antes de continuar.",
+        status: "error",
+      };
+    }
+
+    if (rpcLookup.status !== "found" || !rpcLookup.product_id) {
+      return {
+        ok: false,
+        message: "No se pudo buscar el producto.",
+        status: "error",
+      };
+    }
+
+    const product = await loadQuoteProductById({
+      matchedBy: rpcLookup.matched_by,
+      preferredSaleUnitId: rpcLookup.sale_unit_id,
+      productId: rpcLookup.product_id,
+      rawSearch: sku,
       tenantId: tenant.id,
     });
 
-    return mapProduct(row, saleUnitsByProductId.get(row.id), {
-      matchedBy: "product_barcode",
-      rawSearch: sku,
-    });
-  } catch {
+    if (!product) {
+      return {
+        ok: false,
+        message: "No se pudo cargar el producto.",
+        status: "error",
+      };
+    }
+
+    if (!includeOutOfStock && !product.availableForSale) {
+      return {
+        ok: false,
+        message: OUT_OF_STOCK_CODE_MESSAGE,
+        product,
+        status: "out_of_stock",
+      };
+    }
+
+    return {
+      ok: true,
+      product,
+      status: "found",
+    };
+  } catch (error) {
+    if (isTenantRoleForbiddenError(error)) {
+      return {
+        ok: false,
+        message: FORBIDDEN_ACTION_MESSAGE,
+        status: "error",
+      };
+    }
+
+    return {
+      ok: false,
+      message: "No se pudo buscar el producto.",
+      status: "error",
+    };
+  }
+}
+
+export async function getQuoteProductBySkuAction(
+  rawSku: string,
+  includeOutOfStock = false
+): Promise<QuoteProduct | null> {
+  const result = await lookupQuoteProductByCodeAction(
+    rawSku,
+    includeOutOfStock
+  );
+
+  if (!result.ok) {
     return null;
   }
+
+  return result.product ?? null;
 }
 
 export async function saveQuoteAction({

@@ -76,7 +76,7 @@ const cases = [
     },
   },
   {
-    name: "real sale unit barcode blocks assignment",
+    name: "real sale unit barcode is preserved while assignment remains available",
     product: {
       sku: "17458",
       barcode: null,
@@ -91,7 +91,8 @@ const cases = [
       ],
     },
     expected: {
-      canAssign: false,
+      buttonLabel: "Asociar codigo de barras principal",
+      canAssign: true,
       primaryBarcode: "7791234567890",
       saleUnitName: "Caja",
       status: "sale_unit_barcode",

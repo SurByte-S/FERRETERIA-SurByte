@@ -188,7 +188,7 @@ export function BarcodeStockPanel({
         className="h-12 gap-2 px-4 text-base xl:h-14 xl:px-6 xl:text-lg"
       >
         <Barcode className="size-5" aria-hidden="true" />
-        Codigo de barras
+        Buscar o agregar producto
       </Button>
 
       {open ? (
@@ -196,9 +196,11 @@ export function BarcodeStockPanel({
           <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-lg border border-border bg-card shadow-xl">
             <div className="sticky top-0 z-20 flex shrink-0 items-start justify-between gap-3 border-b border-border bg-card/95 px-3 py-3 backdrop-blur sm:px-4">
               <div className="min-w-0 pr-2">
-                <p className="truncate text-lg font-bold">Codigo de barras</p>
+                <p className="truncate text-xl font-bold">
+                  Buscar o agregar producto
+                </p>
                 <p className="text-sm font-semibold text-muted-foreground">
-                  Escanea, busca el producto y carga stock sin crear duplicados.
+                  Escanea un codigo o escribilo para encontrar el producto.
                 </p>
               </div>
               <Button
@@ -209,7 +211,7 @@ export function BarcodeStockPanel({
                 aria-label="Cerrar"
                 className="shrink-0 text-red-600 hover:bg-red-50 hover:text-red-700 focus-visible:ring-red-500"
               >
-                <X className="size-4" aria-hidden="true" />
+                <X className="size-5" aria-hidden="true" />
               </Button>
             </div>
 
@@ -221,13 +223,12 @@ export function BarcodeStockPanel({
                     className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]"
                   >
                     <label className="grid gap-2 text-base font-bold">
-                      <span>Escanear o escribir codigo</span>
+                      <span>Codigo de barras o codigo interno</span>
                       <input
                         ref={codeInputRef}
                         value={code}
                         onChange={(event) => setCode(event.target.value)}
-                        placeholder="Ejemplo: 7791234567890"
-                        inputMode="numeric"
+                        placeholder="Escribir o escanear codigo"
                         className="h-14 rounded-lg border border-input bg-background px-4 font-mono text-xl font-bold"
                       />
                     </label>
@@ -237,7 +238,7 @@ export function BarcodeStockPanel({
                       className="h-14 gap-2 self-end px-5 text-base"
                     >
                       <Search className="size-5" aria-hidden="true" />
-                      {pending ? "Buscando..." : "Buscar"}
+                      {pending ? "Buscando..." : "Buscar producto"}
                     </Button>
                   </form>
 
@@ -262,7 +263,9 @@ export function BarcodeStockPanel({
                 {lookup?.status === "not_found" && !selectedProduct ? (
                   <section className="grid gap-3 rounded-lg border border-border bg-background p-4">
                     <div>
-                      <h3 className="text-base font-bold">Buscar por nombre</h3>
+                      <h3 className="text-base font-bold">
+                        Buscar producto existente por nombre
+                      </h3>
                       <p className="mt-1 text-sm font-semibold text-muted-foreground">
                         Si ya existe, asocia este codigo. No crees otro producto.
                       </p>
@@ -271,13 +274,13 @@ export function BarcodeStockPanel({
                       action={runNameSearch}
                       className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]"
                     >
-                      <label className="grid gap-2 text-sm font-semibold">
-                        <span>Nombre del producto</span>
+                      <label className="grid gap-2 text-base font-semibold">
+                        <span>Buscar producto existente por nombre</span>
                         <input
                           ref={nameInputRef}
                           value={nameSearch}
                           onChange={(event) => setNameSearch(event.target.value)}
-                          placeholder="Ejemplo: cinta aisladora"
+                          placeholder="Escribir nombre del producto"
                           className="h-12 rounded-lg border border-input bg-background px-3 text-base"
                         />
                       </label>
@@ -287,7 +290,7 @@ export function BarcodeStockPanel({
                         className="h-12 gap-2 self-end px-4 text-base"
                       >
                         <Search className="size-5" aria-hidden="true" />
-                        Buscar nombre
+                        Buscar producto
                       </Button>
                     </form>
 
@@ -323,7 +326,9 @@ export function BarcodeStockPanel({
                                   className="h-11 gap-2 px-4 text-base"
                                 >
                                   <Barcode className="size-5" aria-hidden="true" />
-                                  {association.buttonLabel}
+                                  {association.canAssign
+                                    ? "Asociar este codigo al producto"
+                                    : association.buttonLabel}
                                 </Button>
                               </div>
                             </div>
@@ -333,16 +338,24 @@ export function BarcodeStockPanel({
                     ) : null}
 
                     {canCreate && productSearch.ok && productSearch.products.length === 0 ? (
-                      <NewProductForm
-                        brands={brands}
-                        canCreate={canCreate}
-                        initialBarcode={code}
-                        initialName={nameSearch}
-                        initialSku={code}
-                        onCreated={() => runBarcodeLookup(code)}
-                        suppliers={suppliers}
-                        triggerLabel="Crear producto nuevo"
-                      />
+                      <section className="grid gap-3 rounded-lg border border-border bg-muted/20 p-3">
+                        <div>
+                          <h3 className="text-lg font-bold">
+                            Crear producto nuevo
+                          </h3>
+                        </div>
+                        <NewProductForm
+                          brands={brands}
+                          canCreate={canCreate}
+                          embedded
+                          initialBarcode={code}
+                          initialName={nameSearch}
+                          initialSku={code}
+                          onCreated={() => runBarcodeLookup(code)}
+                          suppliers={suppliers}
+                          triggerLabel="Crear producto nuevo"
+                        />
+                      </section>
                     ) : null}
 
                     {!canCreate && productSearch.ok && productSearch.products.length === 0 ? (
@@ -405,7 +418,7 @@ function ProductFound({
           </p>
         </div>
         <div className="rounded-lg border border-emerald-500/40 bg-background p-3">
-          <p className="text-xs font-semibold text-muted-foreground">
+          <p className="text-sm font-semibold text-muted-foreground">
             Stock actual
           </p>
           <p className="mt-1 text-xl font-bold">
@@ -437,10 +450,10 @@ function ProductSummary({ product }: { product: ProductListItem }) {
 
   return (
     <div className="min-w-0">
-      <p className="font-mono text-xs font-semibold text-muted-foreground">
+      <p className="font-mono text-sm font-semibold text-muted-foreground">
         Codigo interno: {product.sku}
       </p>
-      <p className="mt-1 text-xs font-bold text-yellow-800">
+      <p className="mt-1 text-sm font-bold text-yellow-800">
         {association.statusLabel}
       </p>
       <p className="mt-1 line-clamp-2 text-lg font-bold">{product.name}</p>

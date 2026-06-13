@@ -54,7 +54,7 @@ export type BarcodeAssociationState =
       message: string;
       primaryBarcode?: string;
       saleUnitName?: string;
-      status: "empty" | "inherited_product_barcode";
+      status: "empty" | "inherited_product_barcode" | "sale_unit_barcode";
       statusLabel: string;
       buttonLabel: string;
     };
@@ -115,13 +115,13 @@ export function getBarcodeAssociationState(
     const saleUnitBarcode = getSaleUnitRealBarcode(saleUnitWithBarcode);
 
     return {
-      canAssign: false,
+      canAssign: true,
       message: `La presentacion ${saleUnitName} tiene codigo: ${saleUnitBarcode}`,
       primaryBarcode: saleUnitBarcode,
       saleUnitName,
       status: "sale_unit_barcode",
       statusLabel: `La presentacion ${saleUnitName} tiene codigo: ${saleUnitBarcode}`,
-      buttonLabel: "Ya tiene codigo de presentacion",
+      buttonLabel: "Asociar codigo de barras principal",
     };
   }
 

@@ -206,7 +206,7 @@ export function ProductsBrowser({
               <input
                 name="codigo"
                 defaultValue={code}
-                placeholder="Ej: 12345 o código de barra"
+                placeholder="Buscar por codigo o nombre"
                 className="h-11 rounded-lg border border-input bg-background px-3 text-base xl:h-14 xl:px-4 xl:text-lg"
               />
             </label>
@@ -218,7 +218,7 @@ export function ProductsBrowser({
                 <input
                   name="nombre"
                   defaultValue={name}
-                  placeholder="Ej: tornillo, pintura, llave"
+                placeholder="Escribir nombre del producto"
                   className="h-11 w-full rounded-lg border border-input bg-background pl-11 pr-3 text-base xl:h-14 xl:pl-12 xl:pr-4 xl:text-lg"
                 />
               </div>

@@ -11,7 +11,6 @@ import {
 } from "@/lib/csv/stock";
 import type { ProductListItem } from "@/components/productos/product-types";
 import {
-  hasNormalizedProductCode,
   hasRealProductBarcode,
   isInheritedProductBarcode,
   normalizeProductCode,
@@ -128,7 +127,14 @@ export type BarcodeMutationResult = {
   ok: boolean;
   message: string;
   product?: ProductListItem;
+  requiresConfirmation?: boolean;
 };
+
+const BARCODE_CONFLICT_MESSAGE =
+  "Este codigo pertenece a otro producto. Revisalo antes de continuar.";
+
+const REPLACE_BARCODE_CONFIRMATION_MESSAGE =
+  "Este producto ya tiene otro codigo de barras. ¿Queres reemplazarlo?";
 
 function errorState(message: string): StockCsvState {
   return {
@@ -290,10 +296,10 @@ async function ensureBarcodeIsFree({
   }
 
   if (result.status === "conflict") {
-    throw new Error("Ese codigo esta duplicado en mas de un producto.");
+    throw new Error(BARCODE_CONFLICT_MESSAGE);
   }
 
-  throw new Error("Ese codigo ya esta usado por otro producto o presentacion.");
+  throw new Error(BARCODE_CONFLICT_MESSAGE);
 }
 
 function stockCsvErrorMessage(message?: string) {
@@ -347,7 +353,7 @@ export async function lookupBarcodeStockAction(
         ok: true,
         status: "not_found",
         code,
-        message: "No hay producto con ese codigo. Buscalo por nombre para asociarlo.",
+        message: "No encontramos un producto con ese codigo.",
       };
     }
 
@@ -356,8 +362,7 @@ export async function lookupBarcodeStockAction(
         ok: false,
         status: "conflict",
         code,
-        message:
-          "Ese codigo aparece en mas de un producto. Revisa el diagnostico antes de vender o cargar stock.",
+        message: BARCODE_CONFLICT_MESSAGE,
         conflictSources: result.conflict_sources,
       };
     }
@@ -501,23 +506,37 @@ export async function assignBarcodeToProductAction({
   code: string;
   productId: string;
 }): Promise<BarcodeMutationResult> {
-  const code = cleanBarcodeCode(rawCode);
+  return updateProductPrimaryBarcodeAction({
+    barcode: rawCode,
+    confirmReplace: false,
+    productId,
+  });
+}
 
-  if (!code || !isUuid(productId)) {
+export async function updateProductPrimaryBarcodeAction({
+  barcode: rawBarcode,
+  confirmReplace = false,
+  productId,
+}: {
+  barcode: string;
+  confirmReplace?: boolean;
+  productId: string;
+}): Promise<BarcodeMutationResult> {
+  const barcode = cleanBarcodeCode(rawBarcode);
+
+  if (!barcode || !isUuid(productId)) {
     return {
       ok: false,
-      message: "Selecciona un producto y un codigo valido.",
+      message: "Selecciona un producto y un codigo de barras valido.",
     };
   }
 
   try {
     const tenant = await requireTenantRole(["owner", "admin"]);
-    await ensureBarcodeIsFree({ code, productId, tenantId: tenant.id });
-
     const supabase = getSupabaseServerClient();
     const { data: current, error: currentError } = await supabase
       .from("products")
-      .select("id,sku,barcode")
+      .select("id,sku,barcode,active")
       .eq("tenant_id", tenant.id)
       .eq("id", productId)
       .eq("active", true)
@@ -526,52 +545,43 @@ export async function assignBarcodeToProductAction({
     if (currentError || !current) {
       return {
         ok: false,
-        message: "No se encontro el producto para asociar.",
+        message: "No se encontro el producto para modificar.",
       };
     }
 
     const currentProduct = current as {
+      id: string;
       barcode: string | null;
       sku: string | null;
     };
-    const saleUnits = await loadSaleUnitsByProductId(tenant.id, productId);
-    const saleUnitWithBarcode = saleUnits.find((unit) =>
-      hasNormalizedProductCode(unit.barcode)
-    );
-
-    if (saleUnitWithBarcode) {
-      return {
-        ok: false,
-        message: `La presentacion ${saleUnitWithBarcode.name} ya tiene codigo: ${saleUnitWithBarcode.barcode}. Revisalo antes de modificar.`,
-      };
-    }
+    await ensureBarcodeIsFree({ code: barcode, productId, tenantId: tenant.id });
 
     const currentBarcode = normalizeProductCode(currentProduct.barcode);
-    const canReplaceInheritedBarcode =
-      !currentBarcode ||
-      isInheritedProductBarcode({
+    const nextBarcode = normalizeProductCode(barcode);
+    const replacingRealBarcode =
+      hasRealProductBarcode({
         barcode: currentProduct.barcode,
         sku: currentProduct.sku,
-      });
+      }) && currentBarcode !== nextBarcode;
 
-    if (!canReplaceInheritedBarcode) {
+    if (replacingRealBarcode && !confirmReplace) {
       return {
         ok: false,
-        message:
-          "Este producto ya tiene otro codigo de barras. Revisalo antes de reemplazarlo.",
+        message: REPLACE_BARCODE_CONFIRMATION_MESSAGE,
+        requiresConfirmation: true,
       };
     }
 
     const { error } = await supabase
       .from("products")
-      .update({ barcode: code })
+      .update({ barcode: nextBarcode })
       .eq("tenant_id", tenant.id)
       .eq("id", productId);
 
     if (error) {
       return {
         ok: false,
-        message: "No se pudo asociar el codigo.",
+        message: "No se pudo guardar el codigo de barras.",
       };
     }
 
@@ -583,7 +593,7 @@ export async function assignBarcodeToProductAction({
 
     return {
       ok: true,
-      message: "Codigo asociado correctamente.",
+      message: "Codigo de barras guardado.",
       product: product ?? undefined,
     };
   } catch (error) {
@@ -597,7 +607,99 @@ export async function assignBarcodeToProductAction({
     return {
       ok: false,
       message:
-        error instanceof Error ? error.message : "No se pudo asociar el codigo.",
+        error instanceof Error
+          ? error.message
+          : "No se pudo guardar el codigo de barras.",
+    };
+  }
+}
+
+export async function removeProductPrimaryBarcodeAction({
+  productId,
+}: {
+  productId: string;
+}): Promise<BarcodeMutationResult> {
+  if (!isUuid(productId)) {
+    return {
+      ok: false,
+      message: "Selecciona un producto valido.",
+    };
+  }
+
+  try {
+    const tenant = await requireTenantRole(["owner", "admin"]);
+    const supabase = getSupabaseServerClient();
+    const { data: current, error: currentError } = await supabase
+      .from("products")
+      .select("id,sku,barcode")
+      .eq("tenant_id", tenant.id)
+      .eq("id", productId)
+      .eq("active", true)
+      .maybeSingle();
+
+    if (currentError || !current) {
+      return {
+        ok: false,
+        message: "No se encontro el producto para modificar.",
+      };
+    }
+
+    const currentProduct = current as {
+      barcode: string | null;
+      sku: string | null;
+    };
+
+    if (
+      currentProduct.barcode &&
+      isInheritedProductBarcode({
+        barcode: currentProduct.barcode,
+        sku: currentProduct.sku,
+      })
+    ) {
+      return {
+        ok: false,
+        message: "Ese valor es el codigo interno heredado.",
+      };
+    }
+
+    const { error } = await supabase
+      .from("products")
+      .update({ barcode: null })
+      .eq("tenant_id", tenant.id)
+      .eq("id", productId);
+
+    if (error) {
+      return {
+        ok: false,
+        message: "No se pudo eliminar el codigo de barras.",
+      };
+    }
+
+    revalidatePath("/stock");
+    revalidatePath("/productos");
+    revalidatePath("/inicio");
+
+    const product = await loadProductForBarcodePanel(tenant.id, productId);
+
+    return {
+      ok: true,
+      message: "Codigo de barras eliminado.",
+      product: product ?? undefined,
+    };
+  } catch (error) {
+    if (isTenantRoleForbiddenError(error)) {
+      return {
+        ok: false,
+        message: FORBIDDEN_ACTION_MESSAGE,
+      };
+    }
+
+    return {
+      ok: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "No se pudo eliminar el codigo de barras.",
     };
   }
 }
