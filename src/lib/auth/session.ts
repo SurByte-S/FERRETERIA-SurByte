@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 
 import {
+  logServerAuthInfo,
   logServerInfo,
   logServerWarn,
 } from "@/lib/server-log";
@@ -99,7 +100,7 @@ export async function getCurrentUser(
     return null;
   }
 
-  logServerInfo("Authenticated user found", {
+  logServerAuthInfo("Authenticated user found", {
     source,
     userId: data.user.id,
     hasEmail: Boolean(data.user.email),

@@ -1,6 +1,13 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useActionState,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useRouter } from "next/navigation";
 import { PackagePlus, Save, X } from "lucide-react";
 
@@ -64,11 +71,19 @@ export function NewProductForm({
     createProductAction,
     initialState
   );
+  const [name, setName] = useState(initialName);
+  const [sku, setSku] = useState(initialSku);
+  const [barcode, setBarcode] = useState(initialBarcode);
+  const [unit, setUnit] = useState("unidad");
+  const [description, setDescription] = useState("");
+  const [active, setActive] = useState(true);
   const [costWithoutTax, setCostWithoutTax] = useState("");
   const [taxRate, setTaxRate] = useState("21");
   const [costWithTax, setCostWithTax] = useState("");
   const [profitMarginPercent, setProfitMarginPercent] = useState("0");
   const [salePrice, setSalePrice] = useState("");
+  const [stockQuantity, setStockQuantity] = useState("0");
+  const [minStock, setMinStock] = useState("0");
   const calculatedCostWithTax = useMemo(() => {
     if (!costWithoutTax.trim()) {
       return null;
@@ -111,6 +126,22 @@ export function NewProductForm({
     }
   }
 
+  const resetFormValues = useCallback(() => {
+    setName(initialName);
+    setSku(initialSku);
+    setBarcode(initialBarcode);
+    setUnit("unidad");
+    setDescription("");
+    setActive(true);
+    setCostWithoutTax("");
+    setTaxRate("21");
+    setCostWithTax("");
+    setProfitMarginPercent("0");
+    setSalePrice("");
+    setStockQuantity("0");
+    setMinStock("0");
+  }, [initialBarcode, initialName, initialSku]);
+
   useEffect(() => {
     onCreatedRef.current = onCreated;
   }, [onCreated]);
@@ -129,17 +160,9 @@ export function NewProductForm({
       router.refresh();
       onCreatedRef.current?.();
 
-      if ((state.stockQuantity ?? 0) <= 0) {
-        return;
-      }
-
       const closeTimeout = window.setTimeout(() => {
         setFormKey((current) => current + 1);
-        setCostWithoutTax("");
-        setTaxRate("21");
-        setCostWithTax("");
-        setProfitMarginPercent("0");
-        setSalePrice("");
+        resetFormValues();
         setOpen(false);
       }, 350);
 
@@ -150,6 +173,7 @@ export function NewProductForm({
     state.barcode,
     state.ok,
     state.productId,
+    resetFormValues,
     state.sku,
     state.stockQuantity,
   ]);
@@ -175,31 +199,45 @@ export function NewProductForm({
 
   const formContent = (
     <form key={formKey} action={formAction} className="grid gap-4">
+      {state.message ? (
+        <FormStatusMessage ok={state.ok} message={state.message} />
+      ) : null}
+
       <section className="grid gap-3 rounded-lg border border-border bg-background p-4">
         <h3 className="text-base font-bold">Datos principales</h3>
         <div className="grid gap-3 md:grid-cols-2">
           <TextField
             label="Nombre"
             name="name"
-            defaultValue={initialName}
+            value={name}
+            onChange={setName}
             required
           />
           <TextField
             label="Codigo interno"
             name="sku"
-            defaultValue={initialSku}
+            value={sku}
+            onChange={setSku}
             required
           />
           <TextField
             label="Codigo de barras principal"
             name="barcode"
-            defaultValue={initialBarcode}
+            value={barcode}
+            onChange={setBarcode}
           />
-          <TextField label="Unidad" name="unit" defaultValue="unidad" />
+          <TextField
+            label="Unidad"
+            name="unit"
+            value={unit}
+            onChange={setUnit}
+          />
           <label className="grid gap-2 text-base font-semibold md:col-span-2">
             <span>Descripcion</span>
             <textarea
               name="description"
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
               rows={3}
               className="rounded-lg border border-input bg-background px-3 py-2 text-base"
             />
@@ -209,7 +247,8 @@ export function NewProductForm({
               type="checkbox"
               name="active"
               value="true"
-              defaultChecked
+              checked={active}
+              onChange={(event) => setActive(event.target.checked)}
               className="size-5"
             />
             Activo
@@ -313,13 +352,15 @@ export function NewProductForm({
           <NumberField
             label="Stock inicial"
             name="stockQuantity"
-            defaultValue="0"
+            value={stockQuantity}
+            onChange={setStockQuantity}
             step="1"
           />
           <NumberField
             label="Stock minimo"
             name="minStock"
-            defaultValue="0"
+            value={minStock}
+            onChange={setMinStock}
             step="1"
           />
         </div>
@@ -338,13 +379,7 @@ export function NewProductForm({
         </Button>
         {state.message ? (
           <div className="flex flex-col gap-2">
-            <p
-              className={`text-base font-semibold ${
-                state.ok ? "text-emerald-700" : "text-destructive"
-              }`}
-            >
-              {state.message}
-            </p>
+            <FormStatusMessage compact ok={state.ok} message={state.message} />
             {state.ok && (state.stockQuantity ?? 0) <= 0 ? (
               <Button
                 type="button"
@@ -379,7 +414,10 @@ export function NewProductForm({
     <>
       <Button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          resetFormValues();
+          setOpen(true);
+        }}
         className="h-12 gap-2 bg-emerald-600 px-4 text-base text-white hover:bg-emerald-700 xl:h-14 xl:px-6 xl:text-lg"
       >
         <PackagePlus className="size-5" aria-hidden="true" />
@@ -419,26 +457,51 @@ export function NewProductForm({
 }
 
 function TextField({
-  defaultValue,
   label,
   name,
+  onChange,
   required = false,
+  value,
 }: {
-  defaultValue?: string;
   label: string;
   name: string;
+  onChange: (value: string) => void;
   required?: boolean;
+  value: string;
 }) {
   return (
     <label className="grid gap-2 text-base font-semibold">
       <span>{label}</span>
       <input
         name={name}
-        defaultValue={defaultValue}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
         required={required}
         className="h-11 rounded-lg border border-input bg-background px-3 text-base"
       />
     </label>
+  );
+}
+
+function FormStatusMessage({
+  compact = false,
+  message,
+  ok,
+}: {
+  compact?: boolean;
+  message: string;
+  ok: boolean;
+}) {
+  return (
+    <p
+      className={
+        ok
+          ? `${compact ? "text-base" : "rounded-lg border border-emerald-500/40 bg-emerald-50 p-3 text-base"} font-semibold text-emerald-700`
+          : `${compact ? "text-base" : "rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-base"} font-semibold text-destructive`
+      }
+    >
+      {message}
+    </p>
   );
 }
 

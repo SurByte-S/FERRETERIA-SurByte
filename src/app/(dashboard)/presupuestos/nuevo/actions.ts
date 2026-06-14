@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { requireUser } from "@/lib/auth/session";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { hasRealProductBarcode, normalizeProductCode } from "@/lib/product-code";
 import { sortProductsBySearchRank } from "@/lib/search-ranking";
@@ -107,6 +108,7 @@ const PAYMENT_METHODS = [
   "Credito",
   "Cuenta corriente",
 ];
+const EPSILON = 0.000001;
 
 const CASH_REGISTER_CLOSED_MESSAGE =
   "Caja cerrada. AbrÃ­ caja antes de registrar ventas.";
@@ -1031,10 +1033,11 @@ export async function saveQuoteAction({
   }
 
   try {
-    const tenant = await requireTenant();
+    const [tenant, user] = await Promise.all([requireTenant(), requireUser()]);
     const supabase = getSupabaseServerClient();
     const { data, error } = await supabase.rpc("create_quote_with_items", {
       input_tenant_id: tenant.id,
+      input_created_by: user.id,
       input_customer_id: customer.id?.trim() || null,
       input_customer_name: customer.name.trim() || null,
       input_customer_phone: customer.phone.trim() || null,
@@ -1088,9 +1091,14 @@ export async function saveQuoteAndConvertToSaleAction({
   customer: QuoteCustomer;
   lines: QuoteLine[];
   paymentMethod: string;
-  paidAmount: number;
+  paidAmount: number | string | null | undefined;
 }): Promise<SaveQuoteResult> {
   const cleanPaymentMethod = paymentMethod.trim();
+  const normalizedPaidAmount =
+    cleanPaymentMethod === "Cuenta corriente" &&
+    (paidAmount === "" || paidAmount === null || paidAmount === undefined)
+      ? 0
+      : Number(paidAmount);
 
   if (!PAYMENT_METHODS.includes(cleanPaymentMethod)) {
     return {
@@ -1099,7 +1107,7 @@ export async function saveQuoteAndConvertToSaleAction({
     };
   }
 
-  if (!Number.isFinite(paidAmount) || paidAmount < 0) {
+  if (!Number.isFinite(normalizedPaidAmount) || normalizedPaidAmount < 0) {
     return {
       ok: false,
       message: "Revisa el monto pagado.",
@@ -1115,9 +1123,40 @@ export async function saveQuoteAndConvertToSaleAction({
     };
   }
 
+  const total = cleanLines.reduce(
+    (sum, line) => sum + Number(line.quantity) * Number(line.price),
+    0
+  );
+
+  if (normalizedPaidAmount - total > EPSILON) {
+    return {
+      ok: false,
+      message: "El monto pagado no puede superar el total.",
+    };
+  }
+
+  if (cleanPaymentMethod === "Cuenta corriente" && !customer.id?.trim()) {
+    return {
+      ok: false,
+      message: "Para vender a cuenta corriente, elegi un cliente.",
+    };
+  }
+
   try {
-    const tenant = await requireTenantRole(["owner", "admin", "seller"]);
+    const [tenant, user] = await Promise.all([
+      requireTenantRole(["owner", "admin", "seller"]),
+      requireUser(),
+    ]);
     const supabase = getSupabaseServerClient();
+
+    console.info("[sale-payload-diagnostic]", {
+      source: "saveQuoteAndConvertToSaleAction",
+      paymentMethod: cleanPaymentMethod,
+      rawPaidAmount: paidAmount,
+      normalizedPaidAmount,
+      total,
+      customerId: customer.id?.trim() || null,
+    });
 
     if (!(await hasOpenCashRegister(tenant.id, supabase))) {
       return {
@@ -1130,6 +1169,7 @@ export async function saveQuoteAndConvertToSaleAction({
       "create_quote_with_items",
       {
         input_tenant_id: tenant.id,
+        input_created_by: user.id,
         input_customer_id: customer.id?.trim() || null,
         input_customer_name: customer.name.trim() || null,
         input_customer_phone: customer.phone.trim() || null,
@@ -1158,9 +1198,10 @@ export async function saveQuoteAndConvertToSaleAction({
       {
         input_quote_id: quoteId,
         input_tenant_id: tenant.id,
+        input_created_by: user.id,
         input_customer_id: customer.id?.trim() || null,
         input_payment_method: cleanPaymentMethod,
-        input_paid_amount: paidAmount,
+        input_paid_amount: normalizedPaidAmount,
       }
     );
 

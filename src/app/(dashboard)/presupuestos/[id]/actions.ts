@@ -17,6 +17,7 @@ const PAYMENT_METHODS = [
   "Credito",
   "Cuenta corriente",
 ];
+const EPSILON = 0.000001;
 
 const CASH_REGISTER_CLOSED_MESSAGE =
   "Caja cerrada. Abrí caja antes de registrar ventas.";
@@ -86,9 +87,14 @@ export async function convertQuoteToSaleAction({
   quoteId: string;
   customerId?: string;
   paymentMethod: string;
-  paidAmount: number;
+  paidAmount: number | string | null | undefined;
 }) {
   const cleanPaymentMethod = paymentMethod.trim();
+  const normalizedPaidAmount =
+    cleanPaymentMethod === "Cuenta corriente" &&
+    (paidAmount === "" || paidAmount === null || paidAmount === undefined)
+      ? 0
+      : Number(paidAmount);
 
   if (!PAYMENT_METHODS.includes(cleanPaymentMethod)) {
     return {
@@ -97,22 +103,66 @@ export async function convertQuoteToSaleAction({
     };
   }
 
-  if (!Number.isFinite(paidAmount) || paidAmount < 0) {
+  if (!Number.isFinite(normalizedPaidAmount) || normalizedPaidAmount < 0) {
     return {
       ok: false,
       message: "El monto pagado no puede ser negativo.",
     };
   }
 
+  if (cleanPaymentMethod === "Cuenta corriente" && !customerId?.trim()) {
+    return {
+      ok: false,
+      message: "Para vender a cuenta corriente, elegi un cliente.",
+    };
+  }
+
   try {
-    const tenant = await requireTenantRole(["owner", "admin", "seller"]);
+    const [tenant, user] = await Promise.all([
+      requireTenantRole(["owner", "admin", "seller"]),
+      requireUser(),
+    ]);
     const supabase = getSupabaseServerClient();
+    const { data: quote, error: quoteError } = await supabase
+      .from("quotes")
+      .select("total")
+      .eq("tenant_id", tenant.id)
+      .eq("id", quoteId)
+      .is("deleted_at", null)
+      .maybeSingle();
+
+    if (quoteError || !quote) {
+      return {
+        ok: false,
+        message: "No se encontro el presupuesto.",
+      };
+    }
+
+    const total = Number((quote as { total: number }).total ?? 0);
+
+    if (normalizedPaidAmount - total > EPSILON) {
+      return {
+        ok: false,
+        message: "El monto pagado no puede superar el total.",
+      };
+    }
+
+    console.info("[sale-payload-diagnostic]", {
+      source: "convertQuoteToSaleAction",
+      paymentMethod: cleanPaymentMethod,
+      rawPaidAmount: paidAmount,
+      normalizedPaidAmount,
+      total,
+      customerId: customerId?.trim() || null,
+    });
+
     const { data, error } = await supabase.rpc("convert_quote_to_sale", {
       input_quote_id: quoteId,
       input_tenant_id: tenant.id,
+      input_created_by: user.id,
       input_customer_id: customerId?.trim() || null,
       input_payment_method: cleanPaymentMethod,
-      input_paid_amount: paidAmount,
+      input_paid_amount: normalizedPaidAmount,
     });
 
     if (error || !data) {

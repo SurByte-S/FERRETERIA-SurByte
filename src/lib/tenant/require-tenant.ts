@@ -2,8 +2,8 @@ import { redirect } from "next/navigation";
 
 import { requireUser } from "@/lib/auth/session";
 import {
+  logServerAuthInfo,
   logServerError,
-  logServerInfo,
   logServerWarn,
 } from "@/lib/server-log";
 import { getSupabaseServerClient } from "@/lib/supabase";
@@ -89,7 +89,7 @@ export async function requireTenant(
     redirect("/sin-ferreteria?reason=tenant");
   }
 
-  logServerInfo("Tenant found", {
+  logServerAuthInfo("Tenant found", {
     source,
     userId: user.id,
     tenantId: tenant.id,

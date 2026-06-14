@@ -10,6 +10,14 @@ export function logServerInfo(message: string, context?: LogContext) {
   console.info(`[server] ${message}`, cleanContext(context));
 }
 
+export function logServerAuthInfo(message: string, context?: LogContext) {
+  if (process.env.DEBUG_AUTH !== "1") {
+    return;
+  }
+
+  logServerInfo(message, context);
+}
+
 export function logServerWarn(message: string, context?: LogContext) {
   console.warn(`[server] ${message}`, cleanContext(context));
 }

@@ -57,18 +57,19 @@ function formatDate(value: string | null) {
 
 function summarizeSales(sales: SaleRow[]) {
   const totalSold = sales.reduce((sum, sale) => sum + Number(sale.total ?? 0), 0);
-  const expectedCashSales = sales
-    .filter((sale) => sale.payment_method === "Efectivo")
-    .reduce((sum, sale) => sum + Number(sale.paid_amount ?? 0), 0);
+  const collectedSales = sales.reduce(
+    (sum, sale) => sum + Number(sale.paid_amount ?? 0),
+    0
+  );
   const totalsByMethod = sales.reduce<Record<string, number>>((acc, sale) => {
     const method = sale.payment_method ?? "Sin forma de pago";
-    acc[method] = (acc[method] ?? 0) + Number(sale.total ?? 0);
+    acc[method] = (acc[method] ?? 0) + Number(sale.paid_amount ?? 0);
     return acc;
   }, {});
 
   return {
     totalSold,
-    expectedCashSales,
+    collectedSales,
     totalsByMethod,
     salesCount: sales.length,
   };
@@ -109,7 +110,7 @@ export default async function CajaPage() {
   const sales = (salesResult.data ?? []) as unknown as SaleRow[];
   const summary = summarizeSales(sales);
   const expectedCash = openSession
-    ? Number(openSession.opening_amount) + summary.expectedCashSales
+    ? Number(openSession.opening_amount) + summary.collectedSales
     : 0;
 
   return (
@@ -169,7 +170,7 @@ export default async function CajaPage() {
                 tone="ledger"
               />
               <Metric
-                label="Efectivo esperado"
+                label="Cobrado esperado"
                 value={formatMoney(expectedCash)}
                 tone="cash"
               />
@@ -198,11 +199,11 @@ export default async function CajaPage() {
                     value={formatMoney(openSession.opening_amount)}
                   />
                   <LedgerLine
-                    label="Ventas en efectivo"
-                    value={formatMoney(summary.expectedCashSales)}
+                    label="Cobrado en ventas"
+                    value={formatMoney(summary.collectedSales)}
                   />
                   <LedgerLine
-                    label="Debe haber en caja"
+                    label="Debe haber registrado"
                     value={formatMoney(expectedCash)}
                     highlight
                   />
@@ -243,7 +244,7 @@ export default async function CajaPage() {
                   <div className="grid grid-cols-[minmax(0,1fr)_minmax(140px,220px)] border-b-2 border-border bg-muted text-base font-bold text-foreground">
                     <div className="px-4 py-3">Forma de pago</div>
                     <div className="border-l border-border px-4 py-3 text-right">
-                      Total
+                      Cobrado
                     </div>
                   </div>
                   {Object.entries(summary.totalsByMethod).map(([method, total]) => (

@@ -12,7 +12,6 @@ type CashSessionRow = {
 
 type SaleRow = {
   paid_amount: number;
-  payment_method: string | null;
 };
 
 export default async function InicioPage({
@@ -90,7 +89,7 @@ async function loadCashStatus(
 
     const salesResult = await supabase
       .from("sales")
-      .select("paid_amount,payment_method")
+      .select("paid_amount")
       .eq("tenant_id", tenantId)
       .eq("cash_session_id", session.id);
 
@@ -103,14 +102,15 @@ async function loadCashStatus(
     }
 
     const sales = (salesResult.data ?? []) as unknown as SaleRow[];
-    const cashSales = sales
-      .filter((sale) => sale.payment_method === "Efectivo")
-      .reduce((sum, sale) => sum + Number(sale.paid_amount ?? 0), 0);
+    const collectedSales = sales.reduce(
+      (sum, sale) => sum + Number(sale.paid_amount ?? 0),
+      0
+    );
 
     return {
       open: true,
       openedAt: session.opened_at,
-      expectedCash: Number(session.opening_amount ?? 0) + cashSales,
+      expectedCash: Number(session.opening_amount ?? 0) + collectedSales,
     };
   } catch (error) {
     logServerWarn("Unexpected cash status error", {

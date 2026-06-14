@@ -247,6 +247,20 @@ export function BarcodeStockPanel({
                   ) : null}
                 </section>
 
+                {canCreate ? (
+                  <div className="flex justify-start">
+                    <NewProductForm
+                      brands={brands}
+                      canCreate={canCreate}
+                      initialBarcode={code}
+                      initialSku={code}
+                      onCreated={() => runBarcodeLookup(code)}
+                      suppliers={suppliers}
+                      triggerLabel="Agregar producto nuevo"
+                    />
+                  </div>
+                ) : null}
+
                 {selectedProduct ? (
                   <ProductFound
                     key={selectedProduct.id}
@@ -335,27 +349,6 @@ export function BarcodeStockPanel({
                           );
                         })}
                       </div>
-                    ) : null}
-
-                    {canCreate && productSearch.ok && productSearch.products.length === 0 ? (
-                      <section className="grid gap-3 rounded-lg border border-border bg-muted/20 p-3">
-                        <div>
-                          <h3 className="text-lg font-bold">
-                            Crear producto nuevo
-                          </h3>
-                        </div>
-                        <NewProductForm
-                          brands={brands}
-                          canCreate={canCreate}
-                          embedded
-                          initialBarcode={code}
-                          initialName={nameSearch}
-                          initialSku={code}
-                          onCreated={() => runBarcodeLookup(code)}
-                          suppliers={suppliers}
-                          triggerLabel="Crear producto nuevo"
-                        />
-                      </section>
                     ) : null}
 
                     {!canCreate && productSearch.ok && productSearch.products.length === 0 ? (

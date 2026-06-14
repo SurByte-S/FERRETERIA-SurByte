@@ -15,6 +15,7 @@ const PAYMENT_METHODS = [
   "Credito",
   "Cuenta corriente",
 ];
+const EPSILON = 0.000001;
 
 type StockWarning = {
   name: string;
@@ -73,12 +74,33 @@ export function ConvertQuoteButton({
   const [paidAmount, setPaidAmount] = useState(String(total));
   const [message, setMessage] = useState("");
   const [pending, startTransition] = useTransition();
+  const isCreditSale = paymentMethod === "Cuenta corriente";
+  const paidAmountValue = Number(paidAmount);
+  const pendingAmount =
+    Number.isFinite(paidAmountValue) && paidAmountValue >= 0
+      ? Math.max(total - paidAmountValue, 0)
+      : total;
+
+  function changePaymentMethod(nextPaymentMethod: string) {
+    setPaymentMethod(nextPaymentMethod);
+    setPaidAmount(nextPaymentMethod === "Cuenta corriente" ? "0" : String(total));
+  }
 
   function convert() {
     const amount = Number(paidAmount);
 
     if (!Number.isFinite(amount) || amount < 0) {
       setMessage("Revisa el monto pagado.");
+      return;
+    }
+
+    if (amount - total > EPSILON) {
+      setMessage("El monto pagado no puede superar el total.");
+      return;
+    }
+
+    if (paymentMethod === "Cuenta corriente" && !customerId) {
+      setMessage("Para vender a cuenta corriente, elegi un cliente.");
       return;
     }
 
@@ -135,7 +157,7 @@ export function ConvertQuoteButton({
           <span>Forma de pago</span>
           <select
             value={paymentMethod}
-            onChange={(event) => setPaymentMethod(event.target.value)}
+            onChange={(event) => changePaymentMethod(event.target.value)}
             disabled={disabled || pending}
             className="h-11 w-full rounded-lg border border-input bg-background px-3 text-base"
           >
@@ -155,6 +177,7 @@ export function ConvertQuoteButton({
             disabled={disabled || pending}
             type="number"
             min="0"
+            max={total}
             step="0.01"
             className="h-11 w-full rounded-lg border border-input bg-background px-3 text-base"
           />
@@ -171,9 +194,9 @@ export function ConvertQuoteButton({
         </Button>
       </div>
 
-      {paymentMethod === "Cuenta corriente" ? (
+      {isCreditSale ? (
         <p className="rounded-lg border border-yellow-500/40 bg-yellow-50 p-3 text-sm font-semibold text-yellow-900">
-          Esta venta queda anotada en cuenta corriente.
+          Saldo a cuenta: {formatMoney(pendingAmount)}.
         </p>
       ) : null}
       {stockWarnings.length > 0 ? (

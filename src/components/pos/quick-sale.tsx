@@ -220,6 +220,13 @@ export function QuickSale({
   const groupedStockIssue = useMemo(() => findGroupedStockIssue(lines), [lines]);
   const isQuoteMode = mode === "quote";
   const isCashRegisterClosed = !isQuoteMode && cashStatus?.open === false;
+  const isCreditSale = paymentMethod === "Cuenta corriente";
+  const paidAmountValue =
+    paidAmount === "" ? (isCreditSale ? 0 : total) : Number(paidAmount);
+  const pendingAmount =
+    Number.isFinite(paidAmountValue) && paidAmountValue >= 0
+      ? Math.max(total - paidAmountValue, 0)
+      : total;
   const modeHelp = isQuoteMode
     ? "Buscá productos del catálogo, aunque no tengan stock."
     : "Buscá productos con stock para vender.";
@@ -305,6 +312,11 @@ export function QuickSale({
       email: selected.email ?? "",
       address: selected.address ?? "",
     });
+  }
+
+  function changePaymentMethod(nextPaymentMethod: string) {
+    setPaymentMethod(nextPaymentMethod);
+    setPaidAmount(nextPaymentMethod === "Cuenta corriente" ? "0" : "");
   }
 
   function handleSearchChange(value: string) {
@@ -509,10 +521,26 @@ export function QuickSale({
       return;
     }
 
-    const amount = Number(paidAmount || total);
+    const amount = Number(
+      paidAmount === ""
+        ? paymentMethod === "Cuenta corriente"
+          ? 0
+          : total
+        : paidAmount
+    );
 
     if (!Number.isFinite(amount) || amount < 0) {
       setMessage("Revisa el monto pagado.");
+      return;
+    }
+
+    if (amount - total > EPSILON) {
+      setMessage("El importe pagado no puede superar el total.");
+      return;
+    }
+
+    if (paymentMethod === "Cuenta corriente" && !customer.id) {
+      setMessage("Para vender a cuenta corriente, elegi un cliente guardado.");
       return;
     }
 
@@ -804,7 +832,7 @@ export function QuickSale({
                 <Field label="Pago">
                   <select
                     value={paymentMethod}
-                    onChange={(event) => setPaymentMethod(event.target.value)}
+                    onChange={(event) => changePaymentMethod(event.target.value)}
                     className="h-10 rounded-lg border border-input bg-card px-3 text-sm"
                   >
                     {PAYMENT_METHODS.map((method) => (
@@ -816,14 +844,26 @@ export function QuickSale({
                 </Field>
                 <Field label="Monto pagado">
                   <input
-                    value={paidAmount || String(total)}
+                    value={paidAmount}
                     onChange={(event) => setPaidAmount(event.target.value)}
                     type="number"
                     min="0"
+                    max={total}
                     step="0.01"
                     className="h-10 rounded-lg border border-input bg-card px-3 text-sm"
                   />
                 </Field>
+              </div>
+            ) : null}
+
+            {!isQuoteMode && isCreditSale ? (
+              <div className="rounded-lg border border-border bg-card p-3">
+                <p className="text-sm font-semibold text-muted-foreground">
+                  Saldo a cuenta
+                </p>
+                <p className="text-xl font-bold text-primary">
+                  {formatMoney(pendingAmount)}
+                </p>
               </div>
             ) : null}
 

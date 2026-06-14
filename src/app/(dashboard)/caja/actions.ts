@@ -129,12 +129,11 @@ export async function closeCashSessionAction(
       };
     }
 
-    const { data: cashSales, error: salesError } = await supabase
+    const { data: collectedSales, error: salesError } = await supabase
       .from("sales")
       .select("paid_amount")
       .eq("tenant_id", tenant.id)
-      .eq("cash_session_id", sessionId)
-      .eq("payment_method", "Efectivo");
+      .eq("cash_session_id", sessionId);
 
     if (salesError) {
       return {
@@ -146,11 +145,10 @@ export async function closeCashSessionAction(
     const openingAmount = Number(
       (session as { opening_amount: number }).opening_amount
     );
-    const cashSalesTotal = ((cashSales ?? []) as { paid_amount: number }[]).reduce(
-      (sum, sale) => sum + Number(sale.paid_amount ?? 0),
-      0
-    );
-    const expectedAmount = openingAmount + cashSalesTotal;
+    const collectedSalesTotal = (
+      (collectedSales ?? []) as { paid_amount: number }[]
+    ).reduce((sum, sale) => sum + Number(sale.paid_amount ?? 0), 0);
+    const expectedAmount = openingAmount + collectedSalesTotal;
     const differenceAmount = countedAmount - expectedAmount;
     const { error } = await supabase
       .from("cash_register_sessions")

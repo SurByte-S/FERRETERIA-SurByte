@@ -392,48 +392,77 @@ function stockErrorMessage(message?: string) {
 }
 
 function createProductErrorMessage(message?: string) {
-  if (message?.includes("PRODUCT_NAME_REQUIRED")) {
+  const cleanMessage = String(message ?? "");
+  const normalizedMessage = cleanMessage.toLowerCase();
+
+  if (cleanMessage.includes("PRODUCT_NAME_REQUIRED")) {
     return "El nombre es obligatorio.";
   }
 
-  if (message?.includes("PRODUCT_SKU_REQUIRED")) {
+  if (cleanMessage.includes("PRODUCT_SKU_REQUIRED")) {
     return "El SKU o codigo interno es obligatorio.";
   }
 
-  if (message?.includes("PRODUCT_SKU_CONFLICT")) {
-    return "Ya existe un producto o presentacion con ese SKU.";
+  if (
+    cleanMessage.includes("PRODUCT_SKU_CONFLICT") ||
+    normalizedMessage.includes("products_tenant_id_sku_key") ||
+    normalizedMessage.includes("products_tenant_id_sku")
+  ) {
+    return "Ya existe un producto con ese codigo interno.";
   }
 
-  if (message?.includes("PRODUCT_BARCODE_CONFLICT")) {
-    return "Ya existe un producto o presentacion con ese codigo de barras.";
+  if (cleanMessage.includes("PRODUCT_BARCODE_CONFLICT")) {
+    return "Ya existe un producto con ese codigo de barras.";
   }
 
-  if (message?.includes("PRODUCT_SALE_UNIT_BARCODE_DUPLICATE")) {
+  if (cleanMessage.includes("PRODUCT_SALE_UNIT_BARCODE_DUPLICATE")) {
     return "Hay presentaciones con el mismo codigo de barras.";
   }
 
-  if (message?.includes("PRODUCT_SALE_UNIT_BARCODE_CONFLICT")) {
+  if (
+    cleanMessage.includes("PRODUCT_SALE_UNIT_BARCODE_CONFLICT") ||
+    normalizedMessage.includes("product_sale_units") &&
+      normalizedMessage.includes("barcode")
+  ) {
     return "Un codigo de presentacion ya esta usado por otro producto.";
   }
 
-  if (message?.includes("PRODUCT_BRAND_INVALID")) {
+  if (
+    normalizedMessage.includes("product_sale_units_tenant_product_name_unique")
+  ) {
+    return "Hay presentaciones de venta con el mismo nombre.";
+  }
+
+  if (cleanMessage.includes("PRODUCT_BRAND_INVALID")) {
     return "La marca no pertenece a esta ferreteria.";
   }
 
-  if (message?.includes("PRODUCT_SUPPLIER_INVALID")) {
+  if (cleanMessage.includes("PRODUCT_SUPPLIER_INVALID")) {
     return "El proveedor no pertenece a esta ferreteria.";
   }
 
-  if (message?.includes("PRODUCT_NUMERIC_INVALID")) {
+  if (cleanMessage.includes("PRODUCT_NUMERIC_INVALID")) {
     return "Revisa precios y stock. No pueden ser negativos.";
   }
 
-  if (message?.includes("PRODUCT_SALE_UNITS_INVALID")) {
+  if (cleanMessage.includes("PRODUCT_SALE_UNITS_INVALID")) {
     return "Revisa las presentaciones de venta.";
   }
 
-  if (message?.includes("Could not find the function")) {
+  if (
+    cleanMessage.includes("TENANT_FORBIDDEN") ||
+    normalizedMessage.includes("permission denied") ||
+    normalizedMessage.includes("not authorized")
+  ) {
+    return FORBIDDEN_ACTION_MESSAGE;
+  }
+
+  if (cleanMessage.includes("Could not find the function")) {
     return "Falta aplicar la migracion 021 de stock y codigos.";
+  }
+
+  if (cleanMessage && !normalizedMessage.includes("duplicate key value")) {
+    return `No se pudo crear el producto. ${cleanMessage}`;
   }
 
   return "No se pudo crear el producto.";
@@ -927,9 +956,17 @@ export async function createProductAction(
     });
 
     if (error || !productId) {
+      const errorMessage = [
+        error?.message,
+        error?.details,
+        error?.hint,
+      ]
+        .filter(Boolean)
+        .join(" ");
+
       return {
         ok: false,
-        message: createProductErrorMessage(error?.message),
+        message: createProductErrorMessage(errorMessage),
       };
     }
 
