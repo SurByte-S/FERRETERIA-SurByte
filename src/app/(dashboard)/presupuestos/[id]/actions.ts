@@ -317,7 +317,6 @@ export async function deleteQuoteAction(
     }
 
     revalidatePath("/presupuestos");
-    revalidatePath(`/presupuestos/${quoteId}`);
 
     return {
       ok: true,

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Eye, Printer, ShoppingCart } from "lucide-react";
 
+import { DeleteQuoteButton } from "@/components/presupuestos/delete-quote-button";
 import { PageHeader } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
 import {
@@ -59,6 +60,7 @@ export default async function PresupuestosPage() {
     .order("created_at", { ascending: false })
     .limit(100);
   const quotes = ((data ?? []) as unknown as QuoteRow[]);
+  const canDeleteQuotes = tenant.role === "owner" || tenant.role === "admin";
 
   return (
     <>
@@ -170,6 +172,14 @@ export default async function PresupuestosPage() {
                             Imprimir
                           </Link>
                         </Button>
+                        {canDeleteQuotes ? (
+                          <DeleteQuoteButton
+                            quoteId={quote.id}
+                            isConverted={quote.status === "converted"}
+                            label="Eliminar"
+                            className="h-12 min-w-28 px-4 text-base"
+                          />
+                        ) : null}
                       </div>
                     </td>
                   </tr>
@@ -210,6 +220,14 @@ export default async function PresupuestosPage() {
                       Imprimir
                     </Link>
                   </Button>
+                  {canDeleteQuotes ? (
+                    <DeleteQuoteButton
+                      quoteId={quote.id}
+                      isConverted={quote.status === "converted"}
+                      label="Eliminar"
+                      className="h-12 min-w-[140px] px-3 text-base"
+                    />
+                  ) : null}
                 </div>
               </CardContent>
             </Card>

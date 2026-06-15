@@ -369,12 +369,14 @@ export function QuickSalePos({
             },
           ]
     );
-    setSearch("");
-    setResults([]);
-    setResultsTotal(0);
-    setPage(1);
-    setSearchStatus("idle");
-    latestSearchRequestRef.current += 1;
+    if (!isQuoteMode) {
+      setSearch("");
+      setResults([]);
+      setResultsTotal(0);
+      setPage(1);
+      setSearchStatus("idle");
+      latestSearchRequestRef.current += 1;
+    }
     setMessage(
       isQuoteMode ? "Producto agregado al presupuesto." : "Producto agregado a la venta."
     );

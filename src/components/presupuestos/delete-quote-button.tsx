@@ -7,6 +7,7 @@ import { Trash2 } from "lucide-react";
 import { deleteQuoteAction } from "@/app/(dashboard)/presupuestos/[id]/actions";
 import { DeleteConfirmDialog } from "@/components/common/delete-confirm-dialog";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 const initialState = {
   ok: false,
@@ -14,10 +15,14 @@ const initialState = {
 };
 
 export function DeleteQuoteButton({
+  className,
   isConverted,
+  label = "Eliminar presupuesto",
   quoteId,
 }: {
+  className?: string;
   isConverted: boolean;
+  label?: string;
   quoteId: string;
 }) {
   const router = useRouter();
@@ -29,7 +34,7 @@ export function DeleteQuoteButton({
 
   useEffect(() => {
     if (state.ok) {
-      router.push("/presupuestos");
+      router.replace("/presupuestos");
       router.refresh();
     }
   }, [router, state.ok]);
@@ -40,10 +45,13 @@ export function DeleteQuoteButton({
         type="button"
         variant="destructive"
         onClick={() => setOpen(true)}
-        className="h-11 gap-2 bg-red-600 px-4 text-base text-white hover:bg-red-700 focus-visible:ring-red-500"
+        className={cn(
+          "h-11 gap-2 bg-red-600 px-4 text-base text-white hover:bg-red-700 focus-visible:ring-red-500",
+          className
+        )}
       >
         <Trash2 className="size-5" aria-hidden="true" />
-        Eliminar presupuesto
+        {label}
       </Button>
 
       {state.message && !state.ok ? (
