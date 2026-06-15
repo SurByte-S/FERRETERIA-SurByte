@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { isRedirectError } from "next/dist/client/components/redirect-error";
 
 import { requireUser } from "@/lib/auth/session";
 import { normalizeName, parseBoolean } from "@/lib/csv/productos";
@@ -547,6 +548,10 @@ export async function createBrandAction(
       name: (data as { id: string; name: string }).name,
     };
   } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+
     if (isTenantRoleForbiddenError(error)) {
       return {
         ok: false,
@@ -607,6 +612,10 @@ export async function createSupplierAction(
       name: (data as { id: string; name: string }).name,
     };
   } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+
     if (isTenantRoleForbiddenError(error)) {
       return {
         ok: false,
@@ -986,6 +995,10 @@ export async function createProductAction(
       stockQuantity: cleanStockQuantity,
     };
   } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+
     if (isTenantRoleForbiddenError(error)) {
       return {
         ok: false,
