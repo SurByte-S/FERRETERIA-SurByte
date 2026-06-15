@@ -30,6 +30,13 @@ type DeleteQuoteActionResult = {
   message: string;
 };
 
+type SupabaseActionError = {
+  code?: string;
+  details?: string;
+  hint?: string;
+  message?: string;
+};
+
 function getConvertErrorMessage(message?: string) {
   if (!message) {
     return "No se pudo convertir el presupuesto en venta.";
@@ -199,6 +206,43 @@ export async function convertQuoteToSaleAction({
   }
 }
 
+function getDeleteQuoteErrorMessage(error?: SupabaseActionError | null) {
+  if (!error) {
+    return "No se pudo eliminar el presupuesto.";
+  }
+
+  const rawMessage = [
+    error.code,
+    error.message,
+    error.details,
+    error.hint,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const normalized = rawMessage.toLowerCase();
+
+  if (
+    normalized.includes("permission denied") ||
+    normalized.includes("row-level security") ||
+    normalized.includes("42501")
+  ) {
+    return "No tenes permiso para eliminar presupuestos.";
+  }
+
+  if (
+    normalized.includes("invalid input syntax for type uuid") ||
+    normalized.includes("22p02")
+  ) {
+    return "El identificador del presupuesto no es valido.";
+  }
+
+  if (error.message) {
+    return `No se pudo eliminar el presupuesto: ${error.message}`;
+  }
+
+  return "No se pudo eliminar el presupuesto.";
+}
+
 export async function deleteQuoteAction(
   _previousState: DeleteQuoteActionResult,
   formData: FormData
@@ -220,16 +264,15 @@ export async function deleteQuoteAction(
     const supabase = getSupabaseServerClient();
     const { data: quote, error: quoteError } = await supabase
       .from("quotes")
-      .select("id")
+      .select("id,status,deleted_at")
       .eq("tenant_id", tenant.id)
       .eq("id", quoteId)
-      .is("deleted_at", null)
       .maybeSingle();
 
     if (quoteError) {
       return {
         ok: false,
-        message: "No se pudo validar el presupuesto.",
+        message: getDeleteQuoteErrorMessage(quoteError),
       };
     }
 
@@ -240,19 +283,36 @@ export async function deleteQuoteAction(
       };
     }
 
-    const { error } = await supabase
+    if ((quote as { deleted_at: string | null }).deleted_at) {
+      return {
+        ok: false,
+        message: "Este presupuesto ya fue eliminado.",
+      };
+    }
+
+    const { data: deletedQuote, error } = await supabase
       .from("quotes")
       .update({
         deleted_at: new Date().toISOString(),
         deleted_by: user.id,
       })
       .eq("tenant_id", tenant.id)
-      .eq("id", quoteId);
+      .eq("id", quoteId)
+      .is("deleted_at", null)
+      .select("id")
+      .maybeSingle();
 
     if (error) {
       return {
         ok: false,
-        message: "No se pudo eliminar el presupuesto.",
+        message: getDeleteQuoteErrorMessage(error),
+      };
+    }
+
+    if (!deletedQuote) {
+      return {
+        ok: false,
+        message: "Este presupuesto ya no esta disponible para eliminar.",
       };
     }
 
@@ -267,7 +327,7 @@ export async function deleteQuoteAction(
     if (isTenantRoleForbiddenError(error)) {
       return {
         ok: false,
-        message: FORBIDDEN_ACTION_MESSAGE,
+        message: "No tenes permiso para eliminar presupuestos.",
       };
     }
 

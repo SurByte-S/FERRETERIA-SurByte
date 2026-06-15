@@ -69,6 +69,11 @@ export function DeleteQuoteButton({
             presupuesto; la venta asociada se conserva.
           </p>
         ) : null}
+        {state.message && !state.ok ? (
+          <p className="mt-3 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm font-semibold text-destructive">
+            {state.message}
+          </p>
+        ) : null}
       </DeleteConfirmDialog>
     </>
   );

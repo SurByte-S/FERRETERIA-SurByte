@@ -323,7 +323,7 @@ export function QuickSalePos({
       getProductBaseConsumption(linesRef.current, product.id) +
       selectedSaleUnit.quantityInBaseUnit;
 
-    if (nextConsumption - product.stockQuantity > EPSILON) {
+    if (!isQuoteMode && nextConsumption - product.stockQuantity > EPSILON) {
       setMessage(
         getGroupedStockMessage({
           productName: product.name || product.description,
@@ -375,9 +375,11 @@ export function QuickSalePos({
     setPage(1);
     setSearchStatus("idle");
     latestSearchRequestRef.current += 1;
-    setMessage("Producto agregado a la venta.");
+    setMessage(
+      isQuoteMode ? "Producto agregado al presupuesto." : "Producto agregado a la venta."
+    );
     window.setTimeout(() => searchInputRef.current?.focus(), 0);
-  }, []);
+  }, [isQuoteMode]);
 
   useEffect(() => {
     if (!initialSku) {
@@ -534,7 +536,7 @@ export function QuickSalePos({
       getProductBaseConsumption(lines, selectedLine.id) +
       selectedLine.quantityInBaseUnit;
 
-    if (nextConsumption - selectedLine.stockQuantity > EPSILON) {
+    if (!isQuoteMode && nextConsumption - selectedLine.stockQuantity > EPSILON) {
       setMessage(
         getGroupedStockMessage({
           productName: selectedLine.name || selectedLine.description,
@@ -834,6 +836,7 @@ export function QuickSalePos({
                     <ProductRow
                       key={product.id}
                       product={product}
+                      isQuoteMode={isQuoteMode}
                       onAdd={(saleUnit) => addProduct(product, saleUnit)}
                     />
                   ))}
@@ -1227,9 +1230,11 @@ function ModeButton({
 }
 
 function ProductRow({
+  isQuoteMode,
   product,
   onAdd,
 }: {
+  isQuoteMode: boolean;
   product: QuoteProduct;
   onAdd: (saleUnit: ProductSaleUnit) => void;
 }) {
@@ -1239,6 +1244,8 @@ function ProductRow({
     product.saleUnits.find((unit) => unit.id === selectedSaleUnitId) ??
     defaultSaleUnit;
   const codeDisplay = getCodeDisplay(product, selectedSaleUnit);
+  const isOutOfStock = !product.availableForSale;
+  const canAddProduct = isQuoteMode || product.availableForSale;
 
   return (
     <div className="grid gap-2 rounded-md border border-border bg-card p-2 shadow-sm md:grid-cols-[minmax(0,1fr)_9.6rem_6.3rem_7.2rem_7.2rem] md:items-center">
@@ -1279,10 +1286,15 @@ function ProductRow({
           ))}
         </select>
       </label>
-      <InfoBlock
-        label="Stock"
-        value={`${formatStockQuantity(product.stockQuantity)} ${product.unit}`}
-      />
+      <div>
+        <InfoBlock
+          label="Stock"
+          value={`${formatStockQuantity(product.stockQuantity)} ${product.unit}`}
+        />
+        {isOutOfStock ? (
+          <p className="text-sm font-black text-yellow-700">Sin stock</p>
+        ) : null}
+      </div>
       <div>
         <p className="text-sm font-bold text-muted-foreground">Precio</p>
         <p className="text-lg font-black text-primary">
@@ -1292,10 +1304,10 @@ function ProductRow({
       <Button
         type="button"
         onClick={() => onAdd(selectedSaleUnit)}
-        disabled={!product.availableForSale}
+        disabled={!canAddProduct}
         className="h-10 px-3 text-base font-black"
       >
-        {product.availableForSale ? "Agregar" : "Sin stock"}
+        {canAddProduct ? "Agregar" : "Sin stock"}
       </Button>
     </div>
   );
