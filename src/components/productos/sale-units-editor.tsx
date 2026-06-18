@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -39,10 +39,12 @@ function normalizeUnits(units: ProductSaleUnit[], fallbackPrice: number | null) 
 export function SaleUnitsEditor({
   fallbackPrice,
   inputName = "saleUnits",
+  onUnitsChange,
   saleUnits = [],
 }: {
   fallbackPrice: number | null;
   inputName?: string;
+  onUnitsChange?: (units: ProductSaleUnit[]) => void;
   saleUnits?: ProductSaleUnit[];
 }) {
   const [units, setUnits] = useState<EditableSaleUnit[]>(() =>
@@ -64,6 +66,23 @@ export function SaleUnitsEditor({
     [units]
   );
   const activeUnits = units.filter((unit) => unit.active);
+  const publicUnits = useMemo(
+    () =>
+      units.map((unit) => ({
+        id: unit.id,
+        name: unit.name,
+        quantityInBaseUnit: unit.quantityInBaseUnit,
+        salePrice: unit.salePrice,
+        barcode: unit.barcode,
+        isDefault: unit.isDefault,
+        active: unit.active,
+      })),
+    [units]
+  );
+
+  useEffect(() => {
+    onUnitsChange?.(publicUnits);
+  }, [onUnitsChange, publicUnits]);
 
   function updateUnit(
     localId: string,

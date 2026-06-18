@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { CatalogSelectWithCreate } from "@/components/productos/catalog-select-with-create";
 import { SaleUnitsEditor } from "@/components/productos/sale-units-editor";
+import type { ProductSaleUnit } from "@/components/productos/product-types";
 
 type CatalogOption = {
   id: string;
@@ -42,12 +43,24 @@ const initialState: ProductActionState = {
   message: "",
 };
 
+const BASE_UNIT_OPTIONS = ["unidad", "kg", "metro", "litro"] as const;
+
 function numberValue(value: string) {
   return Number(value.replace(",", "."));
 }
 
 function moneyValue(value: number) {
   return value.toFixed(2);
+}
+
+function roundToThree(value: number) {
+  return Math.round(value * 1000) / 1000;
+}
+
+function formatQuantity(value: number) {
+  return new Intl.NumberFormat("es-AR", {
+    maximumFractionDigits: 3,
+  }).format(value);
 }
 
 export function NewProductForm({
@@ -82,8 +95,39 @@ export function NewProductForm({
   const [costWithTax, setCostWithTax] = useState("");
   const [profitMarginPercent, setProfitMarginPercent] = useState("0");
   const [salePrice, setSalePrice] = useState("");
-  const [stockQuantity, setStockQuantity] = useState("0");
+  const [initialLoadQuantity, setInitialLoadQuantity] = useState("0");
+  const [initialLoadSaleUnitIndex, setInitialLoadSaleUnitIndex] = useState("0");
+  const [saleUnits, setSaleUnits] = useState<ProductSaleUnit[]>([]);
   const [minStock, setMinStock] = useState("0");
+  const activeSaleUnits = useMemo(
+    () =>
+      saleUnits.filter(
+        (saleUnit) =>
+          saleUnit.active &&
+          Number.isFinite(saleUnit.quantityInBaseUnit) &&
+          saleUnit.quantityInBaseUnit > 0
+      ),
+    [saleUnits]
+  );
+  const selectedInitialSaleUnitIndex = Number(initialLoadSaleUnitIndex);
+  const safeInitialLoadSaleUnitIndex =
+    Number.isInteger(selectedInitialSaleUnitIndex) &&
+    selectedInitialSaleUnitIndex >= 0 &&
+    selectedInitialSaleUnitIndex < activeSaleUnits.length
+      ? selectedInitialSaleUnitIndex
+      : 0;
+  const selectedInitialSaleUnit =
+    activeSaleUnits[safeInitialLoadSaleUnitIndex] ?? activeSaleUnits[0];
+  const selectedQuantityInBaseUnit =
+    selectedInitialSaleUnit?.quantityInBaseUnit ?? 1;
+  const initialLoadQuantityValue = numberValue(initialLoadQuantity);
+  const calculatedStockQuantity =
+    Number.isFinite(initialLoadQuantityValue) && initialLoadQuantityValue > 0
+      ? roundToThree(
+          initialLoadQuantityValue * selectedQuantityInBaseUnit
+        )
+      : 0;
+  const stockQuantity = String(calculatedStockQuantity);
   const calculatedCostWithTax = useMemo(() => {
     if (!costWithoutTax.trim()) {
       return null;
@@ -138,9 +182,15 @@ export function NewProductForm({
     setCostWithTax("");
     setProfitMarginPercent("0");
     setSalePrice("");
-    setStockQuantity("0");
+    setInitialLoadQuantity("0");
+    setInitialLoadSaleUnitIndex("0");
+    setSaleUnits([]);
     setMinStock("0");
   }, [initialBarcode, initialName, initialSku]);
+
+  const handleSaleUnitsChange = useCallback((nextSaleUnits: ProductSaleUnit[]) => {
+    setSaleUnits(nextSaleUnits);
+  }, []);
 
   useEffect(() => {
     onCreatedRef.current = onCreated;
@@ -226,7 +276,7 @@ export function NewProductForm({
             value={barcode}
             onChange={setBarcode}
           />
-          <TextField
+          <BaseUnitField
             label="Unidad"
             name="unit"
             value={unit}
@@ -348,25 +398,51 @@ export function NewProductForm({
 
       <section className="grid gap-3 rounded-lg border border-border bg-background p-4">
         <h3 className="text-base font-bold">Stock inicial</h3>
-        <div className="grid gap-3 md:grid-cols-2">
+        <input type="hidden" name="stockQuantity" value={stockQuantity} />
+        <div className="grid gap-3 md:grid-cols-3">
+          <label className="grid gap-2 text-base font-semibold">
+            <span>Presentacion de carga inicial</span>
+            <select
+              value={String(safeInitialLoadSaleUnitIndex)}
+              onChange={(event) => setInitialLoadSaleUnitIndex(event.target.value)}
+              className="h-11 rounded-lg border border-input bg-background px-3 text-base"
+            >
+              {activeSaleUnits.length > 0 ? (
+                activeSaleUnits.map((saleUnit, index) => (
+                  <option key={`${saleUnit.id || "new"}-${index}`} value={index}>
+                    {saleUnit.name || "Presentacion"} x{" "}
+                    {formatQuantity(saleUnit.quantityInBaseUnit)}
+                  </option>
+                ))
+              ) : (
+                <option value="0">Unidad x 1</option>
+              )}
+            </select>
+          </label>
           <NumberField
-            label="Stock inicial"
-            name="stockQuantity"
-            value={stockQuantity}
-            onChange={setStockQuantity}
-            step="1"
+            label="Cantidad que entra"
+            name="initialLoadQuantity"
+            value={initialLoadQuantity}
+            onChange={setInitialLoadQuantity}
+            step="0.001"
           />
           <NumberField
             label="Stock minimo"
             name="minStock"
             value={minStock}
             onChange={setMinStock}
-            step="1"
+            step="0.001"
           />
         </div>
+        <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm font-semibold text-muted-foreground">
+          Se guardara como {formatQuantity(calculatedStockQuantity)} {unit}.
+        </p>
       </section>
 
-      <SaleUnitsEditor fallbackPrice={Number(salePrice) || 0} />
+      <SaleUnitsEditor
+        fallbackPrice={Number(salePrice) || 0}
+        onUnitsChange={handleSaleUnitsChange}
+      />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <Button
@@ -480,6 +556,60 @@ function TextField({
         className="h-11 rounded-lg border border-input bg-background px-3 text-base"
       />
     </label>
+  );
+}
+
+function BaseUnitField({
+  label,
+  name,
+  onChange,
+  value,
+}: {
+  label: string;
+  name: string;
+  onChange: (value: string) => void;
+  value: string;
+}) {
+  const isKnownUnit = BASE_UNIT_OPTIONS.some((option) => option === value);
+  const selectValue = isKnownUnit ? value : "otra";
+
+  return (
+    <div className="grid gap-2 text-base font-semibold">
+      <label className="grid gap-2">
+        <span>{label}</span>
+        <select
+          value={selectValue}
+          onChange={(event) => {
+            const nextValue = event.target.value;
+            onChange(nextValue === "otra" ? "" : nextValue);
+          }}
+          className="h-11 rounded-lg border border-input bg-background px-3 text-base"
+        >
+          {BASE_UNIT_OPTIONS.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+          <option value="otra">otra</option>
+        </select>
+      </label>
+      {selectValue === "otra" ? (
+        <label className="grid gap-2">
+          <span className="text-sm font-semibold text-muted-foreground">
+            Unidad personalizada
+          </span>
+          <input
+            name={name}
+            value={value}
+            onChange={(event) => onChange(event.target.value)}
+            placeholder="Ej: rollo, bolsa"
+            className="h-11 rounded-lg border border-input bg-background px-3 text-base"
+          />
+        </label>
+      ) : (
+        <input type="hidden" name={name} value={value} />
+      )}
+    </div>
   );
 }
 
