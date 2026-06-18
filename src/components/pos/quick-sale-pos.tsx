@@ -64,6 +64,14 @@ function formatMoney(value: number) {
   );
 }
 
+function parseQuantity(value: string) {
+  return Number(value.replace(",", "."));
+}
+
+function clampQuantity(value: number) {
+  return Math.max(0.001, Math.round(value * 1000) / 1000);
+}
+
 function getDefaultSaleUnit(product: QuoteProduct) {
   return (
     product.saleUnits.find(
@@ -531,7 +539,7 @@ export function QuickSalePos({
     );
 
     if (!selectedLine) {
-      return;
+      return false;
     }
 
     const nextConsumption =
@@ -546,7 +554,7 @@ export function QuickSalePos({
           consumption: nextConsumption,
         })
       );
-      return;
+      return false;
     }
 
     setLines((current) =>
@@ -559,16 +567,65 @@ export function QuickSalePos({
           : line
       )
     );
+    return true;
   }
 
   function decrementLineQuantity(lineKey: string) {
     setLines((current) =>
       current.map((line) =>
         getLineKey(line.id, line.selectedSaleUnitId) === lineKey
-          ? { ...line, quantity: Math.max(1, line.quantity - 1) }
+          ? { ...line, quantity: clampQuantity(line.quantity - 1) }
           : line
       )
     );
+    return true;
+  }
+
+  function updateLineQuantity(lineKey: string, value: string) {
+    const nextQuantity = parseQuantity(value);
+    const selectedLine = lines.find(
+      (line) => getLineKey(line.id, line.selectedSaleUnitId) === lineKey
+    );
+
+    if (!selectedLine) {
+      return false;
+    }
+
+    if (!Number.isFinite(nextQuantity) || nextQuantity <= 0) {
+      setMessage("La cantidad debe ser mayor a 0.");
+      return false;
+    }
+
+    const safeQuantity = clampQuantity(nextQuantity);
+    const currentLineConsumption = getLineStockUsage(selectedLine);
+    const nextLineConsumption = safeQuantity * selectedLine.quantityInBaseUnit;
+    const nextProductConsumption =
+      getProductBaseConsumption(lines, selectedLine.id) -
+      currentLineConsumption +
+      nextLineConsumption;
+
+    if (!isQuoteMode && nextProductConsumption - selectedLine.stockQuantity > EPSILON) {
+      setMessage(
+        getGroupedStockMessage({
+          productName: selectedLine.name || selectedLine.description,
+          stockQuantity: selectedLine.stockQuantity,
+          consumption: nextProductConsumption,
+        })
+      );
+      return false;
+    }
+
+    setLines((current) =>
+      current.map((line) =>
+        getLineKey(line.id, line.selectedSaleUnitId) === lineKey
+          ? {
+              ...line,
+              quantity: safeQuantity,
+            }
+          : line
+      )
+    );
+    return true;
   }
 
   function removeLine(lineKey: string) {
@@ -887,6 +944,7 @@ export function QuickSalePos({
                       line={line}
                       onDecrement={() => decrementLineQuantity(lineKey)}
                       onIncrement={() => incrementLineQuantity(lineKey)}
+                      onQuantityChange={(value) => updateLineQuantity(lineKey, value)}
                       onRemove={() => removeLine(lineKey)}
                     />
                   );
@@ -1319,13 +1377,17 @@ function TicketLine({
   line,
   onDecrement,
   onIncrement,
+  onQuantityChange,
   onRemove,
 }: {
   line: QuoteLine;
-  onDecrement: () => void;
-  onIncrement: () => void;
+  onDecrement: () => boolean;
+  onIncrement: () => boolean;
+  onQuantityChange: (value: string) => boolean;
   onRemove: () => void;
 }) {
+  const [quantityText, setQuantityText] = useState(String(line.quantity));
+
   return (
     <div className="grid gap-2 rounded-md border border-border bg-card p-2">
       <div className="flex items-start justify-between gap-2">
@@ -1351,23 +1413,60 @@ function TicketLine({
       </div>
 
       <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2">
-        <div className="grid grid-cols-[2.4rem_3.3rem_2.4rem] gap-1">
+        <div className="grid grid-cols-[2.4rem_minmax(4.8rem,6rem)_2.4rem] gap-1">
           <Button
             type="button"
             variant="outline"
-            onClick={onDecrement}
+            onClick={() => {
+              const nextQuantity = clampQuantity(line.quantity - 1);
+
+              if (onDecrement()) {
+                setQuantityText(String(nextQuantity));
+              }
+            }}
             className="h-8 px-0 text-lg font-black"
             aria-label={`Restar cantidad de ${line.description}`}
           >
             -
           </Button>
-          <div className="grid h-8 place-items-center rounded-md border border-input bg-background text-sm font-black">
-            {line.quantity}
-          </div>
+          <input
+            value={quantityText}
+            onChange={(event) => {
+              const nextValue = event.target.value;
+              const nextQuantity = parseQuantity(nextValue);
+
+              setQuantityText(nextValue);
+
+              if (Number.isFinite(nextQuantity) && nextQuantity > 0) {
+                const accepted = onQuantityChange(nextValue);
+
+                if (!accepted) {
+                  setQuantityText(String(line.quantity));
+                }
+              }
+            }}
+            onBlur={() => {
+              if (!onQuantityChange(quantityText)) {
+                setQuantityText(String(line.quantity));
+              }
+            }}
+            type="number"
+            min="0.001"
+            step="0.001"
+            inputMode="decimal"
+            className="h-8 rounded-md border border-input bg-background px-2 text-center text-sm font-black"
+            aria-label={`Cantidad de ${line.description}`}
+          />
           <Button
             type="button"
             variant="outline"
-            onClick={onIncrement}
+            onClick={() => {
+              const nextQuantity = clampQuantity(line.quantity + 1);
+
+              if (onIncrement()) {
+                setQuantityText(String(nextQuantity));
+              }
+            }}
             className="h-8 px-0 text-lg font-black"
             aria-label={`Sumar cantidad de ${line.description}`}
           >

@@ -68,6 +68,10 @@ function formatDate(value: string) {
   }).format(new Date(value)));
 }
 
+function parseQuantity(value: string) {
+  return Number(value.replace(",", "."));
+}
+
 function getDefaultSaleUnit(product: QuoteProduct): ProductSaleUnit {
   return (
     product.saleUnits.find(
@@ -336,7 +340,7 @@ export function QuickSale({
       getProductBaseConsumption(lines, product.id) +
       safeQty * saleUnit.quantityInBaseUnit;
 
-    if (nextConsumption - product.stockQuantity > EPSILON) {
+    if (!isQuoteMode && nextConsumption - product.stockQuantity > EPSILON) {
       setMessage(
         getGroupedStockMessage({
           productName: product.name || product.description,
@@ -424,7 +428,7 @@ export function QuickSale({
   }
 
   function updateLineQuantity(lineKey: string, value: string) {
-    const nextQuantity = Number(value);
+    const nextQuantity = parseQuantity(value);
     const selectedLine = lines.find(
       (line) => getLineKey(line.id, line.selectedSaleUnitId) === lineKey
     );
@@ -442,7 +446,7 @@ export function QuickSale({
       currentLineConsumption +
       nextLineConsumption;
 
-    if (nextProductConsumption - selectedLine.stockQuantity > EPSILON) {
+    if (!isQuoteMode && nextProductConsumption - selectedLine.stockQuantity > EPSILON) {
       setMessage(
         getGroupedStockMessage({
           productName: selectedLine.name || selectedLine.description,
@@ -724,8 +728,9 @@ export function QuickSale({
                             updateLineQuantity(lineKey, event.target.value)
                           }
                           type="number"
-                          min="1"
-                          step="1"
+                          min="0.001"
+                          step="0.001"
+                          inputMode="decimal"
                           className="h-11 rounded-lg border border-input bg-card px-3 text-base"
                         />
                       </label>
