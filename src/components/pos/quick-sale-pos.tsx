@@ -33,6 +33,10 @@ const CASH_REGISTER_CLOSED_MESSAGE = "Para vender necesitas abrir la caja.";
 const EPSILON = 0.000001;
 const PAGE_SIZE_OPTIONS = [20, 40, 80] as const;
 const DEFAULT_PAGE_SIZE = 40;
+const BARCODE_SCAN_MIN_LENGTH = 4;
+const BARCODE_SCAN_MAX_INTERVAL_MS = 80;
+const BARCODE_NOT_FOUND_MESSAGE =
+  "No se encontro un producto con ese codigo.";
 
 const PAYMENT_METHODS = [
   "Efectivo",
@@ -49,6 +53,35 @@ type CashStatus =
   | { open: false };
 
 type SearchStatus = "idle" | "loading" | "results" | "empty" | "error";
+
+function isEditableTarget(target: EventTarget | null) {
+  if (!(target instanceof Element)) {
+    return false;
+  }
+
+  return Boolean(
+    (target instanceof HTMLElement && target.isContentEditable) ||
+      target.closest(
+        'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="combobox"]'
+      )
+  );
+}
+
+function hasVisibleDialog() {
+  const dialogs = document.querySelectorAll<HTMLElement>(
+    'dialog[open], [role="dialog"][aria-modal="true"]'
+  );
+
+  return Array.from(dialogs).some((dialog) => {
+    const styles = window.getComputedStyle(dialog);
+
+    return (
+      styles.display !== "none" &&
+      styles.visibility !== "hidden" &&
+      dialog.getClientRects().length > 0
+    );
+  });
+}
 
 function normalizeFormattedText(value: string) {
   return value.replace(/[\s\u00a0\u202f]+/g, " ").trim();
@@ -205,6 +238,9 @@ export function QuickSalePos({
   const router = useRouter();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const latestSearchRequestRef = useRef(0);
+  const barcodeBufferRef = useRef("");
+  const barcodeLastKeyAtRef = useRef(0);
+  const barcodeScanPendingRef = useRef(false);
   const [customer, setCustomer] = useState<QuoteCustomer>({
     id: "",
     name: "",
@@ -390,6 +426,137 @@ export function QuickSalePos({
     );
     window.setTimeout(() => searchInputRef.current?.focus(), 0);
   }, [isQuoteMode]);
+
+  const lookupAndAddProductByCode = useCallback(
+    (rawCode: string) => {
+      const code = rawCode.trim();
+
+      if (
+        mode !== "sale" ||
+        !code ||
+        isPending ||
+        barcodeScanPendingRef.current
+      ) {
+        barcodeBufferRef.current = "";
+        barcodeLastKeyAtRef.current = 0;
+        return;
+      }
+
+      barcodeScanPendingRef.current = true;
+      barcodeBufferRef.current = "";
+      barcodeLastKeyAtRef.current = 0;
+      setMessage("Buscando productos...");
+      setSearchStatus("loading");
+
+      startTransition(async () => {
+        try {
+          const result = await lookupQuoteProductByCodeAction(code, false);
+
+          if (result.ok && result.product) {
+            addProduct(result.product);
+            return;
+          }
+
+          const matchingProducts = result.product ? [result.product] : [];
+          setResults(matchingProducts);
+          setResultsTotal(matchingProducts.length);
+          setSearchStatus(
+            matchingProducts.length > 0
+              ? "results"
+              : result.status === "not_found"
+                ? "empty"
+                : "error"
+          );
+          setMessage(result.message ?? BARCODE_NOT_FOUND_MESSAGE);
+        } catch {
+          setResults([]);
+          setResultsTotal(0);
+          setSearchStatus("error");
+          setMessage("No se pudo buscar el producto. Intenta nuevamente.");
+        } finally {
+          barcodeScanPendingRef.current = false;
+          barcodeBufferRef.current = "";
+          barcodeLastKeyAtRef.current = 0;
+        }
+      });
+    },
+    [addProduct, isPending, mode, startTransition]
+  );
+
+  useEffect(() => {
+    barcodeBufferRef.current = "";
+    barcodeLastKeyAtRef.current = 0;
+
+    if (mode !== "sale") {
+      return;
+    }
+
+    function handleBarcodeKeyDown(event: KeyboardEvent) {
+      if (
+        event.defaultPrevented ||
+        event.repeat ||
+        event.ctrlKey ||
+        event.altKey ||
+        event.metaKey ||
+        event.shiftKey ||
+        isEditableTarget(event.target) ||
+        isEditableTarget(document.activeElement) ||
+        hasVisibleDialog()
+      ) {
+        barcodeBufferRef.current = "";
+        barcodeLastKeyAtRef.current = 0;
+        return;
+      }
+
+      const now = performance.now();
+
+      if (event.key === "Enter") {
+        const code = barcodeBufferRef.current.trim();
+        const lastKeyInterval = now - barcodeLastKeyAtRef.current;
+
+        barcodeBufferRef.current = "";
+        barcodeLastKeyAtRef.current = 0;
+
+        if (
+          code.length >= BARCODE_SCAN_MIN_LENGTH &&
+          lastKeyInterval <= BARCODE_SCAN_MAX_INTERVAL_MS
+        ) {
+          event.preventDefault();
+          lookupAndAddProductByCode(code);
+        }
+
+        return;
+      }
+
+      if (event.key === "Tab" || event.key === "Escape") {
+        barcodeBufferRef.current = "";
+        barcodeLastKeyAtRef.current = 0;
+        return;
+      }
+
+      if (event.key.length !== 1) {
+        return;
+      }
+
+      if (
+        barcodeLastKeyAtRef.current > 0 &&
+        now - barcodeLastKeyAtRef.current > BARCODE_SCAN_MAX_INTERVAL_MS
+      ) {
+        barcodeBufferRef.current = "";
+      }
+
+      barcodeBufferRef.current += event.key;
+      barcodeLastKeyAtRef.current = now;
+    }
+
+    window.addEventListener("keydown", handleBarcodeKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleBarcodeKeyDown);
+      barcodeBufferRef.current = "";
+      barcodeLastKeyAtRef.current = 0;
+    };
+  }, [lookupAndAddProductByCode, mode]);
 
   useEffect(() => {
     if (!initialSku) {
