@@ -241,6 +241,7 @@ export function QuickSalePos({
   const barcodeBufferRef = useRef("");
   const barcodeLastKeyAtRef = useRef(0);
   const barcodeScanPendingRef = useRef(false);
+  const barcodeSearchTermRef = useRef("");
   const [customer, setCustomer] = useState<QuoteCustomer>({
     id: "",
     name: "",
@@ -427,7 +428,7 @@ export function QuickSalePos({
     window.setTimeout(() => searchInputRef.current?.focus(), 0);
   }, [isQuoteMode]);
 
-  const lookupAndAddProductByCode = useCallback(
+  const lookupAndShowProductByCode = useCallback(
     (rawCode: string) => {
       const code = rawCode.trim();
 
@@ -445,6 +446,11 @@ export function QuickSalePos({
       barcodeScanPendingRef.current = true;
       barcodeBufferRef.current = "";
       barcodeLastKeyAtRef.current = 0;
+      barcodeSearchTermRef.current = code;
+      const requestId = latestSearchRequestRef.current + 1;
+      latestSearchRequestRef.current = requestId;
+      setSearch(code);
+      setPage(1);
       setMessage("Buscando productos...");
       setSearchStatus("loading");
 
@@ -452,8 +458,15 @@ export function QuickSalePos({
         try {
           const result = await lookupQuoteProductByCodeAction(code, false);
 
+          if (latestSearchRequestRef.current !== requestId) {
+            return;
+          }
+
           if (result.ok && result.product) {
-            addProduct(result.product);
+            setResults([result.product]);
+            setResultsTotal(1);
+            setSearchStatus("results");
+            setMessage("");
             return;
           }
 
@@ -480,7 +493,7 @@ export function QuickSalePos({
         }
       });
     },
-    [addProduct, isPending, mode, startTransition]
+    [isPending, mode, startTransition]
   );
 
   useEffect(() => {
@@ -522,7 +535,7 @@ export function QuickSalePos({
           lastKeyInterval <= BARCODE_SCAN_MAX_INTERVAL_MS
         ) {
           event.preventDefault();
-          lookupAndAddProductByCode(code);
+          lookupAndShowProductByCode(code);
         }
 
         return;
@@ -556,7 +569,7 @@ export function QuickSalePos({
       barcodeBufferRef.current = "";
       barcodeLastKeyAtRef.current = 0;
     };
-  }, [lookupAndAddProductByCode, mode]);
+  }, [lookupAndShowProductByCode, mode]);
 
   useEffect(() => {
     if (!initialSku) {
@@ -576,6 +589,15 @@ export function QuickSalePos({
 
   useEffect(() => {
     const term = search.trim();
+
+    if (barcodeSearchTermRef.current) {
+      const shouldSkipSearch = barcodeSearchTermRef.current === term;
+      barcodeSearchTermRef.current = "";
+
+      if (shouldSkipSearch) {
+        return;
+      }
+    }
 
     const timeoutId = window.setTimeout(() => {
       runProductSearch({
@@ -1060,7 +1082,7 @@ export function QuickSalePos({
                 <div className="grid gap-2">
                   {results.map((product) => (
                     <ProductRow
-                      key={product.id}
+                      key={`${product.id}:${product.matchedSaleUnitId ?? ""}`}
                       product={product}
                       isQuoteMode={isQuoteMode}
                       onAdd={(saleUnit) => addProduct(product, saleUnit)}
