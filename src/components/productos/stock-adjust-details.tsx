@@ -67,6 +67,9 @@ export function StockAdjustDetails({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const [message, setMessage] = useState("");
+  const [commercialState, commercialFormAction, commercialPending] =
+    useActionState(updateProductStockCommercialAction, initialState);
+  const commercialFormId = `product-commercial-form-${product.id}`;
 
   useEffect(() => {
     if (!open) {
@@ -147,7 +150,10 @@ export function StockAdjustDetails({
                 {canEditPrice ? (
                   <ProductCommercialForm
                     brands={brands}
+                    formAction={commercialFormAction}
+                    formId={commercialFormId}
                     product={product}
+                    state={commercialState}
                     suppliers={suppliers}
                   />
                 ) : null}
@@ -165,6 +171,32 @@ export function StockAdjustDetails({
                 ) : null}
               </div>
             </div>
+
+            {canEditPrice ? (
+              <div className="flex shrink-0 flex-col gap-2 border-t border-border bg-card px-3 py-3 sm:flex-row sm:items-center sm:px-4">
+                <Button
+                  type="submit"
+                  form={commercialFormId}
+                  disabled={commercialPending}
+                  className="h-11 w-full gap-2 px-4 text-base sm:w-auto"
+                >
+                  <Save className="size-5" aria-hidden="true" />
+                  {commercialPending ? "Guardando..." : "Guardar cambios"}
+                </Button>
+                {commercialState.message ? (
+                  <p
+                    aria-live="polite"
+                    className={`text-sm font-semibold sm:text-base ${
+                      commercialState.ok
+                        ? "text-emerald-700"
+                        : "text-destructive"
+                    }`}
+                  >
+                    {commercialState.message}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         </div>
       ) : null}
@@ -261,18 +293,20 @@ function DangerZone({
 
 function ProductCommercialForm({
   brands,
+  formAction,
+  formId,
   product,
+  state,
   suppliers,
 }: {
   brands: CatalogOption[];
+  formAction: (formData: FormData) => void;
+  formId: string;
   product: ProductListItem;
+  state: ProductActionState;
   suppliers: CatalogOption[];
 }) {
   const router = useRouter();
-  const [state, formAction, pending] = useActionState(
-    updateProductStockCommercialAction,
-    initialState
-  );
   const [costWithoutTax, setCostWithoutTax] = useState(
     numberInputValue(product.costWithoutTax)
   );
@@ -320,6 +354,7 @@ function ProductCommercialForm({
 
   return (
     <form
+      id={formId}
       action={formAction}
       className="contents"
     >
@@ -428,21 +463,6 @@ function ProductCommercialForm({
         />
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <Button type="submit" disabled={pending} className="h-11 gap-2 px-4 text-base">
-          <Save className="size-5" aria-hidden="true" />
-          {pending ? "Guardando..." : "Guardar cambios"}
-        </Button>
-        {state.message ? (
-          <p
-            className={`text-base font-semibold ${
-              state.ok ? "text-emerald-700" : "text-destructive"
-            }`}
-          >
-            {state.message}
-          </p>
-        ) : null}
-      </div>
     </form>
   );
 }
