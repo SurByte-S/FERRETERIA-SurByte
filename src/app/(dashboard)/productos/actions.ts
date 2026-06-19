@@ -289,6 +289,98 @@ async function syncDefaultSaleUnitPrice({
   }
 }
 
+async function syncProductSaleUnits({
+  productId,
+  saleUnits,
+  tenantId,
+}: {
+  productId: string;
+  saleUnits: SaleUnitInput[];
+  tenantId: string;
+}) {
+  const supabase = getSupabaseServerClient();
+  const existingResult = await supabase
+    .from("product_sale_units")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("product_id", productId);
+
+  if (existingResult.error) {
+    throw new Error("No se pudieron revisar las presentaciones.");
+  }
+
+  const existingIds = new Set(
+    ((existingResult.data ?? []) as { id: string }[]).map((item) => item.id)
+  );
+  const incomingIds = new Set(
+    saleUnits.map((unit) => unit.id).filter((id): id is string => Boolean(id))
+  );
+  const idsToDeactivate = [...existingIds].filter((id) => !incomingIds.has(id));
+
+  if (idsToDeactivate.length > 0) {
+    const { error } = await supabase
+      .from("product_sale_units")
+      .update({ active: false, is_default: false })
+      .eq("tenant_id", tenantId)
+      .eq("product_id", productId)
+      .in("id", idsToDeactivate);
+
+    if (error) {
+      throw new Error("No se pudieron desactivar presentaciones anteriores.");
+    }
+  }
+
+  const defaultUnit = saleUnits.find((unit) => unit.active && unit.isDefault);
+
+  if (defaultUnit?.id) {
+    const { error } = await supabase
+      .from("product_sale_units")
+      .update({ is_default: false })
+      .eq("tenant_id", tenantId)
+      .eq("product_id", productId)
+      .neq("id", defaultUnit.id);
+
+    if (error) {
+      throw new Error("No se pudo actualizar la presentacion predeterminada.");
+    }
+  } else {
+    const { error } = await supabase
+      .from("product_sale_units")
+      .update({ is_default: false })
+      .eq("tenant_id", tenantId)
+      .eq("product_id", productId);
+
+    if (error) {
+      throw new Error("No se pudo actualizar la presentacion predeterminada.");
+    }
+  }
+
+  for (const unit of saleUnits) {
+    const payload = {
+      tenant_id: tenantId,
+      product_id: productId,
+      name: unit.name,
+      quantity_in_base_unit: unit.quantityInBaseUnit,
+      sale_price: unit.salePrice,
+      barcode: unit.barcode || null,
+      is_default: unit.isDefault,
+      active: unit.active,
+    };
+    const { error } = unit.id
+      ? await supabase
+          .from("product_sale_units")
+          .update(payload)
+          .eq("tenant_id", tenantId)
+          .eq("product_id", productId)
+          .eq("id", unit.id)
+      : await supabase.from("product_sale_units").insert(payload);
+
+    if (error) {
+      throw new Error("No se pudieron guardar las presentaciones.");
+    }
+  }
+}
+
 type CodeLookupRow = {
   status?: string | null;
   product_id?: string | null;
@@ -1159,6 +1251,10 @@ export async function updateProductStockCommercialAction(
         formData,
       }),
     ];
+    const saleUnits = parseSaleUnitsInput(formData, salePrice).map((unit) => ({
+      ...unit,
+      salePrice: salePrice ?? 0,
+    }));
     const supabase = getSupabaseServerClient();
     const [brandId, supplierId] = await Promise.all([
       validateTenantCatalogId({
@@ -1174,6 +1270,11 @@ export async function updateProductStockCommercialAction(
         tenantId: tenant.id,
       }),
     ]);
+    await ensureProductCodesAvailable({
+      productId,
+      saleUnits,
+      tenantId: tenant.id,
+    });
     const { data, error } = await supabase
       .from("products")
       .update({
@@ -1198,9 +1299,9 @@ export async function updateProductStockCommercialAction(
       };
     }
 
-    await syncDefaultSaleUnitPrice({
+    await syncProductSaleUnits({
       productId,
-      salePrice,
+      saleUnits,
       tenantId: tenant.id,
     });
 

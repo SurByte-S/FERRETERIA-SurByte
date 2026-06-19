@@ -1,10 +1,20 @@
 "use client";
 
-import { startTransition, useActionState, useEffect, useState, type ReactNode } from "react";
+import {
+  forwardRef,
+  startTransition,
+  useActionState,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, PackagePlus, Save, Trash2, X } from "lucide-react";
 
 import {
+  adjustProductStockAction,
   deactivateProductAction,
   updateProductStockCommercialAction,
   type ProductActionState,
@@ -19,7 +29,11 @@ import { CatalogSelectWithCreate } from "@/components/productos/catalog-select-w
 import { Button } from "@/components/ui/button";
 import { normalizeProductCode } from "@/lib/product-code";
 import type { ProductListItem } from "./product-types";
-import { StockAdjustForm } from "./stock-adjust-form";
+import { SaleUnitsEditor } from "./sale-units-editor";
+import {
+  StockAdjustForm,
+  type StockAdjustFormHandle,
+} from "./stock-adjust-form";
 
 type CatalogOption = {
   id: string;
@@ -29,6 +43,19 @@ type CatalogOption = {
 const initialState: ProductActionState = {
   ok: false,
   message: "",
+};
+
+type CommercialFormHandle = {
+  getFormData: () => FormData | null;
+  hasChanges: () => boolean;
+  markSaved: () => void;
+};
+
+type PrimaryBarcodeHandle = {
+  getBarcode: () => string;
+  hasChanges: () => boolean;
+  markSaved: (result: BarcodeMutationResult) => void;
+  needsReplacementConfirmation: () => boolean;
 };
 
 function numberInputValue(value: number | null) {
@@ -41,6 +68,15 @@ function numberValue(value: string) {
 
 function moneyValue(value: number) {
   return value.toFixed(2);
+}
+
+function formDataSignature(form: HTMLFormElement) {
+  return JSON.stringify(
+    [...new FormData(form).entries()].map(([key, value]) => [
+      key,
+      typeof value === "string" ? value : value.name,
+    ])
+  );
 }
 
 export function StockAdjustDetails({
@@ -64,11 +100,135 @@ export function StockAdjustDetails({
   canEditPrice: boolean;
   suppliers?: CatalogOption[];
 }) {
+  const router = useRouter();
   const [open, setOpen] = useState(defaultOpen);
   const [message, setMessage] = useState("");
-  const [commercialState, commercialFormAction, commercialPending] =
-    useActionState(updateProductStockCommercialAction, initialState);
-  const commercialFormId = `product-commercial-form-${product.id}`;
+  const [saving, setSaving] = useState(false);
+  const [saveState, setSaveState] = useState(initialState);
+  const savingRef = useRef(false);
+  const commercialFormRef = useRef<CommercialFormHandle>(null);
+  const primaryBarcodeRef = useRef<PrimaryBarcodeHandle>(null);
+  const stockFormRef = useRef<StockAdjustFormHandle>(null);
+
+  async function saveChanges() {
+    if (savingRef.current) {
+      return;
+    }
+
+    const commercialChanged = Boolean(
+      canEditPrice && commercialFormRef.current?.hasChanges()
+    );
+    const barcodeChanged = Boolean(primaryBarcodeRef.current?.hasChanges());
+    const stockChanged = Boolean(stockFormRef.current?.hasChanges());
+
+    if (!commercialChanged && !barcodeChanged && !stockChanged) {
+      setSaveState({ ok: true, message: "No hay cambios para guardar." });
+      return;
+    }
+
+    if (
+      stockChanged &&
+      !window.confirm(
+        "Vas a modificar el stock y se registrará un movimiento de inventario. ¿Continuar?"
+      )
+    ) {
+      return;
+    }
+
+    const replaceBarcode = Boolean(
+      barcodeChanged &&
+        primaryBarcodeRef.current?.needsReplacementConfirmation()
+    );
+
+    if (
+      replaceBarcode &&
+      !window.confirm(
+        "Este producto ya tiene otro código de barras. ¿Querés reemplazarlo?"
+      )
+    ) {
+      return;
+    }
+
+    savingRef.current = true;
+    setSaving(true);
+    setSaveState(initialState);
+    const savedSections: string[] = [];
+
+    try {
+      if (commercialChanged) {
+        const formData = commercialFormRef.current?.getFormData();
+
+        if (!formData) {
+          throw new Error("No se pudo leer la sección de datos comerciales.");
+        }
+
+        const result = await updateProductStockCommercialAction(
+          initialState,
+          formData
+        );
+
+        if (!result.ok) {
+          throw new Error(`Datos comerciales: ${result.message}`);
+        }
+
+        commercialFormRef.current?.markSaved();
+        savedSections.push("datos comerciales");
+      }
+
+      if (barcodeChanged) {
+        const result = await updateProductPrimaryBarcodeAction({
+          barcode: primaryBarcodeRef.current?.getBarcode() ?? "",
+          confirmReplace: replaceBarcode,
+          productId: product.id,
+        });
+
+        if (!result.ok) {
+          throw new Error(`Código de barras: ${result.message}`);
+        }
+
+        primaryBarcodeRef.current?.markSaved(result);
+        savedSections.push("código de barras");
+      }
+
+      if (stockChanged) {
+        const formData = stockFormRef.current?.getFormData();
+
+        if (!formData) {
+          throw new Error("No se pudo leer la sección de stock.");
+        }
+
+        const result = await adjustProductStockAction(initialState, formData);
+
+        if (!result.ok) {
+          throw new Error(`Stock: ${result.message}`);
+        }
+
+        stockFormRef.current?.markSaved();
+        savedSections.push("stock");
+        onAdjusted?.();
+      }
+
+      setSaveState({
+        ok: true,
+        message: "Cambios guardados correctamente.",
+      });
+      router.refresh();
+    } catch (error) {
+      const partialMessage =
+        savedSections.length > 0
+          ? ` Se guardó: ${savedSections.join(", ")}.`
+          : "";
+      setSaveState({
+        ok: false,
+        message: `${
+          error instanceof Error ? error.message : "No se pudieron guardar los cambios."
+        }${partialMessage}`,
+      });
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
+  }
 
   useEffect(() => {
     if (!open) {
@@ -138,21 +298,17 @@ export function StockAdjustDetails({
               <div className="grid gap-4 rounded-lg border border-border bg-muted/20 p-3">
                 <section className="min-w-0">
                   <StockAdjustForm
+                    ref={stockFormRef}
                     product={product}
-                    onAdjusted={() => {
-                      setOpen(false);
-                      onAdjusted?.();
-                    }}
                   />
                 </section>
 
                 {canEditPrice ? (
                   <ProductCommercialForm
+                    ref={commercialFormRef}
                     brands={brands}
-                    formAction={commercialFormAction}
-                    formId={commercialFormId}
                     product={product}
-                    state={commercialState}
+                    primaryBarcodeRef={primaryBarcodeRef}
                     suppliers={suppliers}
                   />
                 ) : null}
@@ -171,31 +327,29 @@ export function StockAdjustDetails({
               </div>
             </div>
 
-            {canEditPrice ? (
-              <div className="flex shrink-0 flex-col gap-2 border-t border-border bg-card px-3 py-3 sm:flex-row sm:items-center sm:px-4">
-                <Button
-                  type="submit"
-                  form={commercialFormId}
-                  disabled={commercialPending}
-                  className="h-11 w-full gap-2 px-4 text-base sm:w-auto"
+            <div className="flex shrink-0 flex-col gap-2 border-t border-border bg-card px-3 py-3 sm:flex-row sm:items-center sm:justify-end sm:px-4">
+              <Button
+                type="button"
+                onClick={saveChanges}
+                disabled={saving}
+                className="h-11 w-full gap-2 px-4 text-base sm:w-auto"
+              >
+                <Save className="size-5" aria-hidden="true" />
+                {saving ? "Guardando..." : "Guardar cambios"}
+              </Button>
+              {saveState.message ? (
+                <p
+                  aria-live="polite"
+                  className={`text-sm font-semibold sm:text-base ${
+                    saveState.ok
+                      ? "text-emerald-700"
+                      : "text-destructive"
+                  }`}
                 >
-                  <Save className="size-5" aria-hidden="true" />
-                  {commercialPending ? "Guardando..." : "Guardar cambios"}
-                </Button>
-                {commercialState.message ? (
-                  <p
-                    aria-live="polite"
-                    className={`text-sm font-semibold sm:text-base ${
-                      commercialState.ok
-                        ? "text-emerald-700"
-                        : "text-destructive"
-                    }`}
-                  >
-                    {commercialState.message}
-                  </p>
-                ) : null}
-              </div>
-            ) : null}
+                  {saveState.message}
+                </p>
+              ) : null}
+            </div>
           </div>
         </div>
       ) : null}
@@ -290,22 +444,20 @@ function DangerZone({
   );
 }
 
-function ProductCommercialForm({
-  brands,
-  formAction,
-  formId,
-  product,
-  state,
-  suppliers,
-}: {
-  brands: CatalogOption[];
-  formAction: (formData: FormData) => void;
-  formId: string;
-  product: ProductListItem;
-  state: ProductActionState;
-  suppliers: CatalogOption[];
-}) {
-  const router = useRouter();
+const ProductCommercialForm = forwardRef<
+  CommercialFormHandle,
+  {
+    brands: CatalogOption[];
+    primaryBarcodeRef: React.RefObject<PrimaryBarcodeHandle | null>;
+    product: ProductListItem;
+    suppliers: CatalogOption[];
+  }
+>(function ProductCommercialForm(
+  { brands, primaryBarcodeRef, product, suppliers },
+  ref
+) {
+  const formRef = useRef<HTMLFormElement>(null);
+  const initialFormSignatureRef = useRef("");
   const [costWithoutTax, setCostWithoutTax] = useState(
     numberInputValue(product.costWithoutTax)
   );
@@ -346,15 +498,30 @@ function ProductCommercialForm({
   }
 
   useEffect(() => {
-    if (state.ok) {
-      router.refresh();
+    if (formRef.current) {
+      initialFormSignatureRef.current = formDataSignature(formRef.current);
     }
-  }, [router, state.ok]);
+  }, []);
+
+  useImperativeHandle(ref, () => ({
+    getFormData: () =>
+      formRef.current ? new FormData(formRef.current) : null,
+    hasChanges: () =>
+      Boolean(
+        formRef.current &&
+          formDataSignature(formRef.current) !== initialFormSignatureRef.current
+      ),
+    markSaved: () => {
+      if (formRef.current) {
+        initialFormSignatureRef.current = formDataSignature(formRef.current);
+      }
+    },
+  }), []);
 
   return (
     <form
-      id={formId}
-      action={formAction}
+      ref={formRef}
+      onSubmit={(event) => event.preventDefault()}
       className="contents"
     >
       <input type="hidden" name="productId" value={product.id} />
@@ -451,79 +618,56 @@ function ProductCommercialForm({
       </section>
 
       <PrimaryBarcodeSection
+        ref={primaryBarcodeRef}
         key={`${product.id}:${product.productBarcode}:${product.hasProductBarcode}`}
         product={product}
       />
 
+      <div className="min-w-0">
+        <SaleUnitsEditor
+          fallbackPrice={product.salePrice}
+          saleUnits={product.saleUnits}
+        />
+      </div>
+
     </form>
   );
-}
+});
 
-function PrimaryBarcodeSection({ product }: { product: ProductListItem }) {
+const PrimaryBarcodeSection = forwardRef<
+  PrimaryBarcodeHandle,
+  { product: ProductListItem }
+>(function PrimaryBarcodeSection({ product }, ref) {
   const router = useRouter();
-  const [barcode, setBarcode] = useState(
-    product.hasProductBarcode ? product.productBarcode : ""
-  );
+  const initialBarcode = product.hasProductBarcode ? product.productBarcode : "";
+  const [barcode, setBarcode] = useState(initialBarcode);
+  const [savedBarcode, setSavedBarcode] = useState(initialBarcode);
   const [message, setMessage] = useState("");
-  const [confirmReplace, setConfirmReplace] = useState(false);
   const [pending, setPending] = useState(false);
-  const currentBarcode = product.hasProductBarcode ? product.productBarcode : "";
   const normalizedInput = normalizeProductCode(barcode);
-  const statusLabel = product.hasProductBarcode
-    ? `Codigo de barras: ${product.productBarcode}`
+  const normalizedSavedBarcode = normalizeProductCode(savedBarcode);
+  const statusLabel = normalizedSavedBarcode
+    ? `Codigo de barras: ${savedBarcode}`
     : product.productBarcode
       ? "Codigo interno heredado"
       : "Sin codigo de barras cargado";
 
-  function handleResult(result: BarcodeMutationResult) {
-    setMessage(result.message);
-
-    if (result.requiresConfirmation) {
-      setConfirmReplace(true);
-      return;
-    }
-
-    setConfirmReplace(false);
-
-    if (result.ok) {
-      if (result.product) {
-        setBarcode(
-          result.product.hasProductBarcode ? result.product.productBarcode : ""
-        );
-      }
-
-      router.refresh();
-    }
-  }
-
-  function saveBarcode(forceReplace = false) {
-    if (!normalizedInput) {
-      setMessage("Escribi un codigo de barras valido.");
-      return;
-    }
-
-    if (
-      product.hasProductBarcode &&
-      normalizeProductCode(currentBarcode) !== normalizedInput &&
-      !forceReplace
-    ) {
-      setConfirmReplace(true);
-      setMessage("Este producto ya tiene otro codigo de barras. ¿Queres reemplazarlo?");
-      return;
-    }
-
-    setPending(true);
-    startTransition(async () => {
-      const result = await updateProductPrimaryBarcodeAction({
-        barcode: normalizedInput,
-        confirmReplace: forceReplace,
-        productId: product.id,
-      });
-
-      handleResult(result);
-      setPending(false);
-    });
-  }
+  useImperativeHandle(ref, () => ({
+    getBarcode: () => normalizedInput,
+    hasChanges: () => normalizedInput !== normalizedSavedBarcode,
+    markSaved: (result) => {
+      const nextBarcode = result.product?.hasProductBarcode
+        ? result.product.productBarcode
+        : normalizedInput;
+      setBarcode(nextBarcode);
+      setSavedBarcode(nextBarcode);
+      setMessage("");
+    },
+    needsReplacementConfirmation: () =>
+      Boolean(
+        normalizedSavedBarcode && normalizedInput !== normalizedSavedBarcode
+      ),
+  }), [normalizedInput, normalizedSavedBarcode]);
 
   function removeBarcode() {
     setPending(true);
@@ -532,10 +676,12 @@ function PrimaryBarcodeSection({ product }: { product: ProductListItem }) {
         productId: product.id,
       });
 
-      handleResult(result);
+      setMessage(result.message);
 
       if (result.ok) {
         setBarcode("");
+        setSavedBarcode("");
+        router.refresh();
       }
 
       setPending(false);
@@ -565,8 +711,8 @@ function PrimaryBarcodeSection({ product }: { product: ProductListItem }) {
           <input
             value={barcode}
             onChange={(event) => {
+              event.stopPropagation();
               setBarcode(event.target.value);
-              setConfirmReplace(false);
             }}
             placeholder="Escribir o escanear codigo"
             className="h-11 rounded-lg border border-input bg-background px-3 font-mono text-base"
@@ -578,34 +724,8 @@ function PrimaryBarcodeSection({ product }: { product: ProductListItem }) {
         {statusLabel}
       </p>
 
-      {confirmReplace ? (
-        <div className="grid gap-2 rounded-lg border border-yellow-500/40 bg-yellow-50 p-3">
-          <p className="text-sm font-semibold text-yellow-900">
-            Este producto ya tiene otro codigo de barras. ¿Queres reemplazarlo?
-          </p>
-          <Button
-            type="button"
-            disabled={pending}
-            onClick={() => saveBarcode(true)}
-            className="h-11 w-fit gap-2 px-4 text-base"
-          >
-            <Save className="size-5" aria-hidden="true" />
-            Reemplazar codigo
-          </Button>
-        </div>
-      ) : null}
-
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <Button
-          type="button"
-          disabled={pending}
-          onClick={() => saveBarcode(false)}
-          className="h-11 gap-2 px-4 text-base"
-        >
-          <Save className="size-5" aria-hidden="true" />
-          {pending ? "Guardando..." : "Guardar codigo"}
-        </Button>
-        {product.hasProductBarcode ? (
+        {normalizedSavedBarcode ? (
           <Button
             type="button"
             variant="outline"
@@ -620,7 +740,7 @@ function PrimaryBarcodeSection({ product }: { product: ProductListItem }) {
         {message ? (
           <p
             className={`text-base font-semibold ${
-              message.includes("guardado") || message.includes("eliminado")
+              message.includes("eliminado")
                 ? "text-emerald-700"
                 : "text-destructive"
             }`}
@@ -631,7 +751,7 @@ function PrimaryBarcodeSection({ product }: { product: ProductListItem }) {
       </div>
     </section>
   );
-}
+});
 
 function NumberField({
   defaultValue,

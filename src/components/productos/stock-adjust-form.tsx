@@ -1,31 +1,22 @@
 "use client";
 
-import { startTransition, useActionState, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import { PackagePlus } from "lucide-react";
+import { forwardRef, useImperativeHandle, useMemo, useRef, useState } from "react";
 
-import {
-  adjustProductStockAction,
-  type ProductActionState,
-} from "@/app/(dashboard)/productos/actions";
-import { Button } from "@/components/ui/button";
 import { formatStockQuantity } from "@/lib/format";
 import type { ProductListItem } from "./product-types";
 
-const initialState: ProductActionState = {
-  ok: false,
-  message: "",
+export type StockAdjustFormHandle = {
+  getFormData: () => FormData | null;
+  hasChanges: () => boolean;
+  markSaved: () => void;
 };
 
-export function StockAdjustForm({
-  product,
-  onAdjusted,
-}: {
-  product: ProductListItem;
-  onAdjusted?: () => void;
-}) {
-  const router = useRouter();
+export const StockAdjustForm = forwardRef<
+  StockAdjustFormHandle,
+  { product: ProductListItem }
+>(function StockAdjustForm({ product }, ref) {
   const formRef = useRef<HTMLFormElement>(null);
+  const [baselineStock, setBaselineStock] = useState(product.stockQuantity);
   const [newStockValue, setNewStockValue] = useState(
     product.stockQuantity === 0 ? "" : String(product.stockQuantity)
   );
@@ -45,39 +36,6 @@ export function StockAdjustForm({
   );
   const [stockLoadQuantity, setStockLoadQuantity] = useState("");
   const [stockLoadSaleUnitId, setStockLoadSaleUnitId] = useState(defaultSaleUnit.id);
-  const [confirmation, setConfirmation] = useState<{
-    formData: FormData;
-    nextStock: string;
-  } | null>(null);
-  const [state, formAction, pending] = useActionState(
-    adjustProductStockAction,
-    initialState
-  );
-
-  useEffect(() => {
-    if (state.ok) {
-      const scrollContainer = formRef.current?.closest(".overflow-y-auto");
-
-      if (scrollContainer) {
-        scrollContainer.scrollTo({
-          top: 0,
-          behavior: "smooth",
-        });
-      } else {
-        window.scrollTo({
-          top: 0,
-          behavior: "smooth",
-        });
-      }
-
-      const refreshTimeout = window.setTimeout(() => {
-        router.refresh();
-        onAdjusted?.();
-      }, 250);
-
-      return () => window.clearTimeout(refreshTimeout);
-    }
-  }, [onAdjusted, router, state.ok]);
   const stockPreview = useMemo(() => {
     const nextStock = Number(newStockValue);
 
@@ -89,7 +47,7 @@ export function StockAdjustForm({
       };
     }
 
-    const difference = nextStock - product.stockQuantity;
+    const difference = nextStock - baselineStock;
     if (difference > 0) {
       return {
         nextStock,
@@ -111,7 +69,7 @@ export function StockAdjustForm({
       difference,
       message: "El stock no cambia.",
     };
-  }, [newStockValue, product.stockQuantity]);
+  }, [baselineStock, newStockValue]);
   const stockLoadPreview = useMemo(() => {
     const quantity = Number(stockLoadQuantity);
     const saleUnit =
@@ -130,57 +88,51 @@ export function StockAdjustForm({
 
     return {
       quantityToAdd,
-      nextStock: product.stockQuantity + quantityToAdd,
+      nextStock: baselineStock + quantityToAdd,
       message: `Vas a sumar ${formatStockQuantity(quantityToAdd)} unidades reales.`,
     };
   }, [
     defaultSaleUnit,
     product.saleUnits,
-    product.stockQuantity,
+    baselineStock,
     stockLoadQuantity,
     stockLoadSaleUnitId,
   ]);
-
-  function submit(formData: FormData) {
-    const addQuantity = String(formData.get("addStockQuantity") ?? "").trim();
-
-    if (addQuantity) {
-      formAction(formData);
-      return;
-    }
-
-    const nextStock = String(formData.get("newStock") ?? "").trim();
-
-    if (!nextStock) {
-      formAction(formData);
-      return;
-    }
-
-    setConfirmation({
-      formData,
-      nextStock,
-    });
-  }
 
   function updateNewStockValue(value: string) {
     setNewStockValue(value.replace(/[^\d.,]/g, ""));
   }
 
-  function confirmStockAdjustment() {
-    if (!confirmation) {
-      return;
-    }
+  useImperativeHandle(ref, () => ({
+    getFormData: () =>
+      formRef.current ? new FormData(formRef.current) : null,
+    hasChanges: () => {
+      if (stockLoadQuantity.trim()) {
+        return true;
+      }
 
-    startTransition(() => {
-      formAction(confirmation.formData);
-      setConfirmation(null);
-    });
-  }
+      if (!newStockValue.trim()) {
+        return baselineStock !== 0;
+      }
+
+      const nextStock = Number(newStockValue.replace(",", "."));
+      return (
+        !Number.isFinite(nextStock) || nextStock !== baselineStock
+      );
+    },
+    markSaved: () => {
+      const nextStock =
+        stockLoadPreview.nextStock ?? stockPreview.nextStock ?? baselineStock;
+      setBaselineStock(nextStock);
+      setNewStockValue(nextStock === 0 ? "" : String(nextStock));
+      setStockLoadQuantity("");
+    },
+  }), [baselineStock, newStockValue, stockLoadPreview.nextStock, stockLoadQuantity, stockPreview.nextStock]);
 
   return (
     <form
       ref={formRef}
-      action={submit}
+      onSubmit={(event) => event.preventDefault()}
       className="grid gap-3 rounded-lg border border-border bg-background p-4"
     >
       <input type="hidden" name="productId" value={product.id} />
@@ -191,7 +143,7 @@ export function StockAdjustForm({
       <div className="grid gap-3 rounded-lg border border-border bg-muted/40 p-3 sm:grid-cols-2 md:grid-cols-4">
         <SummaryBlock
           label="Stock actual"
-          value={formatStockQuantity(product.stockQuantity)}
+          value={formatStockQuantity(baselineStock)}
         />
         <SummaryBlock
           label="Se agregan"
@@ -297,55 +249,9 @@ export function StockAdjustForm({
         </section>
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <Button
-          type="submit"
-          disabled={pending}
-          className="h-11 gap-2 bg-amber-600 px-4 text-base text-white hover:bg-amber-700"
-        >
-          <PackagePlus className="size-5" aria-hidden="true" />
-          {pending ? "Actualizando..." : "Guardar cambios de stock"}
-        </Button>
-        {state.message ? (
-          <p className="text-base font-semibold">{state.message}</p>
-        ) : null}
-      </div>
-
-      {confirmation ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 p-4">
-          <div className="w-full max-w-md rounded-lg border border-border bg-card p-5 shadow-lg">
-            <p className="text-lg font-bold">Confirmar stock</p>
-            <p className="mt-2 text-sm font-semibold text-muted-foreground">
-              {product.name}
-            </p>
-            <p className="mt-4 rounded-lg bg-muted p-3 text-xl font-bold">
-              Nuevo stock: {formatStockQuantity(Number(confirmation.nextStock))}
-            </p>
-            <div className="mt-5 grid gap-2 sm:grid-cols-2">
-              <Button
-                type="button"
-                disabled={pending}
-                onClick={confirmStockAdjustment}
-                className="h-10 bg-emerald-700 px-4 text-base text-white hover:bg-emerald-800"
-              >
-                Confirmar
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={pending}
-                onClick={() => setConfirmation(null)}
-                className="h-10 px-4 text-base"
-              >
-                Cancelar
-              </Button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </form>
   );
-}
+});
 
 function SummaryBlock({ label, value }: { label: string; value: string }) {
   return (
