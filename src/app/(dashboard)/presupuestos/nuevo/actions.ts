@@ -113,6 +113,59 @@ const EPSILON = 0.000001;
 const CASH_REGISTER_CLOSED_MESSAGE =
   "Caja cerrada. AbrÃ­ caja antes de registrar ventas.";
 
+async function syncSelectedSaleUnitPrices({
+  lines,
+  tenantId,
+}: {
+  lines: QuoteLine[];
+  tenantId: string;
+}) {
+  const supabase = getSupabaseServerClient();
+  const productIds = [...new Set(lines.map((line) => line.id))];
+  const { data, error } = await supabase
+    .from("products")
+    .select("id,sale_price")
+    .eq("tenant_id", tenantId)
+    .in("id", productIds);
+
+  if (error) {
+    throw new Error("No se pudieron validar los precios de los productos.");
+  }
+
+  const prices = new Map(
+    ((data ?? []) as { id: string; sale_price: number | null }[]).map((product) => [
+      product.id,
+      Number(product.sale_price ?? 0),
+    ])
+  );
+
+  if (prices.size !== productIds.length) {
+    throw new Error("No se encontraron todos los productos seleccionados.");
+  }
+
+  for (const line of lines) {
+    const salePrice = prices.get(line.id) ?? 0;
+    let update = supabase
+      .from("product_sale_units")
+      .update({ sale_price: salePrice })
+      .eq("tenant_id", tenantId)
+      .eq("product_id", line.id)
+      .eq("active", true);
+
+    update = line.selectedSaleUnitId
+      ? update.eq("id", line.selectedSaleUnitId)
+      : update.eq("is_default", true);
+
+    const { error: updateError } = await update;
+
+    if (updateError) {
+      throw new Error("No se pudo preparar el precio del producto seleccionado.");
+    }
+  }
+
+  return prices;
+}
+
 const STOCK_NOT_ENOUGH_MESSAGE =
   "Stock insuficiente. RevisÃ¡ las cantidades antes de vender.";
 
@@ -224,7 +277,11 @@ function mapProduct(
     rawSearch?: string;
   } = {}
 ): QuoteProduct {
-  const finalSaleUnits = saleUnits.length > 0 ? saleUnits : [fallbackSaleUnit(row)];
+  const productSalePrice = Number(row.sale_price ?? 0);
+  const finalSaleUnits = (saleUnits.length > 0
+    ? saleUnits
+    : [fallbackSaleUnit(row)]
+  ).map((unit) => ({ ...unit, salePrice: productSalePrice }));
   const productBarcode = normalizeProductCode(row.barcode);
   const searchMatchedSaleUnit = findSaleUnitByBarcode(
     finalSaleUnits,
@@ -257,7 +314,7 @@ function mapProduct(
     brand: row.brands?.name ?? "",
     category: row.categories?.name ?? "",
     unit: row.unit,
-    price: defaultSaleUnit.salePrice,
+    price: productSalePrice,
     stockQuantity: row.stock_quantity ?? 0,
     minStock: row.min_stock ?? 0,
     availableForSale:
@@ -1035,6 +1092,7 @@ export async function saveQuoteAction({
   try {
     const [tenant, user] = await Promise.all([requireTenant(), requireUser()]);
     const supabase = getSupabaseServerClient();
+    await syncSelectedSaleUnitPrices({ lines: cleanLines, tenantId: tenant.id });
     const { data, error } = await supabase.rpc("create_quote_with_items", {
       input_tenant_id: tenant.id,
       input_created_by: user.id,
@@ -1123,18 +1181,6 @@ export async function saveQuoteAndConvertToSaleAction({
     };
   }
 
-  const total = cleanLines.reduce(
-    (sum, line) => sum + Number(line.quantity) * Number(line.price),
-    0
-  );
-
-  if (normalizedPaidAmount - total > EPSILON) {
-    return {
-      ok: false,
-      message: "El monto pagado no puede superar el total.",
-    };
-  }
-
   if (cleanPaymentMethod === "Cuenta corriente" && !customer.id?.trim()) {
     return {
       ok: false,
@@ -1148,6 +1194,22 @@ export async function saveQuoteAndConvertToSaleAction({
       requireUser(),
     ]);
     const supabase = getSupabaseServerClient();
+    const productPrices = await syncSelectedSaleUnitPrices({
+      lines: cleanLines,
+      tenantId: tenant.id,
+    });
+    const total = cleanLines.reduce(
+      (sum, line) =>
+        sum + Number(line.quantity) * (productPrices.get(line.id) ?? 0),
+      0
+    );
+
+    if (normalizedPaidAmount - total > EPSILON) {
+      return {
+        ok: false,
+        message: "El monto pagado no puede superar el total.",
+      };
+    }
 
     console.info("[sale-payload-diagnostic]", {
       source: "saveQuoteAndConvertToSaleAction",

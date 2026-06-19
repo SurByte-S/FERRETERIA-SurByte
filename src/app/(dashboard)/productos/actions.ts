@@ -177,19 +177,19 @@ function parseSaleUnitsInput(formData: FormData, fallbackSalePrice: number | nul
   return units;
 }
 
-async function syncProductSaleUnits({
+async function syncDefaultSaleUnitPrice({
   productId,
-  saleUnits,
+  salePrice,
   tenantId,
 }: {
   productId: string;
-  saleUnits: SaleUnitInput[];
+  salePrice: number | null;
   tenantId: string;
 }) {
   const supabase = getSupabaseServerClient();
   const existingResult = await supabase
     .from("product_sale_units")
-    .select("id")
+    .select("id,name,quantity_in_base_unit,is_default,active")
     .eq("tenant_id", tenantId)
     .eq("product_id", productId);
 
@@ -197,76 +197,95 @@ async function syncProductSaleUnits({
     throw new Error("No se pudieron revisar las presentaciones.");
   }
 
-  const existingIds = new Set(
-    ((existingResult.data ?? []) as { id: string }[]).map((item) => item.id)
+  type ExistingSaleUnit = {
+    id: string;
+    name: string;
+    quantity_in_base_unit: number | null;
+    is_default: boolean | null;
+    active: boolean | null;
+  };
+
+  const units = (existingResult.data ?? []) as ExistingSaleUnit[];
+  const defaultUnit = units.find((unit) => unit.active !== false && unit.is_default);
+  const internalUnit = units.find(
+    (unit) =>
+      unit.active !== false &&
+      unit.name.trim().toLowerCase() === "unidad"
   );
-  const incomingIds = new Set(
-    saleUnits.map((unit) => unit.id).filter((id): id is string => Boolean(id))
+  const inactiveInternalUnit = units.find(
+    (unit) =>
+      unit.active === false &&
+      unit.name.trim().toLowerCase() === "unidad"
   );
-  const idsToDeactivate = [...existingIds].filter((id) => !incomingIds.has(id));
+  const targetUnit = defaultUnit ?? internalUnit ?? inactiveInternalUnit;
+  const normalizedSalePrice = salePrice ?? 0;
 
-  if (idsToDeactivate.length > 0) {
-    const { error } = await supabase
-      .from("product_sale_units")
-      .update({ active: false, is_default: false })
-      .eq("tenant_id", tenantId)
-      .eq("product_id", productId)
-      .in("id", idsToDeactivate);
-
-    if (error) {
-      throw new Error("No se pudieron desactivar presentaciones anteriores.");
-    }
-  }
-
-  const defaultUnit = saleUnits.find((unit) => unit.active && unit.isDefault);
-
-  if (defaultUnit?.id) {
-    const { error } = await supabase
-      .from("product_sale_units")
-      .update({ is_default: false })
-      .eq("tenant_id", tenantId)
-      .eq("product_id", productId)
-      .neq("id", defaultUnit.id);
-
-    if (error) {
-      throw new Error("No se pudo actualizar la presentacion predeterminada.");
-    }
-  } else {
-    const { error } = await supabase
-      .from("product_sale_units")
-      .update({ is_default: false })
-      .eq("tenant_id", tenantId)
-      .eq("product_id", productId);
-
-    if (error) {
-      throw new Error("No se pudo actualizar la presentacion predeterminada.");
-    }
-  }
-
-  for (const unit of saleUnits) {
-    const payload = {
+  if (!targetUnit) {
+    const { error } = await supabase.from("product_sale_units").insert({
       tenant_id: tenantId,
       product_id: productId,
-      name: unit.name,
-      quantity_in_base_unit: unit.quantityInBaseUnit,
-      sale_price: unit.salePrice,
-      barcode: unit.barcode || null,
-      is_default: unit.isDefault,
-      active: unit.active,
-    };
-
-    const { error } = unit.id
-      ? await supabase
-          .from("product_sale_units")
-          .update(payload)
-          .eq("tenant_id", tenantId)
-          .eq("product_id", productId)
-          .eq("id", unit.id)
-      : await supabase.from("product_sale_units").insert(payload);
+      name: "Unidad",
+      quantity_in_base_unit: 1,
+      sale_price: normalizedSalePrice,
+      barcode: null,
+      is_default: true,
+      active: true,
+    });
 
     if (error) {
-      throw new Error("No se pudieron guardar las presentaciones.");
+      throw new Error("No se pudo crear la presentacion interna del producto.");
     }
+
+    const { error: activeUnitsError } = await supabase
+      .from("product_sale_units")
+      .update({ sale_price: normalizedSalePrice })
+      .eq("tenant_id", tenantId)
+      .eq("product_id", productId)
+      .eq("active", true);
+
+    if (activeUnitsError) {
+      throw new Error("No se pudieron sincronizar los precios internos del producto.");
+    }
+    return;
+  }
+
+  if (!defaultUnit) {
+    const { error: resetError } = await supabase
+      .from("product_sale_units")
+      .update({ is_default: false })
+      .eq("tenant_id", tenantId)
+      .eq("product_id", productId)
+      .neq("id", targetUnit.id);
+
+    if (resetError) {
+      throw new Error("No se pudo actualizar la presentacion predeterminada.");
+    }
+  }
+
+  const { error } = await supabase
+    .from("product_sale_units")
+    .update({
+      sale_price: normalizedSalePrice,
+      is_default: true,
+      active: true,
+    })
+    .eq("tenant_id", tenantId)
+    .eq("product_id", productId)
+    .eq("id", targetUnit.id);
+
+  if (error) {
+    throw new Error("No se pudo sincronizar el precio interno del producto.");
+  }
+
+  const { error: activeUnitsError } = await supabase
+    .from("product_sale_units")
+    .update({ sale_price: normalizedSalePrice })
+    .eq("tenant_id", tenantId)
+    .eq("product_id", productId)
+    .eq("active", true);
+
+  if (activeUnitsError) {
+    throw new Error("No se pudieron sincronizar los precios internos del producto.");
   }
 }
 
@@ -742,11 +761,10 @@ export async function updateProductAction(
         formData,
       }),
     ];
-    const saleUnits = parseSaleUnitsInput(formData, salePrice);
     await ensureProductCodesAvailable({
       barcode,
       productId,
-      saleUnits,
+      saleUnits: [],
       sku: nextSku,
       tenantId: tenant.id,
     });
@@ -801,9 +819,9 @@ export async function updateProductAction(
       return errorState;
     }
 
-    await syncProductSaleUnits({
+    await syncDefaultSaleUnitPrice({
       productId,
-      saleUnits,
+      salePrice,
       tenantId: tenant.id,
     });
 
@@ -934,7 +952,7 @@ export async function createProductAction(
     const finalCostWithTax =
       costWithTax ??
       (costWithoutTax === null ? null : costWithoutTax * (1 + cleanTaxRate / 100));
-    const saleUnits = parseSaleUnitsInput(formData, salePrice);
+    const saleUnits = parseSaleUnitsInput(new FormData(), salePrice);
     const { data: productId, error } = await supabase.rpc("create_product_atomic", {
       input_active: active,
       input_barcode: barcode,
@@ -1053,6 +1071,12 @@ export async function updateProductPriceAction(
       };
     }
 
+    await syncDefaultSaleUnitPrice({
+      productId,
+      salePrice,
+      tenantId: tenant.id,
+    });
+
     revalidatePath("/productos");
     revalidatePath("/stock");
 
@@ -1135,7 +1159,6 @@ export async function updateProductStockCommercialAction(
         formData,
       }),
     ];
-    const saleUnits = parseSaleUnitsInput(formData, salePrice);
     const supabase = getSupabaseServerClient();
     const [brandId, supplierId] = await Promise.all([
       validateTenantCatalogId({
@@ -1151,11 +1174,6 @@ export async function updateProductStockCommercialAction(
         tenantId: tenant.id,
       }),
     ]);
-    await ensureProductCodesAvailable({
-      productId,
-      saleUnits,
-      tenantId: tenant.id,
-    });
     const { data, error } = await supabase
       .from("products")
       .update({
@@ -1180,9 +1198,9 @@ export async function updateProductStockCommercialAction(
       };
     }
 
-    await syncProductSaleUnits({
+    await syncDefaultSaleUnitPrice({
       productId,
-      saleUnits,
+      salePrice,
       tenantId: tenant.id,
     });
 

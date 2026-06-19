@@ -404,7 +404,7 @@ export function QuickSalePos({
                 ? "sale_unit_barcode"
                 : product.matchedBy,
               matchedSaleUnitId: selectedSaleUnit.id || product.matchedSaleUnitId,
-              price: selectedSaleUnit.salePrice,
+              price: product.price,
               quantity: 1,
               selectedSaleUnitId: selectedSaleUnit.id,
               selectedSaleUnitName: selectedSaleUnit.name,
@@ -1547,7 +1547,7 @@ function ProductRow({
       <div>
         <p className="text-sm font-bold text-muted-foreground">Precio</p>
         <p className="text-lg font-black text-primary">
-          {formatMoney(selectedSaleUnit.salePrice)}
+          {formatMoney(product.price)}
         </p>
       </div>
       <Button

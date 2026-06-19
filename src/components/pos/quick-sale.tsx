@@ -374,7 +374,7 @@ export function QuickSale({
             ? "sale_unit_barcode"
             : product.matchedBy,
           matchedSaleUnitId: saleUnit.id || product.matchedSaleUnitId,
-          price: saleUnit.salePrice,
+          price: product.price,
           quantity: safeQty,
           selectedSaleUnitId: saleUnit.id,
           selectedSaleUnitName: saleUnit.name,

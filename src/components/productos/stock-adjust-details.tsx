@@ -19,7 +19,6 @@ import { CatalogSelectWithCreate } from "@/components/productos/catalog-select-w
 import { Button } from "@/components/ui/button";
 import { normalizeProductCode } from "@/lib/product-code";
 import type { ProductListItem } from "./product-types";
-import { SaleUnitsEditor } from "./sale-units-editor";
 import { StockAdjustForm } from "./stock-adjust-form";
 
 type CatalogOption = {
@@ -455,13 +454,6 @@ function ProductCommercialForm({
         key={`${product.id}:${product.productBarcode}:${product.hasProductBarcode}`}
         product={product}
       />
-
-      <div className="min-w-0">
-        <SaleUnitsEditor
-          fallbackPrice={product.salePrice}
-          saleUnits={product.saleUnits}
-        />
-      </div>
 
     </form>
   );

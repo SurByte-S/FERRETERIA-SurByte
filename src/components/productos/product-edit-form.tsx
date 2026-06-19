@@ -8,7 +8,6 @@ import {
   type ProductActionState,
 } from "@/app/(dashboard)/productos/actions";
 import { Button } from "@/components/ui/button";
-import { SaleUnitsEditor } from "./sale-units-editor";
 import type { ProductCatalogOption, ProductListItem } from "./product-types";
 
 const initialState: ProductActionState = {
@@ -107,11 +106,6 @@ export function ProductEditForm({
           </span>
         </Field>
       </div>
-
-      <SaleUnitsEditor
-        fallbackPrice={product.salePrice}
-        saleUnits={product.saleUnits}
-      />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <Button type="submit" disabled={pending} className="h-14 gap-2 px-6 text-lg">

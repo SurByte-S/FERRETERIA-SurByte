@@ -17,8 +17,6 @@ import {
 } from "@/app/(dashboard)/productos/actions";
 import { Button } from "@/components/ui/button";
 import { CatalogSelectWithCreate } from "@/components/productos/catalog-select-with-create";
-import { SaleUnitsEditor } from "@/components/productos/sale-units-editor";
-import type { ProductSaleUnit } from "@/components/productos/product-types";
 
 type CatalogOption = {
   id: string;
@@ -96,36 +94,11 @@ export function NewProductForm({
   const [profitMarginPercent, setProfitMarginPercent] = useState("0");
   const [salePrice, setSalePrice] = useState("");
   const [initialLoadQuantity, setInitialLoadQuantity] = useState("0");
-  const [initialLoadSaleUnitIndex, setInitialLoadSaleUnitIndex] = useState("0");
-  const [saleUnits, setSaleUnits] = useState<ProductSaleUnit[]>([]);
   const [minStock, setMinStock] = useState("0");
-  const activeSaleUnits = useMemo(
-    () =>
-      saleUnits.filter(
-        (saleUnit) =>
-          saleUnit.active &&
-          Number.isFinite(saleUnit.quantityInBaseUnit) &&
-          saleUnit.quantityInBaseUnit > 0
-      ),
-    [saleUnits]
-  );
-  const selectedInitialSaleUnitIndex = Number(initialLoadSaleUnitIndex);
-  const safeInitialLoadSaleUnitIndex =
-    Number.isInteger(selectedInitialSaleUnitIndex) &&
-    selectedInitialSaleUnitIndex >= 0 &&
-    selectedInitialSaleUnitIndex < activeSaleUnits.length
-      ? selectedInitialSaleUnitIndex
-      : 0;
-  const selectedInitialSaleUnit =
-    activeSaleUnits[safeInitialLoadSaleUnitIndex] ?? activeSaleUnits[0];
-  const selectedQuantityInBaseUnit =
-    selectedInitialSaleUnit?.quantityInBaseUnit ?? 1;
   const initialLoadQuantityValue = numberValue(initialLoadQuantity);
   const calculatedStockQuantity =
     Number.isFinite(initialLoadQuantityValue) && initialLoadQuantityValue > 0
-      ? roundToThree(
-          initialLoadQuantityValue * selectedQuantityInBaseUnit
-        )
+      ? roundToThree(initialLoadQuantityValue)
       : 0;
   const stockQuantity = String(calculatedStockQuantity);
   const calculatedCostWithTax = useMemo(() => {
@@ -183,14 +156,8 @@ export function NewProductForm({
     setProfitMarginPercent("0");
     setSalePrice("");
     setInitialLoadQuantity("0");
-    setInitialLoadSaleUnitIndex("0");
-    setSaleUnits([]);
     setMinStock("0");
   }, [initialBarcode, initialName, initialSku]);
-
-  const handleSaleUnitsChange = useCallback((nextSaleUnits: ProductSaleUnit[]) => {
-    setSaleUnits(nextSaleUnits);
-  }, []);
 
   useEffect(() => {
     onCreatedRef.current = onCreated;
@@ -399,26 +366,7 @@ export function NewProductForm({
       <section className="grid gap-3 rounded-lg border border-border bg-background p-4">
         <h3 className="text-base font-bold">Stock inicial</h3>
         <input type="hidden" name="stockQuantity" value={stockQuantity} />
-        <div className="grid gap-3 md:grid-cols-3">
-          <label className="grid gap-2 text-base font-semibold">
-            <span>Presentacion de carga inicial</span>
-            <select
-              value={String(safeInitialLoadSaleUnitIndex)}
-              onChange={(event) => setInitialLoadSaleUnitIndex(event.target.value)}
-              className="h-11 rounded-lg border border-input bg-background px-3 text-base"
-            >
-              {activeSaleUnits.length > 0 ? (
-                activeSaleUnits.map((saleUnit, index) => (
-                  <option key={`${saleUnit.id || "new"}-${index}`} value={index}>
-                    {saleUnit.name || "Presentacion"} x{" "}
-                    {formatQuantity(saleUnit.quantityInBaseUnit)}
-                  </option>
-                ))
-              ) : (
-                <option value="0">Unidad x 1</option>
-              )}
-            </select>
-          </label>
+        <div className="grid gap-3 md:grid-cols-2">
           <NumberField
             label="Cantidad que entra"
             name="initialLoadQuantity"
@@ -438,11 +386,6 @@ export function NewProductForm({
           Se guardara como {formatQuantity(calculatedStockQuantity)} {unit}.
         </p>
       </section>
-
-      <SaleUnitsEditor
-        fallbackPrice={Number(salePrice) || 0}
-        onUnitsChange={handleSaleUnitsChange}
-      />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <Button
