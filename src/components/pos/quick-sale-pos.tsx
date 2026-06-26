@@ -447,7 +447,6 @@ export function QuickSalePos({
       const code = rawCode.trim();
 
       if (
-        mode !== "sale" ||
         !code ||
         isPending ||
         barcodeScanPendingRef.current
@@ -470,7 +469,7 @@ export function QuickSalePos({
 
       startTransition(async () => {
         try {
-          const result = await lookupQuoteProductByCodeAction(code, false);
+          const result = await lookupQuoteProductByCodeAction(code, isQuoteMode);
 
           if (latestSearchRequestRef.current !== requestId) {
             return;
@@ -508,16 +507,12 @@ export function QuickSalePos({
         }
       });
     },
-    [addProduct, isPending, mode, startTransition]
+    [addProduct, isPending, isQuoteMode, startTransition]
   );
 
   useEffect(() => {
     barcodeBufferRef.current = "";
     barcodeLastKeyAtRef.current = 0;
-
-    if (mode !== "sale") {
-      return;
-    }
 
     function handleBarcodeKeyDown(event: KeyboardEvent) {
       if (
@@ -721,11 +716,11 @@ export function QuickSalePos({
       const lastKeyInterval = performance.now() - barcodeLastKeyAtRef.current;
 
       if (
-        mode === "sale" &&
         code.length >= BARCODE_SCAN_MIN_LENGTH &&
         lastKeyInterval <= BARCODE_SCAN_MAX_INTERVAL_MS
       ) {
         event.preventDefault();
+        lookupAndShowProductByCode(code);
         return;
       }
 
