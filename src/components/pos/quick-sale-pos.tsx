@@ -36,7 +36,7 @@ const DEFAULT_PAGE_SIZE = 40;
 const BARCODE_SCAN_MIN_LENGTH = 4;
 const BARCODE_SCAN_MAX_INTERVAL_MS = 80;
 const BARCODE_NOT_FOUND_MESSAGE =
-  "No se encontro un producto con ese codigo.";
+  "No encontramos un producto con ese codigo.";
 
 const PAYMENT_METHODS = [
   "Efectivo",
@@ -54,8 +54,20 @@ type CashStatus =
 
 type SearchStatus = "idle" | "loading" | "results" | "empty" | "error";
 
-function isEditableTarget(target: EventTarget | null) {
+function isProductSearchInputTarget(target: EventTarget | null) {
   if (!(target instanceof Element)) {
+    return false;
+  }
+
+  return Boolean(target.closest('[data-pos-product-search="true"]'));
+}
+
+function isScannerBlockedTarget(target: EventTarget | null) {
+  if (!(target instanceof Element)) {
+    return false;
+  }
+
+  if (isProductSearchInputTarget(target)) {
     return false;
   }
 
@@ -332,7 +344,8 @@ export function QuickSalePos({
           term,
           isQuoteMode,
           nextPage,
-          nextPageSize
+          nextPageSize,
+          { prioritizeInStock: isQuoteMode }
         );
 
         if (latestSearchRequestRef.current !== requestId) {
@@ -376,7 +389,7 @@ export function QuickSalePos({
           consumption: nextConsumption,
         })
       );
-      return;
+      return false;
     }
 
     const existing = linesRef.current.find(
@@ -426,6 +439,7 @@ export function QuickSalePos({
       isQuoteMode ? "Producto agregado al presupuesto." : "Producto agregado a la venta."
     );
     window.setTimeout(() => searchInputRef.current?.focus(), 0);
+    return true;
   }, [isQuoteMode]);
 
   const lookupAndShowProductByCode = useCallback(
@@ -463,10 +477,11 @@ export function QuickSalePos({
           }
 
           if (result.ok && result.product) {
-            setResults([result.product]);
-            setResultsTotal(1);
-            setSearchStatus("results");
-            setMessage("");
+            const wasAdded = addProduct(result.product);
+
+            if (wasAdded) {
+              setMessage(`Agregado: ${result.product.name || result.product.description}`);
+            }
             return;
           }
 
@@ -493,7 +508,7 @@ export function QuickSalePos({
         }
       });
     },
-    [isPending, mode, startTransition]
+    [addProduct, isPending, mode, startTransition]
   );
 
   useEffect(() => {
@@ -512,8 +527,8 @@ export function QuickSalePos({
         event.altKey ||
         event.metaKey ||
         event.shiftKey ||
-        isEditableTarget(event.target) ||
-        isEditableTarget(document.activeElement) ||
+        isScannerBlockedTarget(event.target) ||
+        isScannerBlockedTarget(document.activeElement) ||
         hasVisibleDialog()
       ) {
         barcodeBufferRef.current = "";
@@ -673,7 +688,8 @@ export function QuickSalePos({
         term,
         isQuoteMode,
         nextPage,
-        pageSize
+        pageSize,
+        { prioritizeInStock: isQuoteMode }
       );
 
       if (latestSearchRequestRef.current !== requestId) {
@@ -701,6 +717,18 @@ export function QuickSalePos({
 
   function handleSearchKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
     if (event.key === "Enter") {
+      const code = barcodeBufferRef.current.trim();
+      const lastKeyInterval = performance.now() - barcodeLastKeyAtRef.current;
+
+      if (
+        mode === "sale" &&
+        code.length >= BARCODE_SCAN_MIN_LENGTH &&
+        lastKeyInterval <= BARCODE_SCAN_MAX_INTERVAL_MS
+      ) {
+        event.preventDefault();
+        return;
+      }
+
       event.preventDefault();
       runSearch();
     }
@@ -976,6 +1004,7 @@ export function QuickSalePos({
             <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_9rem]">
               <input
                 ref={searchInputRef}
+                data-pos-product-search="true"
                 value={search}
                 onChange={(event) => handleSearchChange(event.target.value)}
                 onKeyDown={handleSearchKeyDown}

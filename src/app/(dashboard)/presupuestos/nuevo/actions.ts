@@ -5,7 +5,10 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth/session";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { hasRealProductBarcode, normalizeProductCode } from "@/lib/product-code";
-import { sortProductsBySearchRank } from "@/lib/search-ranking";
+import {
+  getProductSearchRank,
+  sortProductsBySearchRank,
+} from "@/lib/search-ranking";
 import {
   FORBIDDEN_ACTION_MESSAGE,
   isTenantRoleForbiddenError,
@@ -171,6 +174,7 @@ const STOCK_NOT_ENOUGH_MESSAGE =
 
 const POS_PAGE_SIZE_OPTIONS = [20, 40, 80] as const;
 const DEFAULT_POS_PAGE_SIZE = 40;
+const MAX_QUOTE_PRIORITY_SEARCH_ROWS = 5000;
 const CODE_CONFLICT_MESSAGE =
   "Este codigo pertenece a otro producto. Revisalo antes de continuar.";
 const OUT_OF_STOCK_CODE_MESSAGE =
@@ -627,6 +631,41 @@ function clampPosPageSize(pageSize: number) {
     : DEFAULT_POS_PAGE_SIZE;
 }
 
+function toSearchableProduct(product: QuoteProduct) {
+  return {
+    ...product,
+    saleUnitBarcodes: product.saleUnits
+      .map((unit) => unit.barcode)
+      .filter(Boolean),
+  };
+}
+
+function sortProductsForQuoteSearch(products: QuoteProduct[], rawSearch: string) {
+  return [...products].sort((first, second) => {
+    const firstSearchable = toSearchableProduct(first);
+    const secondSearchable = toSearchableProduct(second);
+    const firstExact = getProductSearchRank(firstSearchable, rawSearch) === 0;
+    const secondExact = getProductSearchRank(secondSearchable, rawSearch) === 0;
+    const firstHasStock = first.stockQuantity > EPSILON;
+    const secondHasStock = second.stockQuantity > EPSILON;
+    const rankDifference =
+      getProductSearchRank(firstSearchable, rawSearch) -
+      getProductSearchRank(secondSearchable, rawSearch);
+
+    return (
+      Number(secondExact) - Number(firstExact) ||
+      Number(secondHasStock) - Number(firstHasStock) ||
+      rankDifference ||
+      first.name.localeCompare(second.name, "es-AR") ||
+      first.sku.localeCompare(second.sku, "es-AR")
+    );
+  });
+}
+
+function paginateProducts<T>(products: T[], offset: number, pageSize: number) {
+  return products.slice(offset, offset + pageSize);
+}
+
 function getSaveQuoteErrorMessage(message?: string) {
   if (!message) {
     return "No se pudo guardar el presupuesto.";
@@ -793,12 +832,16 @@ export async function searchProductsForPosAction(
   rawSearch: string,
   includeOutOfStock = false,
   page = 1,
-  pageSize = 40
+  pageSize = 40,
+  options: { prioritizeInStock?: boolean } = {}
 ): Promise<PosProductSearchResult> {
   const search = cleanSearch(rawSearch);
   const safePage = Math.max(Number(page) || 1, 1);
   const safePageSize = clampPosPageSize(Number(pageSize) || DEFAULT_POS_PAGE_SIZE);
   const offset = (safePage - 1) * safePageSize;
+  const shouldPrioritizeInStock = Boolean(
+    includeOutOfStock && options.prioritizeInStock
+  );
 
   try {
     const tenant = await requireTenantRole(["owner", "admin", "seller"]);
@@ -806,8 +849,10 @@ export async function searchProductsForPosAction(
     const rpcResult = await supabase.rpc("search_pos_products", {
       p_tenant_id: tenant.id,
       p_query: search,
-      p_limit: safePageSize,
-      p_offset: offset,
+      p_limit: shouldPrioritizeInStock
+        ? MAX_QUOTE_PRIORITY_SEARCH_ROWS
+        : safePageSize,
+      p_offset: shouldPrioritizeInStock ? 0 : offset,
       p_include_out_of_stock: includeOutOfStock,
     });
 
@@ -821,13 +866,28 @@ export async function searchProductsForPosAction(
 
       return {
         ok: true,
-        items: rows.map((row) =>
-          mapPosProduct(row, saleUnitsByProductId.get(row.id), {
-            matchedBy: row.matched_by,
-            preferredSaleUnitId: row.matched_sale_unit_id,
-            rawSearch: search,
-          })
-        ),
+        items: shouldPrioritizeInStock
+          ? paginateProducts(
+              sortProductsForQuoteSearch(
+                rows.map((row) =>
+                  mapPosProduct(row, saleUnitsByProductId.get(row.id), {
+                    matchedBy: row.matched_by,
+                    preferredSaleUnitId: row.matched_sale_unit_id,
+                    rawSearch: search,
+                  })
+                ),
+                search
+              ),
+              offset,
+              safePageSize
+            )
+          : rows.map((row) =>
+              mapPosProduct(row, saleUnitsByProductId.get(row.id), {
+                matchedBy: row.matched_by,
+                preferredSaleUnitId: row.matched_sale_unit_id,
+                rawSearch: search,
+              })
+            ),
         total: Number(rows[0]?.total_count ?? 0),
         page: safePage,
         pageSize: safePageSize,
@@ -835,8 +895,10 @@ export async function searchProductsForPosAction(
     }
 
     const safeSearch = search.replace(/[%_]/g, "");
-    const from = offset;
-    const to = from + safePageSize - 1;
+    const from = shouldPrioritizeInStock ? 0 : offset;
+    const to = shouldPrioritizeInStock
+      ? MAX_QUOTE_PRIORITY_SEARCH_ROWS - 1
+      : from + safePageSize - 1;
     const [matchingBrands, matchingCategories] = safeSearch
       ? await Promise.all([
           supabase
@@ -923,20 +985,34 @@ export async function searchProductsForPosAction(
 
     return {
       ok: true,
-      items: sortProductsBySearchRank(
-        fallbackRows.map((row) => ({
-          ...mapProduct(row, saleUnitsByProductId.get(row.id), {
-            preferredSaleUnitId: saleUnitMatches.get(row.id),
-            rawSearch: search,
-          }),
-          barcode: row.barcode,
-          normalizedName: row.normalized_name,
-          saleUnitBarcodes: (saleUnitsByProductId.get(row.id) ?? [])
-            .map((unit) => unit.barcode)
-            .filter(Boolean),
-        })),
-        search
-      ),
+      items: shouldPrioritizeInStock
+        ? paginateProducts(
+            sortProductsForQuoteSearch(
+              fallbackRows.map((row) =>
+                mapProduct(row, saleUnitsByProductId.get(row.id), {
+                  preferredSaleUnitId: saleUnitMatches.get(row.id),
+                  rawSearch: search,
+                })
+              ),
+              search
+            ),
+            offset,
+            safePageSize
+          )
+        : sortProductsBySearchRank(
+            fallbackRows.map((row) => ({
+              ...mapProduct(row, saleUnitsByProductId.get(row.id), {
+                preferredSaleUnitId: saleUnitMatches.get(row.id),
+                rawSearch: search,
+              }),
+              barcode: row.barcode,
+              normalizedName: row.normalized_name,
+              saleUnitBarcodes: (saleUnitsByProductId.get(row.id) ?? [])
+                .map((unit) => unit.barcode)
+                .filter(Boolean),
+            })),
+            search
+          ),
       total: count ?? 0,
       page: safePage,
       pageSize: safePageSize,
