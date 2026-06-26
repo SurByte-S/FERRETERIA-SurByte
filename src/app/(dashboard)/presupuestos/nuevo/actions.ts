@@ -640,17 +640,32 @@ function toSearchableProduct(product: QuoteProduct) {
   };
 }
 
+function isExactProductMatch(product: QuoteProduct, rawSearch: string) {
+  const cleanSearch = normalizeProductCode(rawSearch);
+
+  if (!cleanSearch) {
+    return false;
+  }
+
+  return [
+    product.sku,
+    product.productBarcode,
+    product.displayCode,
+    ...product.saleUnits.map((unit) => unit.barcode),
+  ].some((value) => normalizeProductCode(value) === cleanSearch);
+}
+
 function sortProductsForQuoteSearch(products: QuoteProduct[], rawSearch: string) {
   return [...products].sort((first, second) => {
     const firstSearchable = toSearchableProduct(first);
     const secondSearchable = toSearchableProduct(second);
-    const firstExact = getProductSearchRank(firstSearchable, rawSearch) === 0;
-    const secondExact = getProductSearchRank(secondSearchable, rawSearch) === 0;
+    const firstRank = getProductSearchRank(firstSearchable, rawSearch);
+    const secondRank = getProductSearchRank(secondSearchable, rawSearch);
+    const firstExact = isExactProductMatch(first, rawSearch) || firstRank === 0;
+    const secondExact = isExactProductMatch(second, rawSearch) || secondRank === 0;
     const firstHasStock = first.stockQuantity > EPSILON;
     const secondHasStock = second.stockQuantity > EPSILON;
-    const rankDifference =
-      getProductSearchRank(firstSearchable, rawSearch) -
-      getProductSearchRank(secondSearchable, rawSearch);
+    const rankDifference = firstRank - secondRank;
 
     return (
       Number(secondExact) - Number(firstExact) ||
@@ -662,8 +677,146 @@ function sortProductsForQuoteSearch(products: QuoteProduct[], rawSearch: string)
   });
 }
 
+function dedupeQuoteProducts(products: QuoteProduct[]) {
+  const seen = new Set<string>();
+  const deduped: QuoteProduct[] = [];
+
+  for (const product of products) {
+    const key = `${product.id}:${product.matchedSaleUnitId ?? ""}`;
+
+    if (seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    deduped.push(product);
+  }
+
+  return deduped;
+}
+
 function paginateProducts<T>(products: T[], offset: number, pageSize: number) {
   return products.slice(offset, offset + pageSize);
+}
+
+async function searchPrioritizedQuoteProductsForPos({
+  offset,
+  page,
+  pageSize,
+  search,
+  tenantId,
+}: {
+  offset: number;
+  page: number;
+  pageSize: number;
+  search: string;
+  tenantId: string;
+}): Promise<PosProductSearchResult> {
+  const supabase = getSupabaseServerClient();
+  const safeSearch = search.replace(/[%_]/g, "");
+  const [matchingBrands, matchingCategories] = safeSearch
+    ? await Promise.all([
+        supabase
+          .from("brands")
+          .select("id")
+          .eq("tenant_id", tenantId)
+          .eq("active", true)
+          .ilike("name", `%${safeSearch}%`),
+        supabase
+          .from("categories")
+          .select("id")
+          .eq("tenant_id", tenantId)
+          .eq("active", true)
+          .ilike("name", `%${safeSearch}%`),
+      ])
+    : [{ data: [] }, { data: [] }];
+  const brandIds = ((matchingBrands.data ?? []) as { id: string }[]).map(
+    (item) => item.id
+  );
+  const categoryIds = (
+    (matchingCategories.data ?? []) as { id: string }[]
+  ).map((item) => item.id);
+  const saleUnitMatches = await loadSaleUnitProductMatches({
+    rawSearch: safeSearch,
+    tenantId,
+  });
+  const searchParts = [
+    `sku.ilike.%${safeSearch}%`,
+    `barcode.ilike.%${safeSearch}%`,
+    `name.ilike.%${safeSearch}%`,
+    `normalized_name.ilike.%${safeSearch}%`,
+    `description.ilike.%${safeSearch}%`,
+  ];
+
+  if (brandIds.length > 0) {
+    searchParts.push(`brand_id.in.(${brandIds.join(",")})`);
+  }
+
+  if (categoryIds.length > 0) {
+    searchParts.push(`category_id.in.(${categoryIds.join(",")})`);
+  }
+
+  if (saleUnitMatches.size > 0) {
+    searchParts.push(`id.in.(${[...saleUnitMatches.keys()].join(",")})`);
+  }
+
+  let query = supabase
+    .from("products")
+    .select(
+      "id,sku,barcode,name,normalized_name,description,unit,sale_price,stock_quantity,min_stock,brands(name),categories(name)",
+      { count: "exact" }
+    )
+    .eq("tenant_id", tenantId)
+    .eq("active", true)
+    .order("stock_quantity", { ascending: false, nullsFirst: false })
+    .order("name")
+    .range(0, MAX_QUOTE_PRIORITY_SEARCH_ROWS - 1);
+
+  if (searchParts.length > 0 && safeSearch) {
+    query = query.or(searchParts.join(","));
+  }
+
+  const { data, error, count } = await query;
+
+  if (error) {
+    return {
+      ok: false,
+      items: [],
+      total: 0,
+      page,
+      pageSize,
+      message: "No se pudieron buscar productos. Revisa la conexion.",
+    };
+  }
+
+  const fallbackRows = (data ?? []) as unknown as ProductRow[];
+  const saleUnitsByProductId = await loadSaleUnitsByProductId({
+    productIds: fallbackRows.map((row) => row.id),
+    tenantId,
+  });
+  const exactLookup = safeSearch
+    ? await lookupQuoteProductByCodeAction(safeSearch, true)
+    : null;
+  const exactProducts =
+    exactLookup?.ok && exactLookup.product ? [exactLookup.product] : [];
+  const products = dedupeQuoteProducts([
+    ...exactProducts,
+    ...fallbackRows.map((row) =>
+      mapProduct(row, saleUnitsByProductId.get(row.id), {
+        preferredSaleUnitId: saleUnitMatches.get(row.id),
+        rawSearch: search,
+      })
+    ),
+  ]);
+  const sortedProducts = sortProductsForQuoteSearch(products, search);
+
+  return {
+    ok: true,
+    items: paginateProducts(sortedProducts, offset, pageSize),
+    total: count ?? sortedProducts.length,
+    page,
+    pageSize,
+  };
 }
 
 function getSaveQuoteErrorMessage(message?: string) {
@@ -846,13 +999,22 @@ export async function searchProductsForPosAction(
   try {
     const tenant = await requireTenantRole(["owner", "admin", "seller"]);
     const supabase = getSupabaseServerClient();
+
+    if (shouldPrioritizeInStock) {
+      return searchPrioritizedQuoteProductsForPos({
+        offset,
+        page: safePage,
+        pageSize: safePageSize,
+        search,
+        tenantId: tenant.id,
+      });
+    }
+
     const rpcResult = await supabase.rpc("search_pos_products", {
       p_tenant_id: tenant.id,
       p_query: search,
-      p_limit: shouldPrioritizeInStock
-        ? MAX_QUOTE_PRIORITY_SEARCH_ROWS
-        : safePageSize,
-      p_offset: shouldPrioritizeInStock ? 0 : offset,
+      p_limit: safePageSize,
+      p_offset: offset,
       p_include_out_of_stock: includeOutOfStock,
     });
 
@@ -866,28 +1028,13 @@ export async function searchProductsForPosAction(
 
       return {
         ok: true,
-        items: shouldPrioritizeInStock
-          ? paginateProducts(
-              sortProductsForQuoteSearch(
-                rows.map((row) =>
-                  mapPosProduct(row, saleUnitsByProductId.get(row.id), {
-                    matchedBy: row.matched_by,
-                    preferredSaleUnitId: row.matched_sale_unit_id,
-                    rawSearch: search,
-                  })
-                ),
-                search
-              ),
-              offset,
-              safePageSize
-            )
-          : rows.map((row) =>
-              mapPosProduct(row, saleUnitsByProductId.get(row.id), {
-                matchedBy: row.matched_by,
-                preferredSaleUnitId: row.matched_sale_unit_id,
-                rawSearch: search,
-              })
-            ),
+        items: rows.map((row) =>
+          mapPosProduct(row, saleUnitsByProductId.get(row.id), {
+            matchedBy: row.matched_by,
+            preferredSaleUnitId: row.matched_sale_unit_id,
+            rawSearch: search,
+          })
+        ),
         total: Number(rows[0]?.total_count ?? 0),
         page: safePage,
         pageSize: safePageSize,
@@ -895,10 +1042,8 @@ export async function searchProductsForPosAction(
     }
 
     const safeSearch = search.replace(/[%_]/g, "");
-    const from = shouldPrioritizeInStock ? 0 : offset;
-    const to = shouldPrioritizeInStock
-      ? MAX_QUOTE_PRIORITY_SEARCH_ROWS - 1
-      : from + safePageSize - 1;
+    const from = offset;
+    const to = from + safePageSize - 1;
     const [matchingBrands, matchingCategories] = safeSearch
       ? await Promise.all([
           supabase
@@ -985,34 +1130,20 @@ export async function searchProductsForPosAction(
 
     return {
       ok: true,
-      items: shouldPrioritizeInStock
-        ? paginateProducts(
-            sortProductsForQuoteSearch(
-              fallbackRows.map((row) =>
-                mapProduct(row, saleUnitsByProductId.get(row.id), {
-                  preferredSaleUnitId: saleUnitMatches.get(row.id),
-                  rawSearch: search,
-                })
-              ),
-              search
-            ),
-            offset,
-            safePageSize
-          )
-        : sortProductsBySearchRank(
-            fallbackRows.map((row) => ({
-              ...mapProduct(row, saleUnitsByProductId.get(row.id), {
-                preferredSaleUnitId: saleUnitMatches.get(row.id),
-                rawSearch: search,
-              }),
-              barcode: row.barcode,
-              normalizedName: row.normalized_name,
-              saleUnitBarcodes: (saleUnitsByProductId.get(row.id) ?? [])
-                .map((unit) => unit.barcode)
-                .filter(Boolean),
-            })),
-            search
-          ),
+      items: sortProductsBySearchRank(
+        fallbackRows.map((row) => ({
+          ...mapProduct(row, saleUnitsByProductId.get(row.id), {
+            preferredSaleUnitId: saleUnitMatches.get(row.id),
+            rawSearch: search,
+          }),
+          barcode: row.barcode,
+          normalizedName: row.normalized_name,
+          saleUnitBarcodes: (saleUnitsByProductId.get(row.id) ?? [])
+            .map((unit) => unit.barcode)
+            .filter(Boolean),
+        })),
+        search
+      ),
       total: count ?? 0,
       page: safePage,
       pageSize: safePageSize,
