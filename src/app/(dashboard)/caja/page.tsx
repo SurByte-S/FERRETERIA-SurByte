@@ -139,16 +139,16 @@ export default async function CajaPage() {
         </Card>
         ) : openSession ? (
         <div className="grid gap-6">
-          <Card className="border-2 border-primary bg-card shadow-sm">
-            <CardHeader className="border-b-2 border-primary bg-primary text-primary-foreground">
+          <Card className="border-2 border-primary/40 bg-card shadow-sm">
+            <CardHeader className="border-b-2 border-primary/30 bg-card">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                  <CardTitle className="text-2xl text-primary-foreground">Caja abierta</CardTitle>
-                  <CardDescription className="text-sm font-semibold text-primary-foreground">
+                  <CardTitle className="text-2xl text-primary">Caja abierta</CardTitle>
+                  <CardDescription className="text-sm font-semibold text-muted-foreground">
                     Abierta el {formatDate(openSession.opened_at)}
                   </CardDescription>
                 </div>
-                <div className="rounded-md border border-emerald-500/40 bg-emerald-50 px-3 py-1 text-sm font-bold text-emerald-800">
+                <div className="rounded-md border border-emerald-700/50 bg-card px-3 py-1 text-sm font-bold text-emerald-800">
                   En curso
                 </div>
               </div>
@@ -179,14 +179,14 @@ export default async function CajaPage() {
 
           <div className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_380px] 2xl:gap-6">
             <Card className="border-2 border-border bg-card shadow-sm">
-              <CardHeader className="border-b-2 border-border bg-primary text-primary-foreground">
+              <CardHeader className="border-b-2 border-primary/30 bg-card">
                 <div className="flex items-center gap-3">
                   <div className="flex size-10 shrink-0 items-center justify-center rounded-md border border-border bg-card text-primary">
                     <Calculator className="size-5" aria-hidden="true" />
                   </div>
                   <div>
-                    <CardTitle className="text-xl text-primary-foreground">Cuadre de caja</CardTitle>
-                    <CardDescription className="text-sm font-semibold text-primary-foreground">
+                    <CardTitle className="text-xl text-primary">Cuadre de caja</CardTitle>
+                    <CardDescription className="text-sm font-semibold text-muted-foreground">
                       Resumen para comparar ventas, efectivo y cierre
                     </CardDescription>
                   </div>
@@ -211,8 +211,8 @@ export default async function CajaPage() {
               </CardContent>
             </Card>
 
-            <Card className="border-2 border-destructive/40 bg-destructive/10 shadow-sm">
-              <CardHeader className="border-b-2 border-destructive/40 bg-destructive/10">
+            <Card className="border-2 border-destructive/50 bg-card shadow-sm">
+              <CardHeader className="border-b-2 border-destructive/30 bg-card">
                 <CardTitle className="text-xl text-destructive">Cerrar caja</CardTitle>
                 <CardDescription className="text-sm font-semibold text-muted-foreground">
                   Accion final del dia
@@ -228,9 +228,9 @@ export default async function CajaPage() {
           </div>
 
           <Card className="border-2 border-border bg-card shadow-sm">
-            <CardHeader className="border-b-2 border-border bg-primary text-primary-foreground">
-              <CardTitle className="text-xl text-primary-foreground">Total por forma de pago</CardTitle>
-              <CardDescription className="text-sm font-semibold text-primary-foreground">
+            <CardHeader className="border-b-2 border-primary/30 bg-card">
+              <CardTitle className="text-xl text-primary">Total por forma de pago</CardTitle>
+              <CardDescription className="text-sm font-semibold text-muted-foreground">
                 Ventas asociadas a la caja abierta
               </CardDescription>
             </CardHeader>
@@ -302,9 +302,9 @@ function Metric({
 }) {
   const toneClass =
     tone === "strong"
-      ? "border-primary bg-secondary"
+      ? "border-primary/40 bg-card"
       : tone === "cash"
-        ? "border-emerald-500/40 bg-emerald-50"
+        ? "border-emerald-700/50 bg-card"
         : "border-border bg-card";
 
   return (
@@ -330,7 +330,7 @@ function LedgerLine({
     <div
       className={`rounded-md border-2 p-4 ${
         highlight
-          ? "border-emerald-500/40 bg-emerald-50"
+          ? "border-emerald-700/50 bg-card"
           : "border-border bg-card"
       }`}
     >
@@ -346,14 +346,14 @@ function CashHistory({ sessions }: { sessions: CashSessionRow[] }) {
   return (
     <Card className="border-2 border-border bg-card shadow-sm">
       <details open>
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 border-b-2 border-border bg-primary p-4">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 border-b-2 border-primary/30 bg-card p-4">
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex size-11 shrink-0 items-center justify-center rounded-md border border-border bg-card text-primary">
               <Clock className="size-5" aria-hidden="true" />
             </div>
             <div className="min-w-0">
-              <CardTitle className="text-xl text-primary-foreground">Historial de cierres</CardTitle>
-              <CardDescription className="text-sm font-semibold text-primary-foreground">
+              <CardTitle className="text-xl text-primary">Historial de cierres</CardTitle>
+              <CardDescription className="text-sm font-semibold text-muted-foreground">
                 {sessions.length === 0
                   ? "Sin cierres registrados"
                   : `${sessions.length} registro${sessions.length === 1 ? "" : "s"}`}

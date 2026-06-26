@@ -202,20 +202,23 @@ function stockStatus(product: ProductListItem) {
   if (product.stockQuantity <= 0) {
     return {
       label: "Sin stock",
-      className: "border-destructive/40 bg-destructive/10 text-destructive",
+      className: "border-destructive/50 bg-card text-foreground",
+      labelClassName: "text-destructive",
     };
   }
 
   if (product.minStock > 0 && product.stockQuantity <= product.minStock) {
     return {
       label: "Bajo minimo",
-      className: "border-yellow-500/40 bg-yellow-50 text-yellow-900",
+      className: "border-yellow-600/50 bg-card text-foreground",
+      labelClassName: "text-yellow-900",
     };
   }
 
   return {
     label: "Stock OK",
-    className: "border-emerald-500/40 bg-emerald-50 text-emerald-800",
+    className: "border-emerald-700/50 bg-card text-foreground",
+    labelClassName: "text-emerald-800",
   };
 }
 
@@ -348,7 +351,7 @@ export default async function StockPage({ searchParams }: StockPageProps) {
                 </div>
               </div>
               {q && !explicitFilter ? (
-                <p className="rounded-lg border border-emerald-500/30 bg-emerald-50 p-3 text-sm font-semibold text-emerald-800">
+                <p className="rounded-lg border border-primary/30 bg-card p-3 text-sm font-semibold text-foreground">
                   Buscando en todos los productos porque hay una busqueda activa.
                 </p>
               ) : null}
@@ -426,8 +429,8 @@ function StockNotice({ notice }: { notice: StockSearchNotice }) {
     <div
       className={
         notice.tone === "warning"
-          ? "flex flex-wrap items-center justify-between gap-3 rounded-lg border border-yellow-500/40 bg-yellow-50 p-3 text-sm font-semibold text-yellow-900"
-          : "flex flex-wrap items-center justify-between gap-3 rounded-lg border border-emerald-500/30 bg-emerald-50 p-3 text-sm font-semibold text-emerald-800"
+          ? "flex flex-wrap items-center justify-between gap-3 rounded-lg border border-yellow-600/50 bg-card p-3 text-sm font-semibold text-foreground"
+          : "flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/30 bg-card p-3 text-sm font-semibold text-foreground"
       }
     >
       <span>{notice.message}</span>
@@ -485,7 +488,9 @@ function StockProductCard({
         <p className="mt-0.5 truncate text-base font-bold leading-tight md:text-lg">
           {formatStockQuantity(product.stockQuantity)} {product.unit}
         </p>
-        <p className="text-sm font-semibold leading-tight">{status.label}</p>
+        <p className={`text-sm font-semibold leading-tight ${status.labelClassName}`}>
+          {status.label}
+        </p>
       </div>
     </div>
   );

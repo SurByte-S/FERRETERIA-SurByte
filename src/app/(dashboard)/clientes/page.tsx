@@ -65,20 +65,20 @@ function formatDebt(value: number) {
   if (value > 0) {
     return {
       label: `Debe ${formatMoney(value)}`,
-      className: "border-destructive/40 bg-destructive/10 text-destructive",
+      className: "border-destructive/50 bg-card text-destructive",
     };
   }
 
   if (value < 0) {
     return {
       label: `Saldo a favor ${formatMoney(Math.abs(value))}`,
-      className: "border-sky-500/40 bg-sky-50 text-sky-800",
+      className: "border-sky-700/50 bg-card text-sky-900",
     };
   }
 
   return {
     label: "Sin deuda",
-    className: "border-emerald-500/40 bg-emerald-50 text-emerald-800",
+    className: "border-emerald-700/50 bg-card text-emerald-800",
   };
 }
 
@@ -194,18 +194,25 @@ function SummaryCard({
   value: number;
   tone?: "default" | "debt" | "clear" | "credit";
 }) {
+  const labelClassName = cn(
+    tone === "default" && "text-foreground",
+    tone === "debt" && "text-destructive",
+    tone === "clear" && "text-emerald-800",
+    tone === "credit" && "text-sky-900"
+  );
+
   return (
     <Card
       className={cn(
         "min-h-28 border-2 shadow-sm",
         tone === "default" && "border-border bg-card",
-        tone === "debt" && "border-destructive/40 bg-destructive/10",
-        tone === "clear" && "border-emerald-500/40 bg-emerald-50",
-        tone === "credit" && "border-sky-500/40 bg-sky-50"
+        tone === "debt" && "border-destructive/50 bg-card",
+        tone === "clear" && "border-emerald-700/50 bg-card",
+        tone === "credit" && "border-sky-700/50 bg-card"
       )}
     >
       <CardContent className="p-4">
-        <p className="text-base font-bold text-foreground">{label}</p>
+        <p className={cn("text-base font-bold", labelClassName)}>{label}</p>
         <p className="mt-2 font-mono text-4xl font-black leading-none tabular-nums text-foreground">
           {value}
         </p>
@@ -488,11 +495,11 @@ export default async function ClientesPage({ searchParams }: ClientesPageProps) 
       </section>
 
       <Card className="mb-5 border-2 border-border bg-card shadow-sm">
-        <CardHeader className="border-b-2 border-border bg-primary text-primary-foreground">
-          <CardTitle className="text-xl text-primary-foreground">
+        <CardHeader className="border-b-2 border-primary/30 bg-card">
+          <CardTitle className="text-xl text-primary">
             Buscar en cuenta corriente
           </CardTitle>
-          <CardDescription className="text-sm font-semibold text-primary-foreground">
+          <CardDescription className="text-sm font-semibold text-muted-foreground">
             Nombre, telefono, email o direccion
           </CardDescription>
         </CardHeader>
@@ -605,7 +612,7 @@ export default async function ClientesPage({ searchParams }: ClientesPageProps) 
       ) : totalCustomers === 0 ? (
         <Card>
           <CardHeader>
-            <div className="mb-2 flex size-12 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <div className="mb-2 flex size-12 items-center justify-center rounded-lg bg-secondary text-primary">
               <Users className="size-6" aria-hidden="true" />
             </div>
             <CardTitle>No hay clientes cargados</CardTitle>
@@ -640,24 +647,24 @@ export default async function ClientesPage({ searchParams }: ClientesPageProps) 
         <section className="grid gap-4">
           <div className="hidden overflow-hidden rounded-md border-2 border-border bg-card shadow-sm lg:block">
             <table className="w-full border-collapse text-left">
-              <thead className="bg-primary">
+              <thead className="bg-muted">
                 <tr className="border-b-2 border-border">
-                  <th className="border-r border-border px-4 py-4 text-base font-bold text-primary-foreground">
+                  <th className="border-r border-border px-4 py-4 text-base font-bold text-foreground">
                     Cliente
                   </th>
-                  <th className="border-r border-border px-4 py-4 text-base font-bold text-primary-foreground">
+                  <th className="border-r border-border px-4 py-4 text-base font-bold text-foreground">
                     Teléfono
                   </th>
-                  <th className="border-r border-border px-4 py-4 text-base font-bold text-primary-foreground">
+                  <th className="border-r border-border px-4 py-4 text-base font-bold text-foreground">
                     Email
                   </th>
-                  <th className="border-r border-border px-4 py-4 text-base font-bold text-primary-foreground">
+                  <th className="border-r border-border px-4 py-4 text-base font-bold text-foreground">
                     Dirección
                   </th>
-                  <th className="border-r border-border px-4 py-4 text-base font-bold text-primary-foreground">
+                  <th className="border-r border-border px-4 py-4 text-base font-bold text-foreground">
                     Estado de cuenta
                   </th>
-                  <th className="px-4 py-4 text-right text-base font-bold text-primary-foreground">
+                  <th className="px-4 py-4 text-right text-base font-bold text-foreground">
                     Acciones
                   </th>
                 </tr>

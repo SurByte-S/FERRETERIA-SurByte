@@ -27,7 +27,7 @@ export function SidebarNav() {
               className={cn(
                 "h-9 justify-center gap-1.5 px-1.5 text-sm transition-all duration-150",
                 active
-                  ? "border-l-2 border-l-accent bg-primary pl-1 font-bold text-primary-foreground shadow-sm"
+                  ? "border-l-2 border-l-primary bg-card pl-1 font-bold text-primary shadow-sm"
                   : "text-muted-foreground hover:bg-secondary hover:text-primary",
                 "lg:group-hover:justify-start"
               )}
@@ -41,7 +41,7 @@ export function SidebarNav() {
                   <span
                     className={cn(
                       "block truncate text-xs font-medium leading-tight",
-                      active ? "text-primary-foreground" : "text-muted-foreground"
+                      active ? "text-primary" : "text-muted-foreground"
                     )}
                   >
                    

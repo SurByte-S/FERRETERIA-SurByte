@@ -31,8 +31,8 @@ export function ClassicShortcutsBar() {
               className={cn(
                 "flex min-h-13 min-w-[150px] shrink-0 items-center gap-2 rounded-md border px-3 text-base font-bold shadow-sm transition-colors",
                 active
-                  ? "border-[#174ea6] bg-[#1f5fbf] text-white"
-                  : "border-[#8a96a8] bg-[#f8fafc] text-[#111827] hover:border-[#1f5fbf] hover:bg-white"
+                  ? "border-primary/60 bg-card text-primary"
+                  : "border-border bg-card text-foreground hover:border-primary/40 hover:bg-muted/50"
               )}
             >
               <Icon className="size-5 shrink-0" aria-hidden="true" />

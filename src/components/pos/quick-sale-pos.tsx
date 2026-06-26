@@ -1032,11 +1032,11 @@ export function QuickSalePos({
       <main className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_clamp(27rem,31vw,33rem)] lg:items-start">
         <section className="grid rounded-md border-2 border-border bg-card shadow-sm lg:grid-rows-[auto_1fr]">
           <div className="grid min-h-[18rem] grid-rows-[auto_1fr]">
-            <div className="grid min-h-[3.25rem] gap-2 border-b-2 border-border bg-primary px-3 py-2 text-primary-foreground xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
+            <div className="grid min-h-[3.25rem] gap-2 border-b-2 border-primary/30 bg-card px-3 py-2 text-foreground xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
               <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
                 <h2 className="text-xl font-black">Productos encontrados</h2>
                 {resultCounter ? (
-                  <p className="text-sm font-bold text-primary-foreground">
+                  <p className="text-sm font-bold text-primary">
                     {resultCounter}
                   </p>
                 ) : null}
@@ -1044,7 +1044,7 @@ export function QuickSalePos({
 
               {showPaginationControls ? (
                 <div className="flex flex-wrap items-center gap-2">
-                  <label className="flex items-center gap-2 text-sm font-bold text-primary-foreground">
+                  <label className="flex items-center gap-2 text-sm font-bold text-foreground">
                     Por pagina
                     <select
                       value={pageSize}
@@ -1058,7 +1058,7 @@ export function QuickSalePos({
                       ))}
                     </select>
                   </label>
-                  <span className="text-sm font-bold text-primary-foreground">
+                  <span className="text-sm font-bold text-muted-foreground">
                     Pagina {currentPage} de {totalPages}
                   </span>
                   <Button
@@ -1121,21 +1121,21 @@ export function QuickSalePos({
         </section>
 
         <aside className="grid rounded-md border-2 border-border bg-card shadow-sm">
-          <div className="border-b-2 border-border bg-primary px-3 py-2 text-primary-foreground">
+          <div className="border-b-2 border-primary/30 bg-card px-3 py-2 text-foreground">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h2 className="text-xl font-black leading-tight">
+                <h2 className="text-xl font-black leading-tight text-primary">
                   {isQuoteMode ? "Presupuesto actual" : "Venta actual"}
                 </h2>
                 {lines.length > 0 ? (
-                  <p className="text-sm font-semibold opacity-90">
+                  <p className="text-sm font-semibold text-muted-foreground">
                     {`${lines.length} producto${
                       lines.length === 1 ? "" : "s"
                     } agregado${lines.length === 1 ? "" : "s"}.`}
                   </p>
                 ) : null}
               </div>
-              <p className="rounded-md bg-primary-foreground/15 px-2 py-1 text-sm font-black">
+              <p className="rounded-md border border-primary/30 bg-background px-2 py-1 text-sm font-black text-primary">
                 Ticket
               </p>
             </div>
@@ -1436,8 +1436,8 @@ function SearchStatePanel({ status }: { status: SearchStatus }) {
 
   if (status === "error") {
     return (
-      <div className="rounded-md border border-destructive/30 bg-destructive/10 p-4">
-        <p className="text-lg font-black">No se pudo buscar.</p>
+      <div className="rounded-md border border-destructive/40 bg-card p-4">
+        <p className="text-lg font-black text-destructive">No se pudo buscar.</p>
         <p className="mt-1 text-base font-semibold text-muted-foreground">
           Revisa la conexion e intenta nuevamente.
         </p>
@@ -1457,12 +1457,18 @@ function CashBadge({ cashStatus }: { cashStatus: CashStatus }) {
     <div
       className={
         cashStatus.open
-          ? "flex h-full min-w-[13rem] items-center justify-between gap-3 rounded-md border border-emerald-500/40 bg-emerald-50 px-3 py-2 text-emerald-800"
-          : "flex h-full min-w-[13rem] items-center justify-between gap-3 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-destructive"
+          ? "flex h-full min-w-[13rem] items-center justify-between gap-3 rounded-md border border-emerald-700/50 bg-card px-3 py-2 text-foreground"
+          : "flex h-full min-w-[13rem] items-center justify-between gap-3 rounded-md border border-destructive/50 bg-card px-3 py-2 text-foreground"
       }
     >
       <div>
-        <p className="text-base font-black">
+        <p
+          className={
+            cashStatus.open
+              ? "text-base font-black text-emerald-800"
+              : "text-base font-black text-destructive"
+          }
+        >
           {cashStatus.open
             ? "Caja abierta"
             : "Caja cerrada - no se puede cobrar"}
@@ -1529,7 +1535,7 @@ function ProductRow({
         <p className="font-mono text-sm font-semibold text-muted-foreground">
           {codeDisplay.label}
         </p>
-        <p className="text-sm font-bold text-emerald-700">
+        <p className="text-sm font-bold text-primary">
           {getMatchSourceLabel(product)}
         </p>
         {codeDisplay.secondaryLabel ? (
@@ -1565,7 +1571,7 @@ function ProductRow({
           value={`${formatStockQuantity(product.stockQuantity)} ${product.unit}`}
         />
         {isOutOfStock ? (
-          <p className="text-sm font-black text-yellow-700">Sin stock</p>
+          <p className="text-sm font-black text-yellow-900">Sin stock</p>
         ) : null}
       </div>
       <div>
