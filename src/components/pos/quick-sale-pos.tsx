@@ -135,6 +135,26 @@ function getDefaultSaleUnit(product: QuoteProduct) {
   );
 }
 
+function normalizeSaleUnitName(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+function isSimpleSaleUnit(unit: ProductSaleUnit) {
+  const simpleNames = new Set(["u", "und", "unid", "unidad", "unidades", "unit"]);
+
+  return (
+    unit.active &&
+    simpleNames.has(normalizeSaleUnitName(unit.name)) &&
+    Math.abs(Number(unit.quantityInBaseUnit) - 1) < EPSILON &&
+    !getSaleUnitBarcode(unit) &&
+    (unit.isDefault || !unit.id)
+  );
+}
+
 function getSaleUnitBarcode(saleUnit: ProductSaleUnit | null | undefined) {
   return saleUnit?.barcode?.trim() ?? "";
 }
@@ -1525,9 +1545,20 @@ function ProductRow({
   const codeDisplay = getCodeDisplay(product, selectedSaleUnit);
   const isOutOfStock = !product.availableForSale;
   const canAddProduct = isQuoteMode || product.availableForSale;
+  const activeSaleUnits = product.saleUnits.filter((unit) => unit.active);
+  const availableSaleUnits =
+    activeSaleUnits.length > 0 ? activeSaleUnits : [defaultSaleUnit];
+  const showSaleUnitSelector =
+    availableSaleUnits.length !== 1 || !isSimpleSaleUnit(availableSaleUnits[0]);
 
   return (
-    <div className="grid gap-2 rounded-md border border-border bg-card p-2 shadow-sm md:grid-cols-[minmax(0,1fr)_9.6rem_6.3rem_7.2rem_7.2rem] md:items-center">
+    <div
+      className={
+        showSaleUnitSelector
+          ? "grid gap-2 rounded-md border border-border bg-card p-2 shadow-sm md:grid-cols-[minmax(0,1fr)_9.6rem_6.3rem_7.2rem_7.2rem] md:items-center"
+          : "grid gap-2 rounded-md border border-border bg-card p-2 shadow-sm md:grid-cols-[minmax(0,1fr)_6.3rem_7.2rem_7.2rem] md:items-center"
+      }
+    >
       <div className="min-w-0">
         <p className="line-clamp-2 text-base font-black leading-tight">
           {product.name || product.description}
@@ -1549,22 +1580,24 @@ function ProductRow({
           </p>
         ) : null}
       </div>
-      <label className="grid gap-1">
-        <span className="text-sm font-bold text-muted-foreground">
-          Presentacion
-        </span>
-        <select
-          value={selectedSaleUnitId}
-          onChange={(event) => setSelectedSaleUnitId(event.target.value)}
-          className="h-10 rounded-md border border-input bg-muted/30 px-2 text-sm font-black"
-        >
-          {product.saleUnits.map((unit) => (
-            <option key={unit.id || "fallback"} value={unit.id}>
-              {unit.name}
-            </option>
-          ))}
-        </select>
-      </label>
+      {showSaleUnitSelector ? (
+        <label className="grid gap-1">
+          <span className="text-sm font-bold text-muted-foreground">
+            Presentacion
+          </span>
+          <select
+            value={selectedSaleUnitId}
+            onChange={(event) => setSelectedSaleUnitId(event.target.value)}
+            className="h-10 rounded-md border border-input bg-muted/30 px-2 text-sm font-black"
+          >
+            {product.saleUnits.map((unit) => (
+              <option key={unit.id || "fallback"} value={unit.id}>
+                {unit.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
       <div>
         <InfoBlock
           label="Stock"
