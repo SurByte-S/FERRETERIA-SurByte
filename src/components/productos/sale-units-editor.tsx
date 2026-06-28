@@ -36,6 +36,26 @@ function normalizeUnits(units: ProductSaleUnit[], fallbackPrice: number | null) 
   }));
 }
 
+function normalizeUnitName(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+function isSimpleSaleUnit(unit: EditableSaleUnit) {
+  const simpleNames = new Set(["u", "und", "unid", "unidad", "unidades", "unit"]);
+
+  return (
+    unit.active &&
+    simpleNames.has(normalizeUnitName(unit.name)) &&
+    Math.abs(Number(unit.quantityInBaseUnit) - 1) < 0.000001 &&
+    !unit.barcode.trim() &&
+    (unit.isDefault || !unit.id)
+  );
+}
+
 export function SaleUnitsEditor({
   fallbackPrice,
   inputName = "saleUnits",
@@ -83,6 +103,9 @@ export function SaleUnitsEditor({
   useEffect(() => {
     onUnitsChange?.(publicUnits);
   }, [onUnitsChange, publicUnits]);
+
+  const shouldHideSimpleEditor =
+    activeUnits.length === 1 && isSimpleSaleUnit(activeUnits[0]);
 
   function updateUnit(
     localId: string,
@@ -148,6 +171,10 @@ export function SaleUnitsEditor({
         unit.active ? { ...unit, isDefault: true } : unit
       );
     });
+  }
+
+  if (shouldHideSimpleEditor) {
+    return <input type="hidden" name={inputName} value={serialized} />;
   }
 
   return (
