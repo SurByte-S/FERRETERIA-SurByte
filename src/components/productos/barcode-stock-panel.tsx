@@ -46,7 +46,7 @@ function getLookupCodeLabel(product: ProductListItem, code: string) {
     return `Codigo de presentacion: ${code}`;
   }
 
-  return `Codigo interno: ${code}`;
+  return `Codigo de catalogo: ${code}`;
 }
 
 export function BarcodeStockPanel({
@@ -223,7 +223,7 @@ export function BarcodeStockPanel({
                     className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]"
                   >
                     <label className="grid gap-2 text-base font-bold">
-                      <span>Codigo de barras o codigo interno</span>
+                      <span>Codigo de barras o codigo de catalogo</span>
                       <input
                         ref={codeInputRef}
                         value={code}
@@ -444,7 +444,7 @@ function ProductSummary({ product }: { product: ProductListItem }) {
   return (
     <div className="min-w-0">
       <p className="font-mono text-sm font-semibold text-muted-foreground">
-        Codigo interno: {product.sku}
+        Codigo de catalogo: {product.sku}
       </p>
       <p className="mt-1 text-sm font-bold text-yellow-800">
         {association.statusLabel}

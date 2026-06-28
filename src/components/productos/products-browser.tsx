@@ -116,7 +116,7 @@ function productBarcodeLabel(product: ProductListItem) {
       sku: product.sku,
     })
   ) {
-    return "Codigo interno heredado";
+    return "Codigo de catalogo heredado";
   }
 
   return `Codigo de barras: ${product.productBarcode}`;
@@ -152,7 +152,7 @@ export function ProductsBrowser({
   const canShowMore = showing < total;
   const selectedCategory = categories.find((item) => item.id === categoryId);
   const activeFilters = [
-    code ? { label: "Codigo interno o barras", value: code } : null,
+    code ? { label: "Codigo de catalogo o barras", value: code } : null,
     name ? { label: "Nombre", value: name } : null,
     categoryId
       ? { label: "Categoria", value: selectedCategory?.name ?? categoryId }
@@ -337,7 +337,7 @@ export function ProductsBrowser({
                   {mode === "administracion" ? <ProductThumb product={product} /> : null}
                   <div className="min-w-0">
                     <p className="mb-2 font-mono text-base text-muted-foreground">
-                      Codigo interno: {product.sku}
+                      Codigo de catalogo: {product.sku}
                     </p>
                     {barcodeLabel ? (
                       <p className="mb-2 font-mono text-sm font-semibold text-muted-foreground">

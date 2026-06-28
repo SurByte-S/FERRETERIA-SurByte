@@ -414,7 +414,7 @@ async function ensureProductCodesAvailable({
   }
 
   const codes = [
-    { code: normalizeProductCode(sku ?? ""), label: "El SKU" },
+    { code: normalizeProductCode(sku ?? ""), label: "El codigo de catalogo" },
     { code: normalizeProductCode(barcode ?? ""), label: "El codigo de barras" },
     ...activeSaleUnitCodes.map((code) => ({
       code,
@@ -512,7 +512,7 @@ function createProductErrorMessage(message?: string) {
   }
 
   if (cleanMessage.includes("PRODUCT_SKU_REQUIRED")) {
-    return "El SKU o codigo interno es obligatorio.";
+    return "El codigo de catalogo es obligatorio.";
   }
 
   if (
@@ -520,7 +520,7 @@ function createProductErrorMessage(message?: string) {
     normalizedMessage.includes("products_tenant_id_sku_key") ||
     normalizedMessage.includes("products_tenant_id_sku")
   ) {
-    return "Ya existe un producto con ese codigo interno.";
+    return "Ya existe un producto con ese codigo de catalogo.";
   }
 
   if (cleanMessage.includes("PRODUCT_BARCODE_CONFLICT")) {
@@ -961,7 +961,7 @@ export async function createProductAction(
   if (!sku) {
     return {
       ok: false,
-      message: "El SKU o codigo interno es obligatorio.",
+      message: "El codigo de catalogo es obligatorio.",
     };
   }
 

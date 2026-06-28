@@ -128,10 +128,10 @@ export function getBarcodeAssociationState(
   if (productBarcode && productBarcode === sku) {
     return {
       canAssign: true,
-      message: "Codigo interno heredado",
+      message: "Codigo de catalogo heredado",
       primaryBarcode: productBarcode,
       status: "inherited_product_barcode",
-      statusLabel: "Codigo interno heredado",
+      statusLabel: "Codigo de catalogo heredado",
       buttonLabel: "Asociar codigo real",
     };
   }

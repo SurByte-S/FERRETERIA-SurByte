@@ -233,7 +233,7 @@ function productBarcodeSummary(product: ProductListItem) {
       sku: product.sku,
     })
   ) {
-    return "Codigo interno heredado";
+    return "Codigo de catalogo heredado";
   }
 
   return `Codigo de barras: ${product.productBarcode}`;
@@ -462,7 +462,7 @@ function StockProductCard({
     <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_150px_150px] md:items-center md:gap-3">
       <div className="min-w-0">
         <p className="font-mono text-sm font-semibold leading-tight text-muted-foreground">
-          Codigo interno: {product.sku}
+          Codigo de catalogo: {product.sku}
         </p>
         {barcodeSummary ? (
           <p className="mt-0.5 font-mono text-sm font-semibold leading-tight text-muted-foreground">

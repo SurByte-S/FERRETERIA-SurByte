@@ -231,7 +231,7 @@ export function NewProductForm({
             required
           />
           <TextField
-            label="Codigo interno"
+            label="Codigo de catalogo"
             name="sku"
             value={sku}
             onChange={setSku}

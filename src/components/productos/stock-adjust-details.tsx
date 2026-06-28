@@ -279,7 +279,7 @@ export function StockAdjustDetails({
                 <p className="text-xl font-bold">Gestionar producto</p>
                 <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-sm font-semibold text-muted-foreground">
                   <p className="min-w-0 max-w-full truncate">{product.name}</p>
-                  <p className="shrink-0 truncate">Codigo interno: {product.sku}</p>
+                  <p className="shrink-0 truncate">Codigo de catalogo: {product.sku}</p>
                 </div>
               </div>
               <Button
@@ -427,7 +427,7 @@ function DangerZone({
           <>
             <div className="mt-4 grid gap-2 rounded-lg border border-border bg-muted/40 p-3 text-sm font-semibold">
               <p>Producto: {product.name}</p>
-              <p>Codigo interno: {product.sku}</p>
+              <p>Codigo de catalogo: {product.sku}</p>
               <p>Stock actual: {product.stockQuantity}</p>
             </div>
 
@@ -649,7 +649,7 @@ const PrimaryBarcodeSection = forwardRef<
   const statusLabel = normalizedSavedBarcode
     ? `Codigo de barras: ${savedBarcode}`
     : product.productBarcode
-      ? "Codigo interno heredado"
+      ? "Codigo de catalogo heredado"
       : "Sin codigo de barras cargado";
 
   useImperativeHandle(ref, () => ({
@@ -699,7 +699,7 @@ const PrimaryBarcodeSection = forwardRef<
 
       <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <label className="grid gap-2 text-base font-semibold">
-          <span>Codigo interno</span>
+          <span>Codigo de catalogo</span>
           <input
             readOnly
             value={product.sku}
