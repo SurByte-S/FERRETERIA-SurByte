@@ -388,6 +388,29 @@ type CodeLookupRow = {
   conflict_count?: number | null;
 };
 
+async function resolveProductCustomCode({
+  customCode,
+  tenantId,
+}: {
+  customCode: string | null;
+  tenantId: string;
+}) {
+  if (customCode) {
+    return customCode;
+  }
+
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase.rpc("next_product_custom_code", {
+    input_tenant_id: tenantId,
+  });
+
+  if (error || !data) {
+    throw new Error("No se pudo generar el codigo propio.");
+  }
+
+  return String(data);
+}
+
 async function ensureProductCodesAvailable({
   barcode,
   customCode,
@@ -516,7 +539,7 @@ function createProductErrorMessage(message?: string) {
   }
 
   if (cleanMessage.includes("PRODUCT_SKU_REQUIRED")) {
-    return "Falta aplicar la migracion 027 de codigo propio.";
+    return "El codigo de catalogo es obligatorio.";
   }
 
   if (
@@ -797,8 +820,8 @@ export async function updateProductAction(
   formData: FormData
 ): Promise<ProductActionState> {
   const productId = textValue(formData, "productId");
-  const nextSku = optionalCodeValue(formData, "sku");
-  const customCode = optionalCodeValue(formData, "customCode");
+  const nextSku = codeValue(formData, "sku");
+  const requestedCustomCode = optionalCodeValue(formData, "customCode");
   const name = textValue(formData, "name");
   const description = textValue(formData, "description");
   const barcode = optionalCodeValue(formData, "barcode");
@@ -806,16 +829,20 @@ export async function updateProductAction(
   const imageFile = formData.get("image");
   let imageUrl = textValue(formData, "currentImageUrl");
 
-  if (!productId || !name) {
+  if (!productId || !nextSku || !name) {
     return {
       ok: false,
-      message: "Necesitan revision. El nombre es obligatorio.",
+      message: "Necesitan revision. Nombre y codigo de catalogo son obligatorios.",
     };
   }
 
   try {
     const tenant = await requireTenantRole(["owner", "admin"]);
     const supabase = getSupabaseServerClient();
+    const customCode = await resolveProductCustomCode({
+      customCode: requestedCustomCode,
+      tenantId: tenant.id,
+    });
     const [
       costWithoutTax,
       costWithTax,
@@ -954,7 +981,7 @@ export async function createProductAction(
   formData: FormData
 ): Promise<ProductActionState> {
   const name = textValue(formData, "name");
-  const sku = optionalCodeValue(formData, "sku");
+  const sku = codeValue(formData, "sku");
   const customCode = optionalCodeValue(formData, "customCode");
   const barcode = optionalCodeValue(formData, "barcode");
   const description = textValue(formData, "description");
@@ -965,6 +992,13 @@ export async function createProductAction(
     return {
       ok: false,
       message: "El nombre es obligatorio.",
+    };
+  }
+
+  if (!sku) {
+    return {
+      ok: false,
+      message: "El codigo de catalogo es obligatorio.",
     };
   }
 
@@ -1201,7 +1235,7 @@ export async function updateProductStockCommercialAction(
   formData: FormData
 ): Promise<ProductActionState> {
   const productId = textValue(formData, "productId");
-  const customCode = optionalCodeValue(formData, "customCode");
+  const requestedCustomCode = optionalCodeValue(formData, "customCode");
 
   if (!isUuid(productId)) {
     return {
@@ -1212,6 +1246,10 @@ export async function updateProductStockCommercialAction(
 
   try {
     const tenant = await requireTenantRole(["owner", "admin"]);
+    const customCode = await resolveProductCustomCode({
+      customCode: requestedCustomCode,
+      tenantId: tenant.id,
+    });
     const [
       costWithoutTax,
       costWithTax,

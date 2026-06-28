@@ -39,9 +39,9 @@ export function ProductEditForm({
           <input name="name" defaultValue={product.name} required className="h-12 rounded-lg border border-input bg-background px-3 text-base" />
         </Field>
         <Field label="Codigo de catalogo" help="Codigo del catalogo o proveedor.">
-          <input name="sku" defaultValue={product.sku} className="h-12 rounded-lg border border-input bg-background px-3 text-base" />
+          <input name="sku" defaultValue={product.sku} required className="h-12 rounded-lg border border-input bg-background px-3 text-base" />
         </Field>
-        <Field label="Codigo propio" help="Codigo que usa la ferreteria para identificarlo.">
+        <Field label="Codigo propio" help="Podes dejarlo vacio. El sistema asigna el siguiente numero.">
           <input name="customCode" defaultValue={product.customCode ?? ""} className="h-12 rounded-lg border border-input bg-background px-3 text-base" />
         </Field>
         <Field label="Codigo de barras del producto" help="Codigo que se escanea con lector.">

@@ -270,6 +270,7 @@ export function NewProductForm({
             name="sku"
             value={sku}
             onChange={setSku}
+            required
             help="Codigo del catalogo o proveedor."
           />
           <TextField
@@ -277,7 +278,7 @@ export function NewProductForm({
             name="customCode"
             value={customCode}
             onChange={setCustomCode}
-            help="Codigo que usa la ferreteria para identificarlo."
+            help="Podes dejarlo vacio. El sistema asigna el siguiente numero."
           />
           <TextField
             label="Codigo de barras principal"

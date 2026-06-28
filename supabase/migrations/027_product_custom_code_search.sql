@@ -1,6 +1,3 @@
-alter table public.products
-alter column sku drop not null;
-
 drop function if exists public.find_product_by_code(uuid, text);
 
 create function public.find_product_by_code(
@@ -401,6 +398,83 @@ revoke execute on function public.search_pos_products(uuid, text, int, int, bool
 grant execute on function public.search_pos_products(uuid, text, int, int, boolean) to authenticated;
 grant execute on function public.search_pos_products(uuid, text, int, int, boolean) to service_role;
 
+create table if not exists public.product_custom_code_counters (
+  tenant_id uuid primary key references public.tenants(id) on delete cascade,
+  next_value bigint not null default 1,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+revoke all on table public.product_custom_code_counters from public;
+revoke all on table public.product_custom_code_counters from anon;
+revoke all on table public.product_custom_code_counters from authenticated;
+grant all on table public.product_custom_code_counters to service_role;
+
+create or replace function public.next_product_custom_code(input_tenant_id uuid)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  candidate_code text;
+  candidate_value bigint;
+  attempts int := 0;
+begin
+  if input_tenant_id is null then
+    raise exception 'TENANT_FORBIDDEN';
+  end if;
+
+  if auth.role() <> 'service_role' and not public.is_tenant_member(input_tenant_id) then
+    raise exception 'TENANT_FORBIDDEN';
+  end if;
+
+  insert into public.product_custom_code_counters (tenant_id, next_value)
+  values (input_tenant_id, 1)
+  on conflict (tenant_id) do nothing;
+
+  loop
+    update public.product_custom_code_counters
+    set
+      next_value = next_value + 1,
+      updated_at = now()
+    where tenant_id = input_tenant_id
+    returning next_value - 1 into candidate_value;
+
+    candidate_code := lpad(candidate_value::text, 4, '0');
+
+    if not exists (
+      select 1
+      from public.products p
+      where p.tenant_id = input_tenant_id
+        and (
+          public.normalize_product_code(p.sku) = candidate_code
+          or public.normalize_product_code(p.custom_code) = candidate_code
+          or public.normalize_product_code(p.barcode) = candidate_code
+        )
+    ) and not exists (
+      select 1
+      from public.product_sale_units psu
+      where psu.tenant_id = input_tenant_id
+        and public.normalize_product_code(psu.barcode) = candidate_code
+    ) then
+      return candidate_code;
+    end if;
+
+    attempts := attempts + 1;
+
+    if attempts > 100000 then
+      raise exception 'PRODUCT_CUSTOM_CODE_GENERATION_FAILED';
+    end if;
+  end loop;
+end;
+$$;
+
+revoke execute on function public.next_product_custom_code(uuid) from public;
+revoke execute on function public.next_product_custom_code(uuid) from anon;
+grant execute on function public.next_product_custom_code(uuid) to authenticated;
+grant execute on function public.next_product_custom_code(uuid) to service_role;
+
 drop function if exists public.create_product_atomic(
   uuid,
   uuid,
@@ -480,7 +554,7 @@ begin
     raise exception 'TENANT_FORBIDDEN';
   end if;
 
-  clean_sku := nullif(public.normalize_product_code(input_sku), '');
+  clean_sku := public.normalize_product_code(input_sku);
   clean_custom_code := nullif(public.normalize_product_code(input_custom_code), '');
   clean_barcode := nullif(public.normalize_product_code(input_barcode), '');
   clean_name := nullif(trim(coalesce(input_name, '')), '');
@@ -494,6 +568,14 @@ begin
 
   if clean_name is null then
     raise exception 'PRODUCT_NAME_REQUIRED';
+  end if;
+
+  if clean_sku = '' then
+    raise exception 'PRODUCT_SKU_REQUIRED';
+  end if;
+
+  if clean_custom_code is null then
+    clean_custom_code := public.next_product_custom_code(input_tenant_id);
   end if;
 
   if clean_normalized_name is null then

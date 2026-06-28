@@ -609,7 +609,7 @@ const ProductCommercialForm = forwardRef<
               className="h-11 rounded-lg border border-input bg-background px-3 font-mono text-base"
             />
             <span className="text-sm font-semibold text-muted-foreground">
-              Codigo que usa la ferreteria para identificarlo.
+              Podes dejarlo vacio. El sistema asigna el siguiente numero.
             </span>
           </label>
         </div>
