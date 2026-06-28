@@ -1,6 +1,7 @@
 type SearchableProduct = {
   barcode?: string | null;
   code?: string | null;
+  customCode?: string | null;
   description?: string | null;
   displayCode?: string | null;
   name: string;
@@ -53,6 +54,7 @@ export function getProductSearchRank(product: SearchableProduct, rawSearch: stri
 
   return Math.min(
     fieldRank(product.sku, search, 0, 2, 5),
+    fieldRank(product.customCode, search, 0, 2, 5),
     fieldRank(productBarcode, search, 0, 2, 5),
     fieldRank(product.displayCode, search, 0, 2, 5),
     fieldRank(saleUnitBarcodes, search, 0, 2, 5),

@@ -11,6 +11,7 @@ export type ProductSaleUnit = {
 export type ProductListItem = {
   id: string;
   sku: string;
+  customCode?: string;
   code: string;
   displayCode: string;
   barcode: string;
@@ -35,7 +36,7 @@ export type ProductListItem = {
   minStock: number;
   active: boolean;
   imageUrl: string;
-  matchedBy?: "sku" | "product_barcode" | "sale_unit_barcode" | "text";
+  matchedBy?: "sku" | "custom_code" | "product_barcode" | "sale_unit_barcode" | "text";
   matchedSaleUnitId?: string;
   saleUnits: ProductSaleUnit[];
 };

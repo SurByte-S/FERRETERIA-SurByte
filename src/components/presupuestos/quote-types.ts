@@ -11,6 +11,7 @@ export type ProductSaleUnit = {
 export type QuoteProduct = {
   id: string;
   sku: string;
+  customCode?: string;
   code: string;
   displayCode: string;
   productBarcode: string;
@@ -24,7 +25,7 @@ export type QuoteProduct = {
   minStock: number;
   availableForSale: boolean;
   hasProductBarcode: boolean;
-  matchedBy: "sku" | "product_barcode" | "sale_unit_barcode" | "text";
+  matchedBy: "sku" | "custom_code" | "product_barcode" | "sale_unit_barcode" | "text";
   matchedSaleUnitId?: string;
   saleUnits: ProductSaleUnit[];
 };
