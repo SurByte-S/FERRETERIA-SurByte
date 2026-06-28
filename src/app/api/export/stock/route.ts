@@ -9,6 +9,7 @@ import {
 
 type StockExportRow = {
   sku: string;
+  custom_code: string | null;
   barcode: string | null;
   name: string;
   unit: string;
@@ -25,6 +26,7 @@ type StockExportRow = {
 
 const CSV_HEADERS = [
   "codigo",
+  "codigo_propio",
   "codigo_barras",
   "nombre",
   "unidad",
@@ -54,9 +56,10 @@ export async function GET(request: Request) {
           subtitle: tenant.name || "Ferretería Güemes",
           meta: [`Fecha de generacion: ${new Date().toLocaleString("es-AR")}`],
           table: {
-            headers: ["Codigo", "Producto", "Precio", "Stock", "Minimo", "Marca", "Proveedor"],
+            headers: ["Codigo", "Codigo propio", "Producto", "Precio", "Stock", "Minimo", "Marca", "Proveedor"],
             rows: rows.map((row) => [
               row.sku,
+              row.custom_code,
               row.name,
               formatNumber(row.sale_price),
               formatNumber(row.stock_quantity),
@@ -75,6 +78,7 @@ export async function GET(request: Request) {
         CSV_HEADERS,
         rows.map((row) => [
           row.sku,
+          row.custom_code,
           row.barcode,
           row.name,
           row.unit,
@@ -104,7 +108,7 @@ async function loadStockRows(tenantId: string) {
     const { data, error } = await supabase
       .from("products")
       .select(
-        "sku,barcode,name,unit,sale_price,stock_quantity,min_stock,cost_without_tax,cost_with_tax,tax_rate,profit_margin_percent,brands(name),suppliers(name)"
+        "sku,custom_code,barcode,name,unit,sale_price,stock_quantity,min_stock,cost_without_tax,cost_with_tax,tax_rate,profit_margin_percent,brands(name),suppliers(name)"
       )
       .eq("tenant_id", tenantId)
       .eq("active", true)

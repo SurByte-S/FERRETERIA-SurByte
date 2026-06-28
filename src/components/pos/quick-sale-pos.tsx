@@ -175,7 +175,18 @@ function getCodeDisplay(
   if (product.matchedBy === "product_barcode" && product.productBarcode) {
     return {
       label: `Codigo de barras: ${product.productBarcode}`,
-      secondaryLabel: `Codigo de catalogo: ${product.sku}`,
+      secondaryLabel: product.customCode
+        ? `Codigo propio: ${product.customCode}`
+        : `Codigo de catalogo: ${product.sku}`,
+    };
+  }
+
+  if (product.matchedBy === "custom_code" && product.customCode) {
+    return {
+      label: `Codigo propio: ${product.customCode}`,
+      secondaryLabel: product.productBarcode
+        ? `Codigo de barras: ${product.productBarcode}`
+        : `Codigo de catalogo: ${product.sku}`,
     };
   }
 
@@ -207,6 +218,10 @@ function getMatchSourceLabel(product: QuoteProduct) {
 
   if (product.matchedBy === "sku") {
     return "Encontrado por codigo de catalogo";
+  }
+
+  if (product.matchedBy === "custom_code") {
+    return "Encontrado por codigo propio";
   }
 
   return "Encontrado por texto";

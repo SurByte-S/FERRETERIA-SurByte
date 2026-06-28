@@ -25,6 +25,7 @@ import type {
 type ProductRow = {
   id: string;
   sku: string;
+  custom_code: string | null;
   barcode: string | null;
   name: string;
   normalized_name: string;
@@ -51,6 +52,7 @@ type ProductSaleUnitRow = {
 type PosProductSearchRow = {
   id: string;
   sku: string;
+  custom_code: string | null;
   barcode: string | null;
   name: string;
   normalized_name: string;
@@ -68,7 +70,7 @@ type PosProductSearchRow = {
   matched_sale_unit_id?: string | null;
 };
 
-type ProductMatchSource = "sku" | "product_barcode" | "sale_unit_barcode" | "text";
+type ProductMatchSource = "sku" | "custom_code" | "product_barcode" | "sale_unit_barcode" | "text";
 
 type ProductCodeLookupRow = {
   active: boolean | null;
@@ -244,7 +246,7 @@ function inferMatchSource({
   explicitMatchedBy?: ProductMatchSource | null;
   productBarcode: string;
   rawSearch?: string;
-  row: Pick<ProductRow, "sku">;
+  row: Pick<ProductRow, "custom_code" | "sku">;
   saleUnits: ProductSaleUnit[];
 }): ProductMatchSource {
   if (explicitMatchedBy) {
@@ -259,6 +261,10 @@ function inferMatchSource({
 
   if (normalizeProductCode(row.sku) === cleanSearch) {
     return "sku";
+  }
+
+  if (normalizeProductCode(row.custom_code) === cleanSearch) {
+    return "custom_code";
   }
 
   if (productBarcode && productBarcode === cleanSearch) {
@@ -287,6 +293,7 @@ function mapProduct(
     : [fallbackSaleUnit(row)]
   ).map((unit) => ({ ...unit, salePrice: productSalePrice }));
   const productBarcode = normalizeProductCode(row.barcode);
+  const sku = normalizeProductCode(row.sku);
   const searchMatchedSaleUnit = findSaleUnitByBarcode(
     finalSaleUnits,
     options.rawSearch
@@ -305,11 +312,12 @@ function mapProduct(
     matchedBy === "sale_unit_barcode"
       ? preferredSaleUnitId || searchMatchedSaleUnit?.id || undefined
       : undefined;
-  const displayCode = productBarcode || row.sku;
+  const displayCode = productBarcode || sku;
 
   return {
     id: row.id,
-    sku: row.sku,
+    sku,
+    customCode: normalizeProductCode(row.custom_code),
     code: displayCode,
     displayCode,
     productBarcode,
@@ -325,7 +333,7 @@ function mapProduct(
       (row.stock_quantity ?? 0) >= defaultSaleUnit.quantityInBaseUnit,
     hasProductBarcode: hasRealProductBarcode({
       barcode: productBarcode,
-      sku: row.sku,
+      sku,
     }),
     matchedBy,
     matchedSaleUnitId,
@@ -455,7 +463,7 @@ async function loadQuoteProductById({
   const { data, error } = await supabase
     .from("products")
     .select(
-      "id,sku,barcode,name,normalized_name,description,unit,sale_price,stock_quantity,min_stock"
+      "id,sku,custom_code,barcode,name,normalized_name,description,unit,sale_price,stock_quantity,min_stock"
     )
     .eq("tenant_id", tenantId)
     .eq("id", productId)
@@ -504,8 +512,22 @@ async function fallbackQuoteProductCodeLookup({
 }): Promise<QuoteProductCodeLookupResult> {
   const supabase = getSupabaseServerClient();
   const selectFields =
-    "id,sku,barcode,name,normalized_name,description,unit,sale_price,stock_quantity,min_stock";
-  const [skuResult, barcodeResult, saleUnitResult] = await Promise.all([
+    "id,sku,custom_code,barcode,name,normalized_name,description,unit,sale_price,stock_quantity,min_stock";
+  const [barcodeResult, customCodeResult, skuResult, saleUnitResult] = await Promise.all([
+    supabase
+      .from("products")
+      .select(selectFields)
+      .eq("tenant_id", tenantId)
+      .eq("active", true)
+      .ilike("barcode", code)
+      .limit(2),
+    supabase
+      .from("products")
+      .select(selectFields)
+      .eq("tenant_id", tenantId)
+      .eq("active", true)
+      .ilike("custom_code", code)
+      .limit(2),
     supabase
       .from("products")
       .select(selectFields)
@@ -514,16 +536,9 @@ async function fallbackQuoteProductCodeLookup({
       .ilike("sku", code)
       .limit(2),
     supabase
-      .from("products")
-      .select(selectFields)
-      .eq("tenant_id", tenantId)
-      .eq("active", true)
-      .ilike("barcode", code)
-      .limit(2),
-    supabase
       .from("product_sale_units")
       .select(
-        "id,product_id,name,quantity_in_base_unit,sale_price,barcode,is_default,active,products!inner(id,sku,barcode,name,normalized_name,description,unit,sale_price,stock_quantity,min_stock)"
+        "id,product_id,name,quantity_in_base_unit,sale_price,barcode,is_default,active,products!inner(id,sku,custom_code,barcode,name,normalized_name,description,unit,sale_price,stock_quantity,min_stock)"
       )
       .eq("tenant_id", tenantId)
       .eq("active", true)
@@ -531,7 +546,7 @@ async function fallbackQuoteProductCodeLookup({
       .limit(2),
   ]);
 
-  if (skuResult.error || barcodeResult.error || saleUnitResult.error) {
+  if (barcodeResult.error || customCodeResult.error || skuResult.error || saleUnitResult.error) {
     return {
       ok: false,
       message: "No se pudo buscar el producto.",
@@ -545,12 +560,16 @@ async function fallbackQuoteProductCodeLookup({
     saleUnitId?: string;
   }[] = [];
 
-  for (const row of (skuResult.data ?? []) as unknown as ProductRow[]) {
-    candidates.push({ matchedBy: "sku", productId: row.id });
-  }
-
   for (const row of (barcodeResult.data ?? []) as unknown as ProductRow[]) {
     candidates.push({ matchedBy: "product_barcode", productId: row.id });
+  }
+
+  for (const row of (customCodeResult.data ?? []) as unknown as ProductRow[]) {
+    candidates.push({ matchedBy: "custom_code", productId: row.id });
+  }
+
+  for (const row of (skuResult.data ?? []) as unknown as ProductRow[]) {
+    candidates.push({ matchedBy: "sku", productId: row.id });
   }
 
   for (const row of (saleUnitResult.data ?? []) as unknown as Array<
@@ -649,6 +668,7 @@ function isExactProductMatch(product: QuoteProduct, rawSearch: string) {
 
   return [
     product.sku,
+    product.customCode,
     product.productBarcode,
     product.displayCode,
     ...product.saleUnits.map((unit) => unit.barcode),
@@ -742,6 +762,7 @@ async function searchPrioritizedQuoteProductsForPos({
   });
   const searchParts = [
     `sku.ilike.%${safeSearch}%`,
+    `custom_code.ilike.%${safeSearch}%`,
     `barcode.ilike.%${safeSearch}%`,
     `name.ilike.%${safeSearch}%`,
     `normalized_name.ilike.%${safeSearch}%`,
@@ -763,7 +784,7 @@ async function searchPrioritizedQuoteProductsForPos({
   let query = supabase
     .from("products")
     .select(
-      "id,sku,barcode,name,normalized_name,description,unit,sale_price,stock_quantity,min_stock,brands(name),categories(name)",
+      "id,sku,custom_code,barcode,name,normalized_name,description,unit,sale_price,stock_quantity,min_stock,brands(name),categories(name)",
       { count: "exact" }
     )
     .eq("tenant_id", tenantId)
@@ -925,6 +946,7 @@ export async function searchQuoteProductsAction(
     });
     const searchParts = [
       `sku.ilike.%${search}%`,
+      `custom_code.ilike.%${search}%`,
       `barcode.ilike.%${search}%`,
       `name.ilike.%${search}%`,
       `normalized_name.ilike.%${search}%`,
@@ -938,7 +960,7 @@ export async function searchQuoteProductsAction(
     let query = supabase
       .from("products")
       .select(
-        "id,sku,barcode,name,normalized_name,description,unit,sale_price,stock_quantity,min_stock"
+        "id,sku,custom_code,barcode,name,normalized_name,description,unit,sale_price,stock_quantity,min_stock"
       )
       .eq("tenant_id", tenant.id)
       .eq("active", true)
@@ -1068,6 +1090,7 @@ export async function searchProductsForPosAction(
     ).map((item) => item.id);
     const searchParts = [
       `sku.ilike.%${safeSearch}%`,
+      `custom_code.ilike.%${safeSearch}%`,
       `barcode.ilike.%${safeSearch}%`,
       `name.ilike.%${safeSearch}%`,
       `normalized_name.ilike.%${safeSearch}%`,
@@ -1093,7 +1116,7 @@ export async function searchProductsForPosAction(
     let query = supabase
       .from("products")
       .select(
-        "id,sku,barcode,name,normalized_name,description,unit,sale_price,stock_quantity,min_stock,brands(name),categories(name)",
+        "id,sku,custom_code,barcode,name,normalized_name,description,unit,sale_price,stock_quantity,min_stock,brands(name),categories(name)",
         { count: "exact" }
       )
       .eq("tenant_id", tenant.id)

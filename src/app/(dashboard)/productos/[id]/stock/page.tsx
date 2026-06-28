@@ -120,7 +120,7 @@ export default async function ProductStockPage({ params }: ProductStockPageProps
               <Package className="size-7" aria-hidden="true" />
             </div>
             <CardTitle>{product.name}</CardTitle>
-            <CardDescription>Codigo interno: {product.sku}</CardDescription>
+            <CardDescription>Codigo de catalogo: {product.sku}</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-3">
             <div className="rounded-lg border border-border p-4">

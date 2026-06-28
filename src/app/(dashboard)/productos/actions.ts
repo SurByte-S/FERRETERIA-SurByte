@@ -17,6 +17,7 @@ export type ProductActionState = {
   ok: boolean;
   message: string;
   barcode?: string;
+  customCode?: string;
   productId?: string;
   sku?: string;
   stockQuantity?: number;
@@ -389,12 +390,14 @@ type CodeLookupRow = {
 
 async function ensureProductCodesAvailable({
   barcode,
+  customCode,
   productId,
   saleUnits,
   sku,
   tenantId,
 }: {
   barcode?: string | null;
+  customCode?: string | null;
   productId: string;
   saleUnits: SaleUnitInput[];
   sku?: string | null;
@@ -415,6 +418,7 @@ async function ensureProductCodesAvailable({
 
   const codes = [
     { code: normalizeProductCode(sku ?? ""), label: "El codigo de catalogo" },
+    { code: normalizeProductCode(customCode ?? ""), label: "El codigo propio" },
     { code: normalizeProductCode(barcode ?? ""), label: "El codigo de barras" },
     ...activeSaleUnitCodes.map((code) => ({
       code,
@@ -512,7 +516,7 @@ function createProductErrorMessage(message?: string) {
   }
 
   if (cleanMessage.includes("PRODUCT_SKU_REQUIRED")) {
-    return "El codigo de catalogo es obligatorio.";
+    return "Falta aplicar la migracion 027 de codigo propio.";
   }
 
   if (
@@ -525,6 +529,10 @@ function createProductErrorMessage(message?: string) {
 
   if (cleanMessage.includes("PRODUCT_BARCODE_CONFLICT")) {
     return "Ya existe un producto con ese codigo de barras.";
+  }
+
+  if (cleanMessage.includes("PRODUCT_CUSTOM_CODE_CONFLICT")) {
+    return "Ya existe un producto con ese codigo propio.";
   }
 
   if (cleanMessage.includes("PRODUCT_SALE_UNIT_BARCODE_DUPLICATE")) {
@@ -789,8 +797,8 @@ export async function updateProductAction(
   formData: FormData
 ): Promise<ProductActionState> {
   const productId = textValue(formData, "productId");
-  const currentSku = textValue(formData, "currentSku");
-  const nextSku = codeValue(formData, "sku");
+  const nextSku = optionalCodeValue(formData, "sku");
+  const customCode = optionalCodeValue(formData, "customCode");
   const name = textValue(formData, "name");
   const description = textValue(formData, "description");
   const barcode = optionalCodeValue(formData, "barcode");
@@ -798,10 +806,10 @@ export async function updateProductAction(
   const imageFile = formData.get("image");
   let imageUrl = textValue(formData, "currentImageUrl");
 
-  if (!productId || !currentSku || !nextSku || !name) {
+  if (!productId || !name) {
     return {
       ok: false,
-      message: "Necesitan revisión. Nombre y código son obligatorios.",
+      message: "Necesitan revision. El nombre es obligatorio.",
     };
   }
 
@@ -855,6 +863,7 @@ export async function updateProductAction(
     ];
     await ensureProductCodesAvailable({
       barcode,
+      customCode,
       productId,
       saleUnits: [],
       sku: nextSku,
@@ -887,6 +896,7 @@ export async function updateProductAction(
       .from("products")
       .update({
         sku: nextSku,
+        custom_code: customCode,
         barcode,
         name,
         description: description || name,
@@ -904,8 +914,7 @@ export async function updateProductAction(
         image_url: imageUrl || null,
       })
       .eq("tenant_id", tenant.id)
-      .eq("id", productId)
-      .eq("sku", currentSku);
+      .eq("id", productId);
 
     if (error) {
       return errorState;
@@ -945,7 +954,8 @@ export async function createProductAction(
   formData: FormData
 ): Promise<ProductActionState> {
   const name = textValue(formData, "name");
-  const sku = codeValue(formData, "sku");
+  const sku = optionalCodeValue(formData, "sku");
+  const customCode = optionalCodeValue(formData, "customCode");
   const barcode = optionalCodeValue(formData, "barcode");
   const description = textValue(formData, "description");
   const unit = textValue(formData, "unit") || "unidad";
@@ -955,13 +965,6 @@ export async function createProductAction(
     return {
       ok: false,
       message: "El nombre es obligatorio.",
-    };
-  }
-
-  if (!sku) {
-    return {
-      ok: false,
-      message: "El codigo de catalogo es obligatorio.",
     };
   }
 
@@ -1051,6 +1054,7 @@ export async function createProductAction(
       input_brand_id: brandId,
       input_cost_with_tax: finalCostWithTax,
       input_cost_without_tax: costWithoutTax,
+      input_custom_code: customCode,
       input_description: description || name,
       input_min_stock: cleanMinStock,
       input_name: name,
@@ -1100,8 +1104,9 @@ export async function createProductAction(
           ? "Producto creado correctamente."
           : "Producto creado correctamente. Tiene stock 0 y puede verse con el filtro Todos.",
       barcode: barcode ?? undefined,
+      customCode: customCode ?? undefined,
       productId: String(productId),
-      sku,
+      sku: sku ?? undefined,
       stockQuantity: cleanStockQuantity,
     };
   } catch (error) {
@@ -1196,6 +1201,7 @@ export async function updateProductStockCommercialAction(
   formData: FormData
 ): Promise<ProductActionState> {
   const productId = textValue(formData, "productId");
+  const customCode = optionalCodeValue(formData, "customCode");
 
   if (!isUuid(productId)) {
     return {
@@ -1271,6 +1277,7 @@ export async function updateProductStockCommercialAction(
       }),
     ]);
     await ensureProductCodesAvailable({
+      customCode,
       productId,
       saleUnits,
       tenantId: tenant.id,
@@ -1279,6 +1286,7 @@ export async function updateProductStockCommercialAction(
       .from("products")
       .update({
         brand_id: brandId,
+        custom_code: customCode,
         supplier_id: supplierId,
         cost_without_tax: costWithoutTax,
         cost_with_tax: costWithTax,

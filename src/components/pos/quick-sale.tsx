@@ -110,12 +110,12 @@ function getCodeDisplay(product: QuoteProduct) {
   if (product.matchedBy === "product_barcode" && product.productBarcode) {
     return {
       label: `Codigo de barras: ${product.productBarcode}`,
-      secondaryLabel: `Codigo interno: ${product.sku}`,
+      secondaryLabel: `Codigo de catalogo: ${product.sku}`,
     };
   }
 
   return {
-    label: `Codigo interno: ${product.sku}`,
+    label: `Codigo de catalogo: ${product.sku}`,
     secondaryLabel:
       product.productBarcode && product.productBarcode !== product.sku
         ? `Codigo de barras: ${product.productBarcode}`
@@ -137,7 +137,7 @@ function getLineCodeDisplay(line: QuoteLine) {
     return `Codigo de barras: ${line.productBarcode}`;
   }
 
-  return `Codigo interno: ${line.sku}`;
+  return `Codigo de catalogo: ${line.sku}`;
 }
 
 function getLineKey(productId: string, saleUnitId: string) {

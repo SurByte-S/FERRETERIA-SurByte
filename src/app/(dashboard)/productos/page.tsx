@@ -27,6 +27,7 @@ type ProductsPageProps = {
 type ProductSearchRow = {
   id: string;
   sku: string;
+  custom_code: string | null;
   barcode: string | null;
   name: string;
   description: string | null;
@@ -51,6 +52,7 @@ type ProductSearchRow = {
 type ProductFallbackRow = {
   id: string;
   sku: string;
+  custom_code: string | null;
   barcode: string | null;
   name: string;
   description: string | null;
@@ -143,19 +145,21 @@ export default async function ProductosPage({ searchParams }: ProductsPageProps)
 
 function mapRpcRow(row: ProductSearchRow): ProductListItem {
   const stockQuantity = row.stock_quantity ?? 0;
+  const sku = normalizeProductCode(row.sku);
   const productBarcode = normalizeProductCode(row.barcode);
-  const displayCode = productBarcode || row.sku;
+  const displayCode = productBarcode || sku;
 
   return {
     id: row.id,
-    sku: row.sku,
+    sku,
+    customCode: normalizeProductCode(row.custom_code),
     code: displayCode,
     displayCode,
     barcode: productBarcode,
     productBarcode,
     hasProductBarcode: hasRealProductBarcode({
       barcode: productBarcode,
-      sku: row.sku,
+      sku,
     }),
     name: row.name,
     description: row.description ?? row.name,
@@ -183,19 +187,21 @@ function mapRpcRow(row: ProductSearchRow): ProductListItem {
 
 function mapFallbackRow(row: ProductFallbackRow): ProductListItem {
   const stockQuantity = row.stock_quantity ?? 0;
+  const sku = normalizeProductCode(row.sku);
   const productBarcode = normalizeProductCode(row.barcode);
-  const displayCode = productBarcode || row.sku;
+  const displayCode = productBarcode || sku;
 
   return {
     id: row.id,
-    sku: row.sku,
+    sku,
+    customCode: normalizeProductCode(row.custom_code),
     code: displayCode,
     displayCode,
     barcode: productBarcode,
     productBarcode,
     hasProductBarcode: hasRealProductBarcode({
       barcode: productBarcode,
-      sku: row.sku,
+      sku,
     }),
     name: row.name,
     description: row.description ?? row.name,
@@ -438,7 +444,7 @@ async function loadProducts({
     let query = supabase
       .from("products")
       .select(
-        "id,sku,barcode,name,normalized_name,description,unit,cost_without_tax,cost_with_tax,sale_price,tax_rate,profit_margin_percent,stock_quantity,min_stock,active,image_url,category_id,brand_id,supplier_id,categories(name),brands(name),suppliers(name)",
+        "id,sku,custom_code,barcode,name,normalized_name,description,unit,cost_without_tax,cost_with_tax,sale_price,tax_rate,profit_margin_percent,stock_quantity,min_stock,active,image_url,category_id,brand_id,supplier_id,categories(name),brands(name),suppliers(name)",
         { count: "exact" }
       )
       .eq("tenant_id", tenant.id)
@@ -453,6 +459,7 @@ async function loadProducts({
       const safeCode = code.replace(/[%_]/g, "");
       const codeParts = [
         `sku.ilike.%${safeCode}%`,
+        `custom_code.ilike.%${safeCode}%`,
         `barcode.ilike.%${safeCode}%`,
       ];
 

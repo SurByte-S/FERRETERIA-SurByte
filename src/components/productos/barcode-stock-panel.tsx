@@ -46,6 +46,10 @@ function getLookupCodeLabel(product: ProductListItem, code: string) {
     return `Codigo de presentacion: ${code}`;
   }
 
+  if (product.matchedBy === "custom_code") {
+    return `Codigo propio: ${code}`;
+  }
+
   return `Codigo de catalogo: ${code}`;
 }
 
@@ -446,6 +450,11 @@ function ProductSummary({ product }: { product: ProductListItem }) {
       <p className="font-mono text-sm font-semibold text-muted-foreground">
         Codigo de catalogo: {product.sku}
       </p>
+      {product.customCode ? (
+        <p className="mt-1 font-mono text-sm font-semibold text-muted-foreground">
+          Codigo propio: {product.customCode}
+        </p>
+      ) : null}
       <p className="mt-1 text-sm font-bold text-yellow-800">
         {association.statusLabel}
       </p>

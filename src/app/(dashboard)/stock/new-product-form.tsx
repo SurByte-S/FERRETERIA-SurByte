@@ -84,6 +84,7 @@ export function NewProductForm({
   );
   const [name, setName] = useState(initialName);
   const [sku, setSku] = useState(initialSku);
+  const [customCode, setCustomCode] = useState("");
   const [barcode, setBarcode] = useState(initialBarcode);
   const [unit, setUnit] = useState("unidad");
   const [description, setDescription] = useState("");
@@ -146,6 +147,7 @@ export function NewProductForm({
   const resetFormValues = useCallback(() => {
     setName(initialName);
     setSku(initialSku);
+    setCustomCode("");
     setBarcode(initialBarcode);
     setUnit("unidad");
     setDescription("");
@@ -230,19 +232,6 @@ export function NewProductForm({
             onChange={setName}
             required
           />
-          <TextField
-            label="Codigo de catalogo"
-            name="sku"
-            value={sku}
-            onChange={setSku}
-            required
-          />
-          <TextField
-            label="Codigo de barras principal"
-            name="barcode"
-            value={barcode}
-            onChange={setBarcode}
-          />
           <BaseUnitField
             label="Unidad"
             name="unit"
@@ -270,6 +259,33 @@ export function NewProductForm({
             />
             Activo
           </label>
+        </div>
+      </section>
+
+      <section className="grid gap-3 rounded-lg border border-border bg-background p-4">
+        <h3 className="text-base font-bold">Codigos del producto</h3>
+        <div className="grid gap-3 md:grid-cols-3">
+          <TextField
+            label="Codigo de catalogo"
+            name="sku"
+            value={sku}
+            onChange={setSku}
+            help="Codigo del catalogo o proveedor."
+          />
+          <TextField
+            label="Codigo propio"
+            name="customCode"
+            value={customCode}
+            onChange={setCustomCode}
+            help="Codigo que usa la ferreteria para identificarlo."
+          />
+          <TextField
+            label="Codigo de barras principal"
+            name="barcode"
+            value={barcode}
+            onChange={setBarcode}
+            help="Codigo que se escanea con lector."
+          />
         </div>
       </section>
 
@@ -476,12 +492,14 @@ export function NewProductForm({
 }
 
 function TextField({
+  help,
   label,
   name,
   onChange,
   required = false,
   value,
 }: {
+  help?: string;
   label: string;
   name: string;
   onChange: (value: string) => void;
@@ -498,6 +516,11 @@ function TextField({
         required={required}
         className="h-11 rounded-lg border border-input bg-background px-3 text-base"
       />
+      {help ? (
+        <span className="text-sm font-semibold text-muted-foreground">
+          {help}
+        </span>
+      ) : null}
     </label>
   );
 }

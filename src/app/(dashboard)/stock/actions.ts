@@ -39,6 +39,7 @@ type StockCsvProduct = {
 type BarcodeProductRow = {
   id: string;
   sku: string;
+  custom_code: string | null;
   barcode: string | null;
   name: string;
   normalized_name: string | null;
@@ -75,7 +76,7 @@ type CodeLookupRow = {
   active: boolean | null;
   conflict_count: number | null;
   conflict_sources: unknown;
-  matched_by: "sku" | "product_barcode" | "sale_unit_barcode" | null;
+  matched_by: "sku" | "custom_code" | "product_barcode" | "sale_unit_barcode" | null;
   product_id: string | null;
   sale_unit_id: string | null;
   status: "found" | "not_found" | "inactive" | "conflict" | string;
@@ -88,7 +89,7 @@ export type BarcodeLookupResult =
       status: "found";
       code: string;
       product: ProductListItem;
-      matchedBy: "sku" | "product_barcode" | "sale_unit_barcode";
+      matchedBy: "sku" | "custom_code" | "product_barcode" | "sale_unit_barcode";
     }
   | {
       ok: true;
@@ -150,18 +151,20 @@ function mapBarcodeProduct(
   saleUnits: ProductListItem["saleUnits"] = []
 ): ProductListItem {
   const productBarcode = normalizeProductCode(row.barcode);
-  const displayCode = productBarcode || row.sku;
+  const sku = normalizeProductCode(row.sku);
+  const displayCode = productBarcode || sku;
 
   return {
     id: row.id,
-    sku: row.sku,
+    sku,
+    customCode: normalizeProductCode(row.custom_code),
     code: displayCode,
     displayCode,
     barcode: productBarcode,
     productBarcode,
     hasProductBarcode: hasRealProductBarcode({
       barcode: productBarcode,
-      sku: row.sku,
+      sku,
     }),
     name: row.name,
     description: row.description ?? row.name,
@@ -223,7 +226,7 @@ async function loadProductForBarcodePanel(
   let query = supabase
     .from("products")
     .select(
-      "id,sku,barcode,name,normalized_name,description,unit,cost_without_tax,cost_with_tax,sale_price,tax_rate,profit_margin_percent,stock_quantity,min_stock,active,image_url,category_id,brand_id,supplier_id,brands(name),suppliers(name)"
+      "id,sku,custom_code,barcode,name,normalized_name,description,unit,cost_without_tax,cost_with_tax,sale_price,tax_rate,profit_margin_percent,stock_quantity,min_stock,active,image_url,category_id,brand_id,supplier_id,brands(name),suppliers(name)"
     )
     .eq("tenant_id", tenantId)
     .eq("id", productId);
@@ -449,12 +452,12 @@ export async function searchProductsForBarcodeAction(
     const { data, error } = await supabase
       .from("products")
       .select(
-        "id,sku,barcode,name,normalized_name,description,unit,cost_without_tax,cost_with_tax,sale_price,tax_rate,profit_margin_percent,stock_quantity,min_stock,active,image_url,category_id,brand_id,supplier_id,brands(name),suppliers(name)"
+        "id,sku,custom_code,barcode,name,normalized_name,description,unit,cost_without_tax,cost_with_tax,sale_price,tax_rate,profit_margin_percent,stock_quantity,min_stock,active,image_url,category_id,brand_id,supplier_id,brands(name),suppliers(name)"
       )
       .eq("tenant_id", tenant.id)
       .eq("active", true)
       .or(
-        `name.ilike.%${search}%,normalized_name.ilike.%${search}%,description.ilike.%${search}%,sku.ilike.%${search}%`
+        `name.ilike.%${search}%,normalized_name.ilike.%${search}%,description.ilike.%${search}%,sku.ilike.%${search}%,custom_code.ilike.%${search}%`
       )
       .order("name")
       .limit(8);
@@ -658,7 +661,7 @@ export async function removeProductPrimaryBarcodeAction({
     ) {
       return {
         ok: false,
-        message: "Ese valor es el codigo interno heredado.",
+        message: "Ese valor es el codigo de catalogo heredado.",
       };
     }
 
@@ -731,7 +734,7 @@ export async function createBarcodeProductAction({
   if (!barcode || !name || !sku) {
     return {
       ok: false,
-      message: "Nombre, codigo interno y codigo de barras son obligatorios.",
+      message: "Nombre, codigo de catalogo y codigo de barras son obligatorios.",
     };
   }
 

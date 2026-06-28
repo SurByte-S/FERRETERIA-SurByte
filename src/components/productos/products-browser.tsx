@@ -339,6 +339,11 @@ export function ProductsBrowser({
                     <p className="mb-2 font-mono text-base text-muted-foreground">
                       Codigo de catalogo: {product.sku}
                     </p>
+                    {product.customCode ? (
+                      <p className="mb-2 font-mono text-sm font-semibold text-muted-foreground">
+                        Codigo propio: {product.customCode}
+                      </p>
+                    ) : null}
                     {barcodeLabel ? (
                       <p className="mb-2 font-mono text-sm font-semibold text-muted-foreground">
                         {barcodeLabel}

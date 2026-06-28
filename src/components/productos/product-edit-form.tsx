@@ -32,17 +32,19 @@ export function ProductEditForm({
   return (
     <form action={formAction} className="mt-4 grid gap-4 rounded-lg border border-border bg-background p-4">
       <input type="hidden" name="productId" value={product.id} />
-      <input type="hidden" name="currentSku" value={product.sku} />
       <input type="hidden" name="currentImageUrl" value={product.imageUrl} />
 
       <div className="grid gap-4 md:grid-cols-2">
         <Field label="Nombre">
           <input name="name" defaultValue={product.name} required className="h-12 rounded-lg border border-input bg-background px-3 text-base" />
         </Field>
-        <Field label="Codigo de catalogo">
-          <input name="sku" defaultValue={product.sku} required className="h-12 rounded-lg border border-input bg-background px-3 text-base" />
+        <Field label="Codigo de catalogo" help="Codigo del catalogo o proveedor.">
+          <input name="sku" defaultValue={product.sku} className="h-12 rounded-lg border border-input bg-background px-3 text-base" />
         </Field>
-        <Field label="Codigo de barras del producto">
+        <Field label="Codigo propio" help="Codigo que usa la ferreteria para identificarlo.">
+          <input name="customCode" defaultValue={product.customCode ?? ""} className="h-12 rounded-lg border border-input bg-background px-3 text-base" />
+        </Field>
+        <Field label="Codigo de barras del producto" help="Codigo que se escanea con lector.">
           <input name="barcode" defaultValue={product.barcode} className="h-12 rounded-lg border border-input bg-background px-3 text-base" />
         </Field>
         <label className="grid gap-2 text-base font-semibold md:col-span-2">
@@ -121,9 +123,11 @@ export function ProductEditForm({
 }
 
 function Field({
+  help,
   label,
   children,
 }: {
+  help?: string;
   label: string;
   children: React.ReactNode;
 }) {
@@ -131,6 +135,11 @@ function Field({
     <label className="grid gap-2 text-base font-semibold">
       <span>{label}</span>
       {children}
+      {help ? (
+        <span className="text-sm font-semibold text-muted-foreground">
+          {help}
+        </span>
+      ) : null}
     </label>
   );
 }

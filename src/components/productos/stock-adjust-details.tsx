@@ -588,6 +588,34 @@ const ProductCommercialForm = forwardRef<
       </section>
 
       <section className="grid min-w-0 gap-3 rounded-lg border border-border bg-background p-3">
+        <h3 className="text-base font-bold">Codigos del producto</h3>
+        <div className="grid gap-3 md:grid-cols-2">
+          <label className="grid gap-2 text-base font-semibold">
+            <span>Codigo de catalogo</span>
+            <input
+              readOnly
+              value={product.sku}
+              className="h-11 rounded-lg border border-input bg-muted/40 px-3 font-mono text-base"
+            />
+            <span className="text-sm font-semibold text-muted-foreground">
+              Codigo del catalogo o proveedor.
+            </span>
+          </label>
+          <label className="grid gap-2 text-base font-semibold">
+            <span>Codigo propio</span>
+            <input
+              name="customCode"
+              defaultValue={product.customCode ?? ""}
+              className="h-11 rounded-lg border border-input bg-background px-3 font-mono text-base"
+            />
+            <span className="text-sm font-semibold text-muted-foreground">
+              Codigo que usa la ferreteria para identificarlo.
+            </span>
+          </label>
+        </div>
+      </section>
+
+      <section className="grid min-w-0 gap-3 rounded-lg border border-border bg-background p-3">
         <h3 className="text-base font-bold">Datos comerciales</h3>
         <div className="grid gap-3 sm:grid-cols-3">
           <NumberField
@@ -697,15 +725,7 @@ const PrimaryBarcodeSection = forwardRef<
         </p>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <label className="grid gap-2 text-base font-semibold">
-          <span>Codigo de catalogo</span>
-          <input
-            readOnly
-            value={product.sku}
-            className="h-11 rounded-lg border border-input bg-muted/40 px-3 font-mono text-base"
-          />
-        </label>
+      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)]">
         <label className="grid gap-2 text-base font-semibold">
           <span>Codigo de barras</span>
           <input

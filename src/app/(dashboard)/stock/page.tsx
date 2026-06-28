@@ -48,6 +48,7 @@ type StockPageProps = {
 type ProductRow = {
   id: string;
   sku: string;
+  custom_code: string | null;
   barcode: string | null;
   name: string;
   normalized_name: string | null;
@@ -88,7 +89,7 @@ type ProductSaleUnitRow = {
 type CodeLookupRow = {
   active: boolean | null;
   conflict_sources: unknown;
-  matched_by: "sku" | "product_barcode" | "sale_unit_barcode" | null;
+  matched_by: "sku" | "custom_code" | "product_barcode" | "sale_unit_barcode" | null;
   product_id: string | null;
   status: "found" | "not_found" | "inactive" | "conflict" | string;
 };
@@ -116,19 +117,21 @@ function mapProduct(row: ProductRow): ProductListItem {
   const costWithoutTax = row.cost_without_tax;
   const taxRate = row.tax_rate ?? 21;
   const stockQuantity = row.stock_quantity ?? 0;
+  const sku = normalizeProductCode(row.sku);
   const productBarcode = normalizeProductCode(row.barcode);
-  const displayCode = productBarcode || row.sku;
+  const displayCode = productBarcode || sku;
 
   return {
     id: row.id,
-    sku: row.sku,
+    sku,
+    customCode: normalizeProductCode(row.custom_code),
     code: displayCode,
     displayCode,
     barcode: productBarcode,
     productBarcode,
     hasProductBarcode: hasRealProductBarcode({
       barcode: productBarcode,
-      sku: row.sku,
+      sku,
     }),
     name: row.name,
     description: row.description ?? row.name,
@@ -464,6 +467,11 @@ function StockProductCard({
         <p className="font-mono text-sm font-semibold leading-tight text-muted-foreground">
           Codigo de catalogo: {product.sku}
         </p>
+        {product.customCode ? (
+          <p className="mt-0.5 font-mono text-sm font-semibold leading-tight text-muted-foreground">
+            Codigo propio: {product.customCode}
+          </p>
+        ) : null}
         {barcodeSummary ? (
           <p className="mt-0.5 font-mono text-sm font-semibold leading-tight text-muted-foreground">
             {barcodeSummary}
@@ -609,7 +617,7 @@ async function loadStockProducts({
     let query = supabase
       .from("products")
       .select(
-        "id,sku,barcode,name,normalized_name,description,unit,cost_without_tax,cost_with_tax,sale_price,tax_rate,profit_margin_percent,stock_quantity,min_stock,active,image_url,category_id,brand_id,supplier_id,brands(name),suppliers(name)"
+        "id,sku,custom_code,barcode,name,normalized_name,description,unit,cost_without_tax,cost_with_tax,sale_price,tax_rate,profit_margin_percent,stock_quantity,min_stock,active,image_url,category_id,brand_id,supplier_id,brands(name),suppliers(name)"
       )
       .eq("tenant_id", tenant.id)
       .eq("active", true)
@@ -633,6 +641,7 @@ async function loadStockProducts({
     if (q.length >= 1 && safeSearch) {
       const searchFilters = [
         `sku.ilike.%${safeSearch}%`,
+        `custom_code.ilike.%${safeSearch}%`,
         `barcode.ilike.%${safeSearch}%`,
         `name.ilike.%${safeSearch}%`,
         `normalized_name.ilike.%${safeSearch}%`,
