@@ -18,7 +18,6 @@ import { formatStockQuantity } from "@/lib/format";
 import {
   cleanProductCodeSearch,
   hasRealProductBarcode,
-  isInheritedProductBarcode,
   normalizeProductCode,
 } from "@/lib/product-code";
 import { sortProductsBySearchRank } from "@/lib/search-ranking";
@@ -223,23 +222,6 @@ function stockStatus(product: ProductListItem) {
     className: "border-emerald-700/50 bg-card text-foreground",
     labelClassName: "text-emerald-800",
   };
-}
-
-function productBarcodeSummary(product: ProductListItem) {
-  if (!product.productBarcode) {
-    return "";
-  }
-
-  if (
-    isInheritedProductBarcode({
-      barcode: product.productBarcode,
-      sku: product.sku,
-    })
-  ) {
-    return "Codigo de catalogo heredado";
-  }
-
-  return `Codigo de barras: ${product.productBarcode}`;
 }
 
 function buildStockHref({
@@ -460,46 +442,50 @@ function StockProductCard({
   suppliers: CatalogOption[];
 }) {
   const status = stockStatus(product);
-  const barcodeSummary = productBarcodeSummary(product);
   const content = (
-    <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_150px_150px] md:items-center md:gap-3">
-      <div className="min-w-0">
-        {product.customCode ? (
-          <p className="mb-0.5 font-mono text-base font-black leading-tight text-primary">
-            Propio: {product.customCode}
-          </p>
-        ) : null}
-        <p className="font-mono text-sm font-semibold leading-tight text-muted-foreground">
-          Codigo de catalogo: {product.sku}
+    <div className="grid gap-2 md:grid-cols-[5rem_minmax(0,1fr)_150px_150px_7rem] md:items-center md:gap-3">
+      <div>
+        <p className="text-sm font-bold leading-tight text-muted-foreground md:hidden">
+          Propio
         </p>
-        {barcodeSummary ? (
-          <p className="mt-0.5 font-mono text-sm font-semibold leading-tight text-muted-foreground">
-            {barcodeSummary}
-          </p>
-        ) : null}
-        <p className="mt-0.5 line-clamp-1 text-base font-semibold leading-tight text-foreground md:text-lg">
+        <p className="font-mono text-lg font-black leading-tight text-primary">
+          {product.customCode || "-"}
+        </p>
+      </div>
+      <div className="min-w-0">
+        <p className="text-sm font-bold leading-tight text-muted-foreground md:hidden">
+          Producto
+        </p>
+        <p className="line-clamp-2 text-base font-bold leading-tight text-foreground md:text-lg">
           {product.name}
         </p>
       </div>
 
       <div className="flex min-h-[48px] flex-col justify-center rounded-lg border border-border bg-background p-2 md:min-h-[52px]">
         <p className="text-sm font-semibold leading-tight text-muted-foreground">
-          Precio venta
+          Stock
+        </p>
+        <p className={`mt-0.5 truncate text-base font-bold leading-tight md:text-lg ${status.labelClassName}`}>
+          {formatStockQuantity(product.stockQuantity)} {product.unit}
+        </p>
+      </div>
+
+      <div className="flex min-h-[48px] flex-col justify-center rounded-lg border border-border bg-background p-2 md:min-h-[52px]">
+        <p className="text-sm font-semibold leading-tight text-muted-foreground">
+          Precio
         </p>
         <p className="mt-0.5 truncate text-base font-bold leading-tight text-primary md:text-lg">
           {formatMoney(product.salePrice)}
         </p>
       </div>
 
-      <div className={`flex min-h-[48px] flex-col justify-center rounded-lg border p-2 md:min-h-[52px] ${status.className}`}>
-        <p className="text-sm font-semibold leading-tight">Stock actual</p>
-        <p className="mt-0.5 truncate text-base font-bold leading-tight md:text-lg">
-          {formatStockQuantity(product.stockQuantity)} {product.unit}
-        </p>
-        <p className={`text-sm font-semibold leading-tight ${status.labelClassName}`}>
-          {status.label}
-        </p>
-      </div>
+      {canAdjustStock ? (
+        <div className="justify-self-start md:justify-self-end">
+          <p className="rounded-md border border-primary/30 bg-background px-3 py-2 text-center text-sm font-black text-primary">
+            Gestionar
+          </p>
+        </div>
+      ) : null}
     </div>
   );
 

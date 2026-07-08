@@ -207,26 +207,6 @@ function getLineCodeDisplay(line: QuoteLine) {
   return getCodeDisplay(line, selectedSaleUnit).label;
 }
 
-function getMatchSourceLabel(product: QuoteProduct) {
-  if (product.matchedBy === "product_barcode") {
-    return "Encontrado por codigo de barras";
-  }
-
-  if (product.matchedBy === "sale_unit_barcode") {
-    return "Encontrado por codigo de presentacion";
-  }
-
-  if (product.matchedBy === "sku") {
-    return "Encontrado por codigo de catalogo";
-  }
-
-  if (product.matchedBy === "custom_code") {
-    return "Encontrado por codigo propio";
-  }
-
-  return "Encontrado por texto";
-}
-
 function getLineKey(productId: string, saleUnitId: string) {
   return `${productId}:${saleUnitId || "fallback"}`;
 }
@@ -1557,7 +1537,6 @@ function ProductRow({
   const selectedSaleUnit =
     product.saleUnits.find((unit) => unit.id === selectedSaleUnitId) ??
     defaultSaleUnit;
-  const codeDisplay = getCodeDisplay(product, selectedSaleUnit);
   const isOutOfStock = !product.availableForSale;
   const canAddProduct = isQuoteMode || product.availableForSale;
   const activeSaleUnits = product.saleUnits.filter((unit) => unit.active);
@@ -1565,44 +1544,28 @@ function ProductRow({
     activeSaleUnits.length > 0 ? activeSaleUnits : [defaultSaleUnit];
   const showSaleUnitSelector =
     availableSaleUnits.length !== 1 || !isSimpleSaleUnit(availableSaleUnits[0]);
-  const showCodeLabel =
-    !product.customCode || product.matchedBy !== "custom_code";
 
   return (
     <div
       className={
         showSaleUnitSelector
-          ? "grid gap-2 rounded-md border border-border bg-card p-2 shadow-sm md:grid-cols-[minmax(0,1fr)_9.6rem_6.3rem_7.2rem_7.2rem] md:items-center"
-          : "grid gap-2 rounded-md border border-border bg-card p-2 shadow-sm md:grid-cols-[minmax(0,1fr)_6.3rem_7.2rem_7.2rem] md:items-center"
+          ? "grid gap-2 rounded-md border border-border bg-card p-2 shadow-sm md:grid-cols-[5rem_minmax(0,1fr)_9.6rem_6.3rem_7.2rem_7.2rem] md:items-center"
+          : "grid gap-2 rounded-md border border-border bg-card p-2 shadow-sm md:grid-cols-[5rem_minmax(0,1fr)_6.3rem_7.2rem_7.2rem] md:items-center"
       }
     >
+      <div>
+        <p className="text-sm font-bold text-muted-foreground md:hidden">Propio</p>
+        <p className="font-mono text-lg font-black leading-tight text-primary">
+          {product.customCode || "-"}
+        </p>
+      </div>
       <div className="min-w-0">
+        <p className="text-sm font-bold text-muted-foreground md:hidden">
+          Producto
+        </p>
         <p className="line-clamp-2 text-base font-black leading-tight">
           {product.name || product.description}
         </p>
-        {product.customCode ? (
-          <p className="font-mono text-base font-black leading-tight text-primary">
-            Propio: {product.customCode}
-          </p>
-        ) : null}
-        {showCodeLabel ? (
-          <p className="font-mono text-sm font-semibold text-muted-foreground">
-            {codeDisplay.label}
-          </p>
-        ) : null}
-        <p className="text-sm font-bold text-primary">
-          {getMatchSourceLabel(product)}
-        </p>
-        {codeDisplay.secondaryLabel ? (
-          <p className="font-mono text-sm font-semibold text-muted-foreground">
-            {codeDisplay.secondaryLabel}
-          </p>
-        ) : null}
-        {product.brand || product.category ? (
-          <p className="truncate text-sm font-semibold text-muted-foreground">
-            {[product.brand, product.category].filter(Boolean).join(" - ")}
-          </p>
-        ) : null}
       </div>
       {showSaleUnitSelector ? (
         <label className="grid gap-1">
@@ -1623,10 +1586,10 @@ function ProductRow({
         </label>
       ) : null}
       <div>
-        <InfoBlock
-          label="Stock"
-          value={`${formatStockQuantity(product.stockQuantity)} ${product.unit}`}
-        />
+        <p className="text-sm font-bold text-muted-foreground">Stock</p>
+        <p className="text-lg font-black">
+          {formatStockQuantity(product.stockQuantity)} {product.unit}
+        </p>
         {isOutOfStock ? (
           <p className="text-sm font-black text-yellow-900">Sin stock</p>
         ) : null}
@@ -1758,15 +1721,6 @@ function TicketLine({
           </p>
         </div>
       </div>
-    </div>
-  );
-}
-
-function InfoBlock({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-sm font-bold text-foreground">{label}</p>
-      <p className="text-base font-black">{value}</p>
     </div>
   );
 }
