@@ -212,15 +212,15 @@ function stockStatus(product: ProductListItem) {
   if (product.minStock > 0 && product.stockQuantity <= product.minStock) {
     return {
       label: "Bajo minimo",
-      className: "border-yellow-600/50 bg-card text-foreground",
-      labelClassName: "text-yellow-900",
+      className: "border-amber-700/60 bg-card text-foreground",
+      labelClassName: "text-amber-900",
     };
   }
 
   return {
     label: "Stock OK",
-    className: "border-emerald-700/50 bg-card text-foreground",
-    labelClassName: "text-emerald-800",
+    className: "border-emerald-800/60 bg-card text-foreground",
+    labelClassName: "text-emerald-900",
   };
 }
 
@@ -479,13 +479,6 @@ function StockProductCard({
         </p>
       </div>
 
-      {canAdjustStock ? (
-        <div className="justify-self-start md:justify-self-end">
-          <p className="rounded-md border border-primary/30 bg-background px-3 py-2 text-center text-sm font-black text-primary">
-            Gestionar
-          </p>
-        </div>
-      ) : null}
     </div>
   );
 

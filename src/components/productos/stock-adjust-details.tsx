@@ -387,11 +387,11 @@ function DangerZone({
   }, [onDeleted, router, state.message, state.ok]);
 
   return (
-    <section className="grid gap-3 rounded-lg border border-destructive/40 bg-destructive/5 p-3">
+    <section className="grid gap-3 rounded-lg border border-red-300/70 bg-red-50/40 p-3">
       <div className="flex items-start gap-3">
-        <AlertTriangle className="mt-1 size-5 shrink-0 text-destructive" aria-hidden="true" />
+        <AlertTriangle className="mt-1 size-5 shrink-0 text-red-800" aria-hidden="true" />
         <div className="grid gap-1">
-          <h3 className="text-base font-bold text-destructive">Zona peligrosa</h3>
+          <h3 className="text-base font-bold text-red-800">Zona peligrosa</h3>
           <p className="text-sm font-semibold text-muted-foreground">
             Eliminar oculta el producto de stock, ventas y busquedas. El historial se conserva.
           </p>
@@ -436,7 +436,7 @@ function DangerZone({
             </div>
 
             {product.stockQuantity > 0 ? (
-              <p className="mt-3 rounded-lg border border-yellow-500/40 bg-yellow-50 p-3 text-sm font-semibold text-yellow-900">
+              <p className="mt-3 rounded-lg border border-amber-600/40 bg-amber-50 p-3 text-sm font-semibold text-amber-950">
                 Este producto todavia tiene stock cargado. Si lo eliminas,
                 quedara oculto pero el historial se conservara.
               </p>
