@@ -279,6 +279,9 @@ export function StockAdjustDetails({
                 <p className="text-xl font-bold">Gestionar producto</p>
                 <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-sm font-semibold text-muted-foreground">
                   <p className="min-w-0 max-w-full truncate">{product.name}</p>
+                  <p className="shrink-0 truncate font-mono text-primary">
+                    Codigo propio: {product.customCode || "Sin asignar"}
+                  </p>
                   <p className="shrink-0 truncate">Codigo de catalogo: {product.sku}</p>
                 </div>
               </div>
@@ -427,6 +430,7 @@ function DangerZone({
           <>
             <div className="mt-4 grid gap-2 rounded-lg border border-border bg-muted/40 p-3 text-sm font-semibold">
               <p>Producto: {product.name}</p>
+              <p>Codigo propio: {product.customCode || "Sin asignar"}</p>
               <p>Codigo de catalogo: {product.sku}</p>
               <p>Stock actual: {product.stockQuantity}</p>
             </div>
@@ -609,7 +613,7 @@ const ProductCommercialForm = forwardRef<
               className="h-11 rounded-lg border border-input bg-background px-3 font-mono text-base"
             />
             <span className="text-sm font-semibold text-muted-foreground">
-              Podes dejarlo vacio. El sistema asigna el siguiente numero.
+              Podes dejarlo vacio. El sistema asigna el siguiente numero al guardar.
             </span>
           </label>
         </div>

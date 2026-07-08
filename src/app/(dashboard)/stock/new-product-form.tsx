@@ -278,7 +278,7 @@ export function NewProductForm({
             name="customCode"
             value={customCode}
             onChange={setCustomCode}
-            help="Podes dejarlo vacio. El sistema asigna el siguiente numero."
+            help="Podes dejarlo vacio. El sistema asigna el siguiente numero al guardar."
           />
           <TextField
             label="Codigo de barras principal"

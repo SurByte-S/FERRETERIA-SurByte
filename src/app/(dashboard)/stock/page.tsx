@@ -464,14 +464,14 @@ function StockProductCard({
   const content = (
     <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_150px_150px] md:items-center md:gap-3">
       <div className="min-w-0">
+        {product.customCode ? (
+          <p className="mb-0.5 font-mono text-base font-black leading-tight text-primary">
+            Propio: {product.customCode}
+          </p>
+        ) : null}
         <p className="font-mono text-sm font-semibold leading-tight text-muted-foreground">
           Codigo de catalogo: {product.sku}
         </p>
-        {product.customCode ? (
-          <p className="mt-0.5 font-mono text-sm font-semibold leading-tight text-muted-foreground">
-            Codigo propio: {product.customCode}
-          </p>
-        ) : null}
         {barcodeSummary ? (
           <p className="mt-0.5 font-mono text-sm font-semibold leading-tight text-muted-foreground">
             {barcodeSummary}

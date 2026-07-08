@@ -1565,6 +1565,8 @@ function ProductRow({
     activeSaleUnits.length > 0 ? activeSaleUnits : [defaultSaleUnit];
   const showSaleUnitSelector =
     availableSaleUnits.length !== 1 || !isSimpleSaleUnit(availableSaleUnits[0]);
+  const showCodeLabel =
+    !product.customCode || product.matchedBy !== "custom_code";
 
   return (
     <div
@@ -1578,9 +1580,16 @@ function ProductRow({
         <p className="line-clamp-2 text-base font-black leading-tight">
           {product.name || product.description}
         </p>
-        <p className="font-mono text-sm font-semibold text-muted-foreground">
-          {codeDisplay.label}
-        </p>
+        {product.customCode ? (
+          <p className="font-mono text-base font-black leading-tight text-primary">
+            Propio: {product.customCode}
+          </p>
+        ) : null}
+        {showCodeLabel ? (
+          <p className="font-mono text-sm font-semibold text-muted-foreground">
+            {codeDisplay.label}
+          </p>
+        ) : null}
         <p className="text-sm font-bold text-primary">
           {getMatchSourceLabel(product)}
         </p>
