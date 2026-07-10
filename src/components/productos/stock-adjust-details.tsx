@@ -592,6 +592,22 @@ const ProductCommercialForm = forwardRef<
       </section>
 
       <section className="grid min-w-0 gap-3 rounded-lg border border-border bg-background p-3">
+        <h3 className="text-base font-bold">Datos principales</h3>
+        <label className="grid gap-2 text-base font-semibold">
+          <span>Nombre del producto</span>
+          <input
+            name="name"
+            defaultValue={product.name}
+            required
+            className="h-11 w-full rounded-lg border border-input bg-background px-3 text-base"
+          />
+          <span className="text-sm font-semibold text-muted-foreground">
+            Este nombre se usa en stock, busquedas y venta.
+          </span>
+        </label>
+      </section>
+
+      <section className="grid min-w-0 gap-3 rounded-lg border border-border bg-background p-3">
         <h3 className="text-base font-bold">Codigos del producto</h3>
         <div className="grid gap-3 md:grid-cols-2">
           <label className="grid gap-2 text-base font-semibold">

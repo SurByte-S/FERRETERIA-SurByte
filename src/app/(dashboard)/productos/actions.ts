@@ -1235,12 +1235,20 @@ export async function updateProductStockCommercialAction(
   formData: FormData
 ): Promise<ProductActionState> {
   const productId = textValue(formData, "productId");
+  const name = textValue(formData, "name");
   const requestedCustomCode = optionalCodeValue(formData, "customCode");
 
   if (!isUuid(productId)) {
     return {
       ok: false,
       message: "No se encontro el producto.",
+    };
+  }
+
+  if (!name) {
+    return {
+      ok: false,
+      message: "El nombre es obligatorio.",
     };
   }
 
@@ -1325,6 +1333,8 @@ export async function updateProductStockCommercialAction(
       .update({
         brand_id: brandId,
         custom_code: customCode,
+        name,
+        normalized_name: normalizeName(name),
         supplier_id: supplierId,
         cost_without_tax: costWithoutTax,
         cost_with_tax: costWithTax,
