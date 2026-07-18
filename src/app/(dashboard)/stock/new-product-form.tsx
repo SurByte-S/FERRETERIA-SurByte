@@ -84,11 +84,8 @@ export function NewProductForm({
   );
   const [name, setName] = useState(initialName);
   const [sku, setSku] = useState(initialSku);
-  const [customCode, setCustomCode] = useState("");
   const [barcode, setBarcode] = useState(initialBarcode);
   const [unit, setUnit] = useState("unidad");
-  const [description, setDescription] = useState("");
-  const [active, setActive] = useState(true);
   const [costWithoutTax, setCostWithoutTax] = useState("");
   const [taxRate, setTaxRate] = useState("21");
   const [costWithTax, setCostWithTax] = useState("");
@@ -147,11 +144,8 @@ export function NewProductForm({
   const resetFormValues = useCallback(() => {
     setName(initialName);
     setSku(initialSku);
-    setCustomCode("");
     setBarcode(initialBarcode);
     setUnit("unidad");
-    setDescription("");
-    setActive(true);
     setCostWithoutTax("");
     setTaxRate("21");
     setCostWithTax("");
@@ -218,6 +212,8 @@ export function NewProductForm({
 
   const formContent = (
     <form key={formKey} action={formAction} className="grid gap-4">
+      <input type="hidden" name="active" value="true" />
+
       {state.message ? (
         <FormStatusMessage ok={state.ok} message={state.message} />
       ) : null}
@@ -238,76 +234,31 @@ export function NewProductForm({
             value={unit}
             onChange={setUnit}
           />
-          <label className="grid gap-2 text-base font-semibold md:col-span-2">
-            <span>Descripcion</span>
-            <textarea
-              name="description"
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              rows={3}
-              className="rounded-lg border border-input bg-background px-3 py-2 text-base"
-            />
-          </label>
-          <label className="flex min-h-11 items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 text-base font-semibold">
-            <input
-              type="checkbox"
-              name="active"
-              value="true"
-              checked={active}
-              onChange={(event) => setActive(event.target.checked)}
-              className="size-5"
-            />
-            Activo
-          </label>
         </div>
       </section>
 
       <section className="grid gap-3 rounded-lg border border-border bg-background p-4">
-        <h3 className="text-base font-bold">Codigos del producto</h3>
-        <div className="grid gap-3 md:grid-cols-3">
-          <TextField
-            label="Codigo de catalogo"
-            name="sku"
-            value={sku}
-            onChange={setSku}
-            required
-            help="Codigo del catalogo o proveedor."
-          />
-          <TextField
-            label="Codigo propio"
-            name="customCode"
-            value={customCode}
-            onChange={setCustomCode}
-            help="Podes dejarlo vacio. El sistema asigna el siguiente numero al guardar."
-          />
-          <TextField
-            label="Codigo de barras principal"
-            name="barcode"
-            value={barcode}
-            onChange={setBarcode}
-            help="Codigo que se escanea con lector."
-          />
-        </div>
-      </section>
-
-      <section className="grid gap-3 rounded-lg border border-border bg-background p-4">
-        <h3 className="text-base font-bold">Clasificacion</h3>
+        <h3 className="text-base font-bold">Stock</h3>
+        <input type="hidden" name="stockQuantity" value={stockQuantity} />
         <div className="grid gap-3 md:grid-cols-2">
-          <CatalogSelectWithCreate
-            label="Marca"
-            name="brandId"
-            kind="brand"
-            options={brands}
-            placeholder="Sin marca"
+          <NumberField
+            label="Cantidad que entra"
+            name="initialLoadQuantity"
+            value={initialLoadQuantity}
+            onChange={setInitialLoadQuantity}
+            step="0.001"
           />
-          <CatalogSelectWithCreate
-            label="Proveedor"
-            name="supplierId"
-            kind="supplier"
-            options={suppliers}
-            placeholder="Sin proveedor"
+          <NumberField
+            label="Stock minimo"
+            name="minStock"
+            value={minStock}
+            onChange={setMinStock}
+            step="0.001"
           />
         </div>
+        <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm font-semibold text-muted-foreground">
+          Se guardara como {formatQuantity(calculatedStockQuantity)} {unit}.
+        </p>
       </section>
 
       <section className="grid gap-3 rounded-lg border border-border bg-background p-4">
@@ -381,27 +332,50 @@ export function NewProductForm({
       </section>
 
       <section className="grid gap-3 rounded-lg border border-border bg-background p-4">
-        <h3 className="text-base font-bold">Stock inicial</h3>
-        <input type="hidden" name="stockQuantity" value={stockQuantity} />
+        <h3 className="text-base font-bold">Clasificacion</h3>
         <div className="grid gap-3 md:grid-cols-2">
-          <NumberField
-            label="Cantidad que entra"
-            name="initialLoadQuantity"
-            value={initialLoadQuantity}
-            onChange={setInitialLoadQuantity}
-            step="0.001"
+          <CatalogSelectWithCreate
+            label="Marca"
+            name="brandId"
+            kind="brand"
+            options={brands}
+            placeholder="Sin marca"
           />
-          <NumberField
-            label="Stock minimo"
-            name="minStock"
-            value={minStock}
-            onChange={setMinStock}
-            step="0.001"
+          <CatalogSelectWithCreate
+            label="Proveedor"
+            name="supplierId"
+            kind="supplier"
+            options={suppliers}
+            placeholder="Sin proveedor"
           />
         </div>
-        <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm font-semibold text-muted-foreground">
-          Se guardara como {formatQuantity(calculatedStockQuantity)} {unit}.
-        </p>
+      </section>
+
+      <section className="grid gap-3 rounded-lg border border-border bg-background p-4">
+        <h3 className="text-base font-bold">Codigos del producto</h3>
+        <div className="grid gap-3 md:grid-cols-3">
+          <div className="grid gap-2 text-base font-semibold">
+            <span>Codigo propio</span>
+            <p className="flex min-h-11 items-center rounded-lg border border-border bg-muted/40 px-3 text-sm font-semibold text-muted-foreground">
+              Se asigna automaticamente al guardar.
+            </p>
+          </div>
+          <TextField
+            label="Codigo de catalogo"
+            name="sku"
+            value={sku}
+            onChange={setSku}
+            required
+            help="Codigo del catalogo o proveedor."
+          />
+          <TextField
+            label="Codigo de barras principal"
+            name="barcode"
+            value={barcode}
+            onChange={setBarcode}
+            help="Codigo que se escanea con lector."
+          />
+        </div>
       </section>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">

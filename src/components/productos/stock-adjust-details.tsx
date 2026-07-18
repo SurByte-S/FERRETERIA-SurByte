@@ -299,13 +299,6 @@ export function StockAdjustDetails({
 
             <div className="min-h-0 overflow-x-hidden overflow-y-auto p-3 sm:p-4">
               <div className="grid gap-4 rounded-lg border border-border bg-muted/20 p-3">
-                <section className="min-w-0">
-                  <StockAdjustForm
-                    ref={stockFormRef}
-                    product={product}
-                  />
-                </section>
-
                 {canEditPrice ? (
                   <ProductCommercialForm
                     ref={commercialFormRef}
@@ -316,8 +309,15 @@ export function StockAdjustDetails({
                   />
                 ) : null}
 
+                <section className="order-2 min-w-0">
+                  <StockAdjustForm
+                    ref={stockFormRef}
+                    product={product}
+                  />
+                </section>
+
                 {canEditPrice ? (
-                  <section className="min-w-0">
+                  <section className="order-7 min-w-0">
                     <DangerZone
                       product={product}
                       onDeleted={(nextMessage) => {
@@ -529,8 +529,25 @@ const ProductCommercialForm = forwardRef<
       className="contents"
     >
       <input type="hidden" name="productId" value={product.id} />
+      <input type="hidden" name="customCode" value={product.customCode ?? ""} />
 
-      <section className="grid min-w-0 content-start gap-3 rounded-lg border border-border bg-background p-3">
+      <section className="order-1 grid min-w-0 gap-3 rounded-lg border border-border bg-background p-3">
+        <h3 className="text-base font-bold">Datos principales</h3>
+        <label className="grid gap-2 text-base font-semibold">
+          <span>Nombre del producto</span>
+          <input
+            name="name"
+            defaultValue={product.name}
+            required
+            className="h-11 w-full rounded-lg border border-input bg-background px-3 text-base"
+          />
+          <span className="text-sm font-semibold text-muted-foreground">
+            Este nombre se usa en stock, busquedas y venta.
+          </span>
+        </label>
+      </section>
+
+      <section className="order-3 grid min-w-0 content-start gap-3 rounded-lg border border-border bg-background p-3">
         <h3 className="text-base font-bold">Precio</h3>
         <div className="grid gap-3 md:grid-cols-5">
           <NumberField
@@ -591,52 +608,8 @@ const ProductCommercialForm = forwardRef<
         </div>
       </section>
 
-      <section className="grid min-w-0 gap-3 rounded-lg border border-border bg-background p-3">
-        <h3 className="text-base font-bold">Datos principales</h3>
-        <label className="grid gap-2 text-base font-semibold">
-          <span>Nombre del producto</span>
-          <input
-            name="name"
-            defaultValue={product.name}
-            required
-            className="h-11 w-full rounded-lg border border-input bg-background px-3 text-base"
-          />
-          <span className="text-sm font-semibold text-muted-foreground">
-            Este nombre se usa en stock, busquedas y venta.
-          </span>
-        </label>
-      </section>
-
-      <section className="grid min-w-0 gap-3 rounded-lg border border-border bg-background p-3">
-        <h3 className="text-base font-bold">Codigos del producto</h3>
-        <div className="grid gap-3 md:grid-cols-2">
-          <label className="grid gap-2 text-base font-semibold">
-            <span>Codigo de catalogo</span>
-            <input
-              readOnly
-              value={product.sku}
-              className="h-11 rounded-lg border border-input bg-muted/40 px-3 font-mono text-base"
-            />
-            <span className="text-sm font-semibold text-muted-foreground">
-              Codigo del catalogo o proveedor.
-            </span>
-          </label>
-          <label className="grid gap-2 text-base font-semibold">
-            <span>Codigo propio</span>
-            <input
-              name="customCode"
-              defaultValue={product.customCode ?? ""}
-              className="h-11 rounded-lg border border-input bg-background px-3 font-mono text-base"
-            />
-            <span className="text-sm font-semibold text-muted-foreground">
-              Podes dejarlo vacio. El sistema asigna el siguiente numero al guardar.
-            </span>
-          </label>
-        </div>
-      </section>
-
-      <section className="grid min-w-0 gap-3 rounded-lg border border-border bg-background p-3">
-        <h3 className="text-base font-bold">Datos comerciales</h3>
+      <section className="order-4 grid min-w-0 gap-3 rounded-lg border border-border bg-background p-3">
+        <h3 className="text-base font-bold">Clasificacion</h3>
         <div className="grid gap-3 sm:grid-cols-3">
           <NumberField
             label="Stock minimo"
@@ -665,13 +638,35 @@ const ProductCommercialForm = forwardRef<
         </div>
       </section>
 
-      <PrimaryBarcodeSection
-        ref={primaryBarcodeRef}
-        key={`${product.id}:${product.productBarcode}:${product.hasProductBarcode}`}
-        product={product}
-      />
+      <section className="order-5 grid min-w-0 gap-3 rounded-lg border border-border bg-background p-3">
+        <h3 className="text-base font-bold">Codigos del producto</h3>
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid gap-2 text-base font-semibold">
+            <span>Codigo propio</span>
+            <p className="flex min-h-11 items-center rounded-lg border border-border bg-muted/40 px-3 font-mono text-base">
+              {product.customCode || "Sin asignar"}
+            </p>
+          </div>
+          {product.sku ? (
+            <div className="grid gap-2 text-base font-semibold">
+              <span>Codigo de catalogo</span>
+              <p className="flex min-h-11 items-center rounded-lg border border-border bg-muted/40 px-3 font-mono text-base">
+                {product.sku}
+              </p>
+            </div>
+          ) : null}
+        </div>
+      </section>
 
-      <div className="min-w-0">
+      <div className="order-5 min-w-0">
+        <PrimaryBarcodeSection
+          ref={primaryBarcodeRef}
+          key={`${product.id}:${product.productBarcode}:${product.hasProductBarcode}`}
+          product={product}
+        />
+      </div>
+
+      <div className="order-6 min-w-0">
         <SaleUnitsEditor
           fallbackPrice={product.salePrice}
           saleUnits={product.saleUnits}
