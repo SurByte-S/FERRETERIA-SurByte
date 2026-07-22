@@ -8,6 +8,7 @@ import {
   useState,
   useTransition,
 } from "react";
+import { flushSync } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -268,6 +269,8 @@ export function QuickSalePos({
   const barcodeBufferRef = useRef("");
   const barcodeLastKeyAtRef = useRef(0);
   const barcodeScanPendingRef = useRef(false);
+  const barcodeScanProcessingRef = useRef(false);
+  const barcodeScanQueueRef = useRef<string[]>([]);
   const barcodeSearchTermRef = useRef("");
   const [customer, setCustomer] = useState<QuoteCustomer>({
     id: "",
@@ -392,56 +395,73 @@ export function QuickSalePos({
     const selectedSaleUnit = saleUnit ?? getDefaultSaleUnit(product);
     const lineKey = getLineKey(product.id, selectedSaleUnit.id);
 
-    const nextConsumption =
-      getProductBaseConsumption(linesRef.current, product.id) +
-      selectedSaleUnit.quantityInBaseUnit;
+    let wasAdded = false;
+    let stockMessage = "";
 
-    if (!isQuoteMode && nextConsumption - product.stockQuantity > EPSILON) {
-      setMessage(
-        getGroupedStockMessage({
-          productName: product.name || product.description,
-          stockQuantity: product.stockQuantity,
-          consumption: nextConsumption,
-        })
-      );
+    flushSync(() => {
+      setLines((currentLines) => {
+        const nextConsumption =
+          getProductBaseConsumption(currentLines, product.id) +
+          selectedSaleUnit.quantityInBaseUnit;
+
+        if (!isQuoteMode && nextConsumption - product.stockQuantity > EPSILON) {
+          stockMessage = getGroupedStockMessage({
+            productName: product.name || product.description,
+            stockQuantity: product.stockQuantity,
+            consumption: nextConsumption,
+          });
+          wasAdded = false;
+          linesRef.current = currentLines;
+          return currentLines;
+        }
+
+        const existingLine = currentLines.find(
+          (line) => getLineKey(line.id, line.selectedSaleUnitId) === lineKey
+        );
+        const nextLines = existingLine
+          ? currentLines.map((line) =>
+              getLineKey(line.id, line.selectedSaleUnitId) === lineKey
+                ? {
+                    ...line,
+                    quantity: line.quantity + 1,
+                  }
+                : line
+            )
+          : [
+              ...currentLines,
+              {
+                ...product,
+                code: getSaleUnitBarcode(selectedSaleUnit) || product.displayCode,
+                displayCode:
+                  getSaleUnitBarcode(selectedSaleUnit) || product.displayCode,
+                matchedBy: getSaleUnitBarcode(selectedSaleUnit)
+                  ? "sale_unit_barcode"
+                  : product.matchedBy,
+                matchedSaleUnitId: selectedSaleUnit.id || product.matchedSaleUnitId,
+                price: product.price,
+                quantity: 1,
+                selectedSaleUnitId: selectedSaleUnit.id,
+                selectedSaleUnitName: selectedSaleUnit.name,
+                quantityInBaseUnit: selectedSaleUnit.quantityInBaseUnit,
+                availableForSale:
+                  product.stockQuantity >= selectedSaleUnit.quantityInBaseUnit,
+              },
+            ];
+
+        wasAdded = true;
+        stockMessage = "";
+        linesRef.current = nextLines;
+        return nextLines;
+      });
+    });
+
+    if (!wasAdded) {
+      if (stockMessage) {
+        setMessage(stockMessage);
+      }
       return false;
     }
 
-    const existing = linesRef.current.find(
-      (line) => getLineKey(line.id, line.selectedSaleUnitId) === lineKey
-    );
-
-    setLines((current) =>
-      existing
-        ? current.map((line) =>
-            getLineKey(line.id, line.selectedSaleUnitId) === lineKey
-              ? {
-                  ...line,
-                  quantity: line.quantity + 1,
-                }
-              : line
-          )
-        : [
-            ...current,
-            {
-              ...product,
-              code: getSaleUnitBarcode(selectedSaleUnit) || product.displayCode,
-              displayCode:
-                getSaleUnitBarcode(selectedSaleUnit) || product.displayCode,
-              matchedBy: getSaleUnitBarcode(selectedSaleUnit)
-                ? "sale_unit_barcode"
-                : product.matchedBy,
-              matchedSaleUnitId: selectedSaleUnit.id || product.matchedSaleUnitId,
-              price: product.price,
-              quantity: 1,
-              selectedSaleUnitId: selectedSaleUnit.id,
-              selectedSaleUnitName: selectedSaleUnit.name,
-              quantityInBaseUnit: selectedSaleUnit.quantityInBaseUnit,
-              availableForSale:
-                product.stockQuantity >= selectedSaleUnit.quantityInBaseUnit,
-            },
-          ]
-    );
     if (!isQuoteMode) {
       setSearch("");
       setResults([]);
@@ -457,38 +477,31 @@ export function QuickSalePos({
     return true;
   }, [isQuoteMode]);
 
-  const lookupAndShowProductByCode = useCallback(
-    (rawCode: string) => {
-      const code = rawCode.trim();
+  const processBarcodeScanQueue = useCallback(async () => {
+    if (barcodeScanProcessingRef.current) {
+      return;
+    }
 
-      if (
-        !code ||
-        isPending ||
-        barcodeScanPendingRef.current
-      ) {
-        barcodeBufferRef.current = "";
-        barcodeLastKeyAtRef.current = 0;
-        return;
-      }
+    barcodeScanProcessingRef.current = true;
+    barcodeScanPendingRef.current = true;
 
-      barcodeScanPendingRef.current = true;
-      barcodeBufferRef.current = "";
-      barcodeLastKeyAtRef.current = 0;
-      barcodeSearchTermRef.current = code;
-      const requestId = latestSearchRequestRef.current + 1;
-      latestSearchRequestRef.current = requestId;
-      setSearch(code);
-      setPage(1);
-      setMessage("Buscando productos...");
-      setSearchStatus("loading");
+    try {
+      while (barcodeScanQueueRef.current.length > 0) {
+        const code = barcodeScanQueueRef.current.shift();
 
-      startTransition(async () => {
+        if (!code) {
+          continue;
+        }
+
+        barcodeSearchTermRef.current = code;
+        latestSearchRequestRef.current += 1;
+        setSearch(code);
+        setPage(1);
+        setMessage("Buscando productos...");
+        setSearchStatus("loading");
+
         try {
           const result = await lookupQuoteProductByCodeAction(code, isQuoteMode);
-
-          if (latestSearchRequestRef.current !== requestId) {
-            return;
-          }
 
           if (result.ok && result.product) {
             const wasAdded = addProduct(result.product);
@@ -496,7 +509,8 @@ export function QuickSalePos({
             if (wasAdded) {
               setMessage(`Agregado: ${result.product.name || result.product.description}`);
             }
-            return;
+
+            continue;
           }
 
           const matchingProducts = result.product ? [result.product] : [];
@@ -516,13 +530,33 @@ export function QuickSalePos({
           setSearchStatus("error");
           setMessage("No se pudo buscar el producto. Intenta nuevamente.");
         } finally {
-          barcodeScanPendingRef.current = false;
           barcodeBufferRef.current = "";
           barcodeLastKeyAtRef.current = 0;
         }
-      });
+      }
+    } finally {
+      barcodeScanProcessingRef.current = false;
+      barcodeScanPendingRef.current = false;
+      barcodeBufferRef.current = "";
+      barcodeLastKeyAtRef.current = 0;
+    }
+  }, [addProduct, isQuoteMode]);
+
+  const lookupAndShowProductByCode = useCallback(
+    (rawCode: string) => {
+      const code = rawCode.trim();
+
+      barcodeBufferRef.current = "";
+      barcodeLastKeyAtRef.current = 0;
+
+      if (!code) {
+        return;
+      }
+
+      barcodeScanQueueRef.current.push(code);
+      void processBarcodeScanQueue();
     },
-    [addProduct, isPending, isQuoteMode, startTransition]
+    [processBarcodeScanQueue]
   );
 
   useEffect(() => {
