@@ -1017,7 +1017,7 @@ export function QuickSalePos({
   }
 
   return (
-    <div className="grid min-h-[calc(100vh-5.75rem)] gap-2 bg-background p-1 lg:grid-rows-[auto_1fr]">
+    <div className="grid min-h-[calc(100vh-5.75rem)] gap-2 bg-background p-1 lg:h-[calc(100vh-5.75rem)] lg:grid-rows-[auto_minmax(0,1fr)]">
       <header className="grid shrink-0 gap-2 rounded-md border-2 border-border bg-card p-2 shadow-sm xl:grid-cols-[minmax(20rem,auto)_minmax(22rem,1fr)_auto] xl:items-stretch">
         <div className="grid min-w-0 gap-1 rounded-md border border-border bg-secondary p-2">
           <div className="min-h-5 min-w-0">
@@ -1078,9 +1078,9 @@ export function QuickSalePos({
         ) : null}
       </header>
 
-      <main className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_clamp(27rem,31vw,33rem)] lg:items-start">
-        <section className="grid rounded-md border-2 border-border bg-card shadow-sm lg:grid-rows-[auto_1fr]">
-          <div className="grid min-h-[18rem] grid-rows-[auto_1fr]">
+      <main className="grid min-h-0 gap-2 lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)] lg:items-stretch">
+        <section className="grid min-h-[18rem] min-w-0 overflow-hidden rounded-md border-2 border-border bg-card shadow-sm lg:min-h-0 lg:grid-rows-[minmax(0,1fr)]">
+          <div className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)]">
             <div className="grid min-h-[3.25rem] gap-2 border-b-2 border-primary/30 bg-card px-3 py-2 text-foreground xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
               <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
                 <h2 className="text-xl font-black">Productos encontrados</h2>
@@ -1150,7 +1150,7 @@ export function QuickSalePos({
               ) : null}
             </div>
 
-            <div className="bg-secondary px-3 pb-3 pt-2">
+            <div className="min-h-0 overflow-y-auto bg-secondary px-3 pb-3 pt-2">
               {results.length > 0 ? (
                 <div className="grid gap-2">
                   {results.map((product) => (
@@ -1169,8 +1169,8 @@ export function QuickSalePos({
           </div>
         </section>
 
-        <aside className="grid rounded-md border-2 border-border bg-card shadow-sm">
-          <div className="border-b-2 border-primary/30 bg-card px-3 py-2 text-foreground">
+        <aside className="flex min-h-[22rem] min-w-0 flex-col overflow-hidden rounded-md border-2 border-border bg-card shadow-sm lg:min-h-0">
+          <div className="shrink-0 border-b-2 border-primary/30 bg-card px-3 py-2 text-foreground">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h2 className="text-xl font-black leading-tight text-primary">
@@ -1190,7 +1190,7 @@ export function QuickSalePos({
             </div>
           </div>
 
-          <div className="bg-secondary p-2.5">
+          <div className="min-h-0 flex-1 overflow-y-auto bg-secondary p-2.5">
             {lines.length === 0 ? (
               <div className="rounded-md border border-dashed border-border bg-card p-4">
                 <p className="text-lg font-black">No hay productos agregados.</p>
@@ -1215,7 +1215,7 @@ export function QuickSalePos({
             )}
           </div>
 
-          <div className="border-t-2 border-border bg-card p-2.5">
+          <div className="shrink-0 border-t-2 border-border bg-card p-2.5">
             {!isQuoteMode ? (
               <div className="mb-2 grid gap-2">
                 <Field label="Forma de pago">
