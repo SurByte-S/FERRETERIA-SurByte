@@ -909,7 +909,7 @@ export function QuickSalePos({
   }
 
   return (
-    <div className="grid min-h-[calc(100vh-5.75rem)] gap-2 bg-background p-1 lg:h-[calc(100vh-5.75rem)] lg:grid-rows-[auto_minmax(0,1fr)]">
+    <div className="grid min-h-[calc(100vh-5.75rem)] gap-2 bg-background p-1 lg:h-full lg:min-h-0 lg:grid-rows-[auto_minmax(0,1fr)] lg:overflow-hidden">
       <header className="grid shrink-0 gap-2 rounded-md border-2 border-border bg-card p-2 shadow-sm">
         <div className="grid min-w-0 gap-1 rounded-md border border-border bg-secondary p-2">
           <div className="flex flex-wrap items-center gap-2">
@@ -953,7 +953,7 @@ export function QuickSalePos({
         </div>
       </header>
 
-      <main className="grid min-h-0 gap-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-stretch">
+      <main className="grid min-h-0 gap-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-stretch lg:overflow-hidden">
         <section className="grid min-h-[18rem] min-w-0 overflow-hidden rounded-md border-2 border-border bg-card shadow-sm lg:min-h-0 lg:grid-rows-[minmax(0,1fr)]">
           <div className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)]">
             <div className="flex min-h-[3.25rem] flex-wrap items-center justify-between gap-2 border-b-2 border-primary/30 bg-card px-3 py-2 text-foreground">
@@ -1161,7 +1161,7 @@ export function QuickSalePos({
                     type="button"
                     onClick={saveQuote}
                     disabled={isPending || lines.length === 0}
-                    className="h-14 w-full px-4 text-lg font-black"
+                    className="h-12 w-full px-4 text-base font-black"
                   >
                     Guardar presupuesto
                   </Button>
@@ -1176,18 +1176,18 @@ export function QuickSalePos({
                       Boolean(groupedStockIssue) ||
                       isCashRegisterClosed
                     }
-                    className="h-14 w-full text-lg font-black"
+                    className="h-12 w-full text-base font-black"
                   >
                     Cobrar venta
                   </Button>
                 )}
               </div>
 
-              <div className="min-w-0 lg:w-56 lg:text-right">
+              <div className="min-w-0 lg:w-64 lg:text-right">
                 <p className="text-sm font-black uppercase tracking-wide text-foreground">
                   {isQuoteMode ? "Total presupuesto" : "Total"}
                 </p>
-                <p className="truncate text-4xl font-black leading-none text-primary">
+                <p className="truncate text-[2.75rem] font-black leading-none text-primary">
                   {formatMoney(total)}
                 </p>
 
