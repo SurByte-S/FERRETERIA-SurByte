@@ -32,8 +32,8 @@ const EMPTY_SEARCH_MESSAGE = "Busca un producto para empezar.";
 const SEARCH_PLACEHOLDER = "Buscar por codigo o nombre";
 const CASH_REGISTER_CLOSED_MESSAGE = "Para vender necesitas abrir la caja.";
 const EPSILON = 0.000001;
-const PAGE_SIZE_OPTIONS = [20, 40, 80] as const;
-const DEFAULT_PAGE_SIZE = 40;
+const PAGE_SIZE_OPTIONS = [10, 15, 20] as const;
+const DEFAULT_PAGE_SIZE = 20;
 const BARCODE_SCAN_MIN_LENGTH = 4;
 const BARCODE_SCAN_MAX_INTERVAL_MS = 80;
 const BARCODE_NOT_FOUND_MESSAGE =
@@ -742,54 +742,6 @@ export function QuickSalePos({
     setPage(1);
   }
 
-  function incrementLineQuantity(lineKey: string) {
-    const selectedLine = lines.find(
-      (line) => getLineKey(line.id, line.selectedSaleUnitId) === lineKey
-    );
-
-    if (!selectedLine) {
-      return false;
-    }
-
-    const nextConsumption =
-      getProductBaseConsumption(lines, selectedLine.id) +
-      selectedLine.quantityInBaseUnit;
-
-    if (!isQuoteMode && nextConsumption - selectedLine.stockQuantity > EPSILON) {
-      setMessage(
-        getGroupedStockMessage({
-          productName: selectedLine.name || selectedLine.description,
-          stockQuantity: selectedLine.stockQuantity,
-          consumption: nextConsumption,
-        })
-      );
-      return false;
-    }
-
-    setLines((current) =>
-      current.map((line) =>
-        getLineKey(line.id, line.selectedSaleUnitId) === lineKey
-          ? {
-              ...line,
-              quantity: line.quantity + 1,
-            }
-          : line
-      )
-    );
-    return true;
-  }
-
-  function decrementLineQuantity(lineKey: string) {
-    setLines((current) =>
-      current.map((line) =>
-        getLineKey(line.id, line.selectedSaleUnitId) === lineKey
-          ? { ...line, quantity: clampQuantity(line.quantity - 1) }
-          : line
-      )
-    );
-    return true;
-  }
-
   function updateLineQuantity(lineKey: string, value: string) {
     const nextQuantity = parseQuantity(value);
     const selectedLine = lines.find(
@@ -838,14 +790,6 @@ export function QuickSalePos({
   }
 
   function removeLine(lineKey: string) {
-    const confirmed = window.confirm(
-      "Vas a quitar este producto. Queres continuar?"
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
     setLines((current) =>
       current.filter(
         (line) => getLineKey(line.id, line.selectedSaleUnitId) !== lineKey
@@ -1090,8 +1034,6 @@ export function QuickSalePos({
                     <TicketLine
                       key={lineKey}
                       line={line}
-                      onDecrement={() => decrementLineQuantity(lineKey)}
-                      onIncrement={() => incrementLineQuantity(lineKey)}
                       onQuantityChange={(value) => updateLineQuantity(lineKey, value)}
                       onRemove={() => removeLine(lineKey)}
                     />
@@ -1102,72 +1044,118 @@ export function QuickSalePos({
           </div>
 
           <div className="shrink-0 border-t-2 border-border bg-card p-2.5">
-            {!isQuoteMode ? (
-              <div className="mb-2 grid gap-2">
-                <Field label="Forma de pago">
-                  <select
-                    value={paymentMethod}
-                    onChange={(event) => changePaymentMethod(event.target.value)}
-                    className="h-11 w-full rounded-md border border-input bg-muted/30 px-3 text-base font-semibold"
-                  >
-                    {PAYMENT_METHODS.map((method) => (
-                      <option key={method} value={method}>
-                        {method}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                {isCreditSale ? (
-                  <>
-                    <Field label="Importe pagado ahora">
+            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+              <div className="grid gap-2">
+                {!isQuoteMode ? (
+                  <div className="grid gap-2">
+                    <Field label="Forma de pago">
+                      <select
+                        value={paymentMethod}
+                        onChange={(event) =>
+                          changePaymentMethod(event.target.value)
+                        }
+                        className="h-11 w-full rounded-md border border-input bg-muted/30 px-3 text-base font-semibold"
+                      >
+                        {PAYMENT_METHODS.map((method) => (
+                          <option key={method} value={method}>
+                            {method}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                    {isCreditSale ? (
+                      <>
+                        <Field label="Importe pagado ahora">
+                          <input
+                            value={paidAmount}
+                            onChange={(event) =>
+                              setPaidAmount(event.target.value)
+                            }
+                            type="number"
+                            min="0"
+                            max={total}
+                            step="0.01"
+                            className="h-11 rounded-md border border-input bg-muted/30 px-3 text-base font-semibold"
+                          />
+                        </Field>
+                        <div className="rounded-md border border-border bg-card px-3 py-2">
+                          <p className="text-sm font-black uppercase tracking-wide text-foreground">
+                            Saldo a cuenta
+                          </p>
+                          <p className="text-lg font-black text-primary">
+                            {formatMoney(pendingAmount)}
+                          </p>
+                        </div>
+                      </>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                <details className="rounded-md border border-border bg-muted/30">
+                  <summary className="flex min-h-10 cursor-pointer items-center px-3 text-base font-black">
+                    Cliente opcional
+                  </summary>
+                  <div className="grid gap-2 border-t border-border p-3">
+                    <Field label="Cliente guardado">
+                      <select
+                        value={customer.id ?? ""}
+                        onChange={(event) => selectCustomer(event.target.value)}
+                        className="h-10 rounded-md border border-input bg-background px-3 text-base"
+                      >
+                        <option value="">Sin cliente guardado</option>
+                        {customers.map((item) => (
+                          <option key={item.id} value={item.id}>
+                            {item.name}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="Nombre">
                       <input
-                        value={paidAmount}
-                        onChange={(event) => setPaidAmount(event.target.value)}
-                        type="number"
-                        min="0"
-                        max={total}
-                        step="0.01"
-                        className="h-11 rounded-md border border-input bg-muted/30 px-3 text-base font-semibold"
+                        value={customer.name}
+                        onChange={(event) =>
+                          updateCustomer("name", event.target.value)
+                        }
+                        disabled={Boolean(customer.id)}
+                        className="h-10 rounded-md border border-input bg-background px-3 text-base"
                       />
                     </Field>
-                    <div className="rounded-md border border-border bg-card px-3 py-2">
-                      <p className="text-sm font-black uppercase tracking-wide text-foreground">
-                        Saldo a cuenta
-                      </p>
-                      <p className="text-lg font-black text-primary">
-                        {formatMoney(pendingAmount)}
-                      </p>
+                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                      <Field label="Telefono">
+                        <input
+                          value={customer.phone}
+                          onChange={(event) =>
+                            updateCustomer("phone", event.target.value)
+                          }
+                          disabled={Boolean(customer.id)}
+                          className="h-10 rounded-md border border-input bg-background px-3 text-base"
+                        />
+                      </Field>
+                      <Field label="Email">
+                        <input
+                          type="email"
+                          value={customer.email}
+                          onChange={(event) =>
+                            updateCustomer("email", event.target.value)
+                          }
+                          disabled={Boolean(customer.id)}
+                          className="h-10 rounded-md border border-input bg-background px-3 text-base"
+                        />
+                      </Field>
                     </div>
-                  </>
-                ) : null}
-              </div>
-            ) : null}
+                    <Field label="Domicilio">
+                      <input
+                        value={customer.address}
+                        onChange={(event) =>
+                          updateCustomer("address", event.target.value)
+                        }
+                        disabled={Boolean(customer.id)}
+                        className="h-10 rounded-md border border-input bg-background px-3 text-base"
+                      />
+                    </Field>
+                  </div>
+                </details>
 
-            <div
-              className={
-                isQuoteMode
-                  ? "grid gap-2"
-                  : "grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end"
-              }
-            >
-              <div className="min-w-0">
-                <div className="flex items-end justify-between gap-3 sm:block">
-                  <p className="text-sm font-black uppercase tracking-wide text-foreground">
-                    {isQuoteMode ? "Total presupuesto" : "Total"}
-                  </p>
-                  <p className="truncate text-4xl font-black leading-none text-primary">
-                    {formatMoney(total)}
-                  </p>
-                </div>
-
-                {actionHelp ? (
-                  <p className="mt-2 rounded-md border border-border bg-secondary px-3 py-2 text-sm font-bold text-foreground">
-                    {actionHelp}
-                  </p>
-                ) : null}
-              </div>
-
-              <div className="grid gap-2">
                 {isQuoteMode ? (
                   <Button
                     type="button"
@@ -1178,99 +1166,38 @@ export function QuickSalePos({
                     Guardar presupuesto
                   </Button>
                 ) : (
-                  <>
-                    <Button
-                      type="button"
-                      onClick={registerSale}
-                      disabled={
-                        isPending ||
-                        lines.length === 0 ||
-                        hasOutOfStockLines ||
-                        Boolean(groupedStockIssue) ||
-                        isCashRegisterClosed
-                      }
-                      className="h-14 w-full text-lg font-black"
-                    >
-                      Cobrar venta
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={saveQuote}
-                      disabled={isPending || lines.length === 0}
-                      className="h-12 text-base font-bold"
-                    >
-                      Guardar presupuesto
-                    </Button>
-                  </>
+                  <Button
+                    type="button"
+                    onClick={registerSale}
+                    disabled={
+                      isPending ||
+                      lines.length === 0 ||
+                      hasOutOfStockLines ||
+                      Boolean(groupedStockIssue) ||
+                      isCashRegisterClosed
+                    }
+                    className="h-14 w-full text-lg font-black"
+                  >
+                    Cobrar venta
+                  </Button>
                 )}
               </div>
-            </div>
 
-            <details className="mt-2 rounded-md border border-border bg-muted/30">
-              <summary className="flex min-h-10 cursor-pointer items-center px-3 text-base font-black">
-                Cliente opcional
-              </summary>
-              <div className="grid gap-2 border-t border-border p-3">
-                <Field label="Cliente guardado">
-                  <select
-                    value={customer.id ?? ""}
-                    onChange={(event) => selectCustomer(event.target.value)}
-                    className="h-10 rounded-md border border-input bg-background px-3 text-base"
-                  >
-                    <option value="">Sin cliente guardado</option>
-                    {customers.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.name}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="Nombre">
-                  <input
-                    value={customer.name}
-                    onChange={(event) =>
-                      updateCustomer("name", event.target.value)
-                    }
-                    disabled={Boolean(customer.id)}
-                    className="h-10 rounded-md border border-input bg-background px-3 text-base"
-                  />
-                </Field>
-                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-                  <Field label="Telefono">
-                    <input
-                      value={customer.phone}
-                      onChange={(event) =>
-                        updateCustomer("phone", event.target.value)
-                      }
-                      disabled={Boolean(customer.id)}
-                      className="h-10 rounded-md border border-input bg-background px-3 text-base"
-                    />
-                  </Field>
-                  <Field label="Email">
-                    <input
-                      type="email"
-                      value={customer.email}
-                      onChange={(event) =>
-                        updateCustomer("email", event.target.value)
-                      }
-                      disabled={Boolean(customer.id)}
-                      className="h-10 rounded-md border border-input bg-background px-3 text-base"
-                    />
-                  </Field>
-                </div>
-                <Field label="Domicilio">
-                  <input
-                    value={customer.address}
-                    onChange={(event) =>
-                      updateCustomer("address", event.target.value)
-                    }
-                    disabled={Boolean(customer.id)}
-                    className="h-10 rounded-md border border-input bg-background px-3 text-base"
-                  />
-                </Field>
+              <div className="min-w-0 lg:w-56 lg:text-right">
+                <p className="text-sm font-black uppercase tracking-wide text-foreground">
+                  {isQuoteMode ? "Total presupuesto" : "Total"}
+                </p>
+                <p className="truncate text-4xl font-black leading-none text-primary">
+                  {formatMoney(total)}
+                </p>
+
+                {actionHelp ? (
+                  <p className="mt-2 rounded-md border border-border bg-secondary px-3 py-2 text-sm font-bold text-foreground">
+                    {actionHelp}
+                  </p>
+                ) : null}
               </div>
-            </details>
+            </div>
           </div>
         </aside>
       </main>
@@ -1503,14 +1430,10 @@ function ProductRow({
 
 function TicketLine({
   line,
-  onDecrement,
-  onIncrement,
   onQuantityChange,
   onRemove,
 }: {
   line: QuoteLine;
-  onDecrement: () => boolean;
-  onIncrement: () => boolean;
   onQuantityChange: (value: string) => boolean;
   onRemove: () => void;
 }) {
@@ -1526,29 +1449,15 @@ function TicketLine({
           type="button"
           variant="outline"
           onClick={onRemove}
-          className="h-8 shrink-0 px-3 text-sm font-bold"
+          className="h-8 shrink-0 border-red-300 bg-red-50 px-3 text-sm font-bold text-red-800 hover:bg-red-100"
         >
           Quitar
         </Button>
       </div>
 
-      <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2">
-        <div className="grid grid-cols-[2.4rem_minmax(4.8rem,6rem)_2.4rem] gap-1">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              const nextQuantity = clampQuantity(line.quantity - 1);
-
-              if (onDecrement()) {
-                setQuantityText(String(nextQuantity));
-              }
-            }}
-            className="h-8 px-0 text-lg font-black"
-            aria-label={`Restar cantidad de ${line.description}`}
-          >
-            -
-          </Button>
+      <div className="grid grid-cols-[minmax(7rem,10rem)_minmax(0,1fr)] items-end gap-2">
+        <label className="grid gap-1">
+          <span className="text-sm font-bold text-muted-foreground">Cantidad</span>
           <input
             value={quantityText}
             onChange={(event) => {
@@ -1574,25 +1483,10 @@ function TicketLine({
             min="0.001"
             step="0.001"
             inputMode="decimal"
-            className="h-8 rounded-md border border-input bg-background px-2 text-center text-sm font-black"
+            className="h-9 rounded-md border border-input bg-background px-2 text-center text-sm font-black"
             aria-label={`Cantidad de ${line.description}`}
           />
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              const nextQuantity = clampQuantity(line.quantity + 1);
-
-              if (onIncrement()) {
-                setQuantityText(String(nextQuantity));
-              }
-            }}
-            className="h-8 px-0 text-lg font-black"
-            aria-label={`Sumar cantidad de ${line.description}`}
-          >
-            +
-          </Button>
-        </div>
+        </label>
         <div className="text-right">
           <p className="text-lg font-black text-primary">
             {formatMoney(line.quantity * line.price)}
