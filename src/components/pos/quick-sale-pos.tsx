@@ -324,7 +324,7 @@ export function QuickSalePos({
     visibleCount: results.length,
     total: resultsTotal,
   });
-  const showPaginationControls = totalPages > 1;
+  const showPageSizeSelector = totalPages > 1;
   const actionHelp = getActionHelp({
     linesCount: lines.length,
     isCashRegisterClosed,
@@ -778,10 +778,6 @@ export function QuickSalePos({
     }
   }
 
-  function goToPage(nextPage: number) {
-    setPage(Math.min(Math.max(nextPage, 1), totalPages));
-  }
-
   function changePageSize(value: string) {
     const nextPageSize = Number(value);
     setPageSize(
@@ -1019,13 +1015,7 @@ export function QuickSalePos({
   return (
     <div className="grid min-h-[calc(100vh-5.75rem)] gap-2 bg-background p-1 lg:h-[calc(100vh-5.75rem)] lg:grid-rows-[auto_minmax(0,1fr)]">
       <header className="grid shrink-0 gap-2 rounded-md border-2 border-border bg-card p-2 shadow-sm xl:grid-cols-[minmax(20rem,auto)_minmax(22rem,1fr)_auto] xl:items-stretch">
-        <div className="grid min-w-0 gap-1 rounded-md border border-border bg-secondary p-2">
-          <div className="min-h-5 min-w-0">
-            <h1 className="text-xl font-black leading-tight text-primary">
-              Mostrador
-            </h1>
-          </div>
-
+        <div className="grid min-w-0 rounded-md border border-border bg-secondary p-2">
           <div className="grid min-w-[16rem] grid-cols-[minmax(6rem,1fr)_minmax(8rem,1fr)] gap-1 rounded-md border border-border bg-card p-1">
             <ModeButton
               active={mode === "sale"}
@@ -1042,13 +1032,11 @@ export function QuickSalePos({
 
         <div className="grid min-w-0 gap-1 rounded-md border border-border bg-secondary p-2">
           <label className="grid min-w-0 gap-1">
-            <span className="min-h-5 text-base font-black leading-tight">
-              Buscar producto
-            </span>
             <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_9rem]">
               <input
                 ref={searchInputRef}
                 data-pos-product-search="true"
+                aria-label="Buscar producto"
                 value={search}
                 onChange={(event) => handleSearchChange(event.target.value)}
                 onKeyDown={handleSearchKeyDown}
@@ -1091,7 +1079,7 @@ export function QuickSalePos({
                 ) : null}
               </div>
 
-              {showPaginationControls ? (
+              {showPageSizeSelector ? (
                 <div className="flex flex-wrap items-center gap-2">
                   <label className="flex items-center gap-2 text-sm font-bold text-foreground">
                     Por pagina
@@ -1107,45 +1095,6 @@ export function QuickSalePos({
                       ))}
                     </select>
                   </label>
-                  <span className="text-sm font-bold text-muted-foreground">
-                    Pagina {currentPage} de {totalPages}
-                  </span>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => goToPage(1)}
-                    disabled={isPending || currentPage <= 1}
-                    className="h-10 px-3 text-sm font-bold"
-                  >
-                    Primera
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => goToPage(currentPage - 1)}
-                    disabled={isPending || currentPage <= 1}
-                    className="h-10 px-3 text-sm font-bold"
-                  >
-                    Anterior
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => goToPage(currentPage + 1)}
-                    disabled={isPending || currentPage >= totalPages}
-                    className="h-10 px-3 text-sm font-bold"
-                  >
-                    Siguiente
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => goToPage(totalPages)}
-                    disabled={isPending || currentPage >= totalPages}
-                    className="h-10 px-3 text-sm font-bold"
-                  >
-                    Ultima
-                  </Button>
                 </div>
               ) : null}
             </div>
@@ -1506,29 +1455,27 @@ function CashBadge({ cashStatus }: { cashStatus: CashStatus }) {
     <div
       className={
         cashStatus.open
-          ? "flex h-full min-w-[13rem] items-center justify-between gap-3 rounded-md border border-emerald-700/50 bg-card px-3 py-2 text-foreground"
-          : "flex h-full min-w-[13rem] items-center justify-between gap-3 rounded-md border border-destructive/50 bg-card px-3 py-2 text-foreground"
+          ? "flex min-w-[13rem] flex-wrap items-center justify-between gap-2 rounded-md border border-emerald-700/50 bg-card px-3 py-1.5 text-foreground"
+          : "flex min-w-[13rem] flex-wrap items-center justify-between gap-2 rounded-md border border-destructive/50 bg-card px-3 py-1.5 text-foreground"
       }
     >
-      <div>
-        <p
+      <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
+        <span
           className={
             cashStatus.open
-              ? "text-base font-black text-emerald-800"
-              : "text-base font-black text-destructive"
+              ? "text-sm font-black text-emerald-800"
+              : "text-sm font-black text-destructive"
           }
         >
-          {cashStatus.open
-            ? "Caja abierta"
-            : "Caja cerrada - no se puede cobrar"}
-        </p>
+          {cashStatus.open ? "Caja abierta" : "Caja cerrada"}
+        </span>
         {cashStatus.open ? (
-          <p className="text-sm font-bold">
-            Efectivo: {formatMoney(cashStatus.expectedCash)}
-          </p>
+          <span className="text-sm font-bold text-foreground">
+            &middot; Efectivo: {formatMoney(cashStatus.expectedCash)}
+          </span>
         ) : null}
       </div>
-      <Button asChild variant="outline" className="h-9 px-3 text-sm font-bold">
+      <Button asChild variant="outline" className="h-8 px-3 text-sm font-bold">
         <Link href="/caja">{cashStatus.open ? "Ver caja" : "Abrir caja"}</Link>
       </Button>
     </div>
