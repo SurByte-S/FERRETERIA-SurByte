@@ -160,54 +160,6 @@ function getSaleUnitBarcode(saleUnit: ProductSaleUnit | null | undefined) {
   return saleUnit?.barcode?.trim() ?? "";
 }
 
-function getCodeDisplay(
-  product: QuoteProduct,
-  saleUnit?: ProductSaleUnit | null
-) {
-  const saleUnitBarcode = getSaleUnitBarcode(saleUnit);
-
-  if (saleUnitBarcode) {
-    return {
-      label: `Codigo de presentacion: ${saleUnitBarcode}`,
-      secondaryLabel: `Presentacion: ${saleUnit?.name ?? "Unidad"}`,
-    };
-  }
-
-  if (product.matchedBy === "product_barcode" && product.productBarcode) {
-    return {
-      label: `Codigo de barras: ${product.productBarcode}`,
-      secondaryLabel: product.customCode
-        ? `Codigo propio: ${product.customCode}`
-        : `Codigo de catalogo: ${product.sku}`,
-    };
-  }
-
-  if (product.matchedBy === "custom_code" && product.customCode) {
-    return {
-      label: `Codigo propio: ${product.customCode}`,
-      secondaryLabel: product.productBarcode
-        ? `Codigo de barras: ${product.productBarcode}`
-        : `Codigo de catalogo: ${product.sku}`,
-    };
-  }
-
-  return {
-    label: `Codigo de catalogo: ${product.sku}`,
-    secondaryLabel:
-      product.productBarcode && product.productBarcode !== product.sku
-        ? `Codigo de barras: ${product.productBarcode}`
-        : "",
-  };
-}
-
-function getLineCodeDisplay(line: QuoteLine) {
-  const selectedSaleUnit = line.selectedSaleUnitId
-    ? line.saleUnits.find((unit) => unit.id === line.selectedSaleUnitId)
-    : null;
-
-  return getCodeDisplay(line, selectedSaleUnit).label;
-}
-
 function getLineKey(productId: string, saleUnitId: string) {
   return `${productId}:${saleUnitId || "fallback"}`;
 }
@@ -1017,15 +969,6 @@ export function QuickSalePos({
       <header className="grid shrink-0 gap-2 rounded-md border-2 border-border bg-card p-2 shadow-sm">
         <div className="grid min-w-0 gap-1 rounded-md border border-border bg-secondary p-2">
           <div className="flex flex-wrap items-center gap-2">
-            <select
-              aria-label="Modo de venta"
-              value={mode}
-              onChange={(event) => changeMode(event.target.value as SaleMode)}
-              className="h-11 w-full rounded-md border border-input bg-card px-3 text-base font-black text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-ring/25 sm:w-44"
-            >
-              <option value="sale">Venta</option>
-              <option value="quote">Presupuesto</option>
-            </select>
             <input
               ref={searchInputRef}
               data-pos-product-search="true"
@@ -1044,6 +987,15 @@ export function QuickSalePos({
             >
               Buscar
             </Button>
+            <select
+              aria-label="Modo de venta"
+              value={mode}
+              onChange={(event) => changeMode(event.target.value as SaleMode)}
+              className="h-11 w-full rounded-md border border-input bg-card px-3 text-base font-black text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-ring/25 sm:w-44"
+            >
+              <option value="sale">Venta</option>
+              <option value="quote">Presupuesto</option>
+            </select>
             {!isQuoteMode && cashStatus ? (
               <CashBadge cashStatus={cashStatus} />
             ) : null}
@@ -1109,21 +1061,17 @@ export function QuickSalePos({
 
         <aside className="flex min-h-[22rem] min-w-0 flex-col overflow-hidden rounded-md border-2 border-border bg-card shadow-sm lg:min-h-0">
           <div className="shrink-0 border-b-2 border-primary/30 bg-card px-3 py-2 text-foreground">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h2 className="text-xl font-black leading-tight text-primary">
-                  {isQuoteMode ? "Presupuesto actual" : "Venta actual"}
-                </h2>
-                {lines.length > 0 ? (
-                  <p className="text-sm font-semibold text-muted-foreground">
-                    {`${lines.length} producto${
-                      lines.length === 1 ? "" : "s"
-                    } agregado${lines.length === 1 ? "" : "s"}.`}
-                  </p>
-                ) : null}
-              </div>
+            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center">
+              <h2 className="text-xl font-black leading-tight text-primary">
+                {isQuoteMode ? "Presupuesto actual" : "Venta actual"}
+              </h2>
+              <p className="text-sm font-semibold text-muted-foreground">
+                {`${lines.length} producto${
+                  lines.length === 1 ? "" : "s"
+                } agregado${lines.length === 1 ? "" : "s"}`}
+              </p>
               <p className="rounded-md border border-primary/30 bg-background px-2 py-1 text-sm font-black text-primary">
-                Ticket
+                {isQuoteMode ? "Presupuesto" : "Ticket"}
               </p>
             </div>
           </div>
@@ -1444,27 +1392,20 @@ function CashBadge({ cashStatus }: { cashStatus: CashStatus }) {
     <div
       className={
         cashStatus.open
-          ? "flex min-w-[13rem] flex-wrap items-center justify-between gap-2 rounded-md border border-emerald-700/50 bg-card px-3 py-1.5 text-foreground"
-          : "flex min-w-[13rem] flex-wrap items-center justify-between gap-2 rounded-md border border-destructive/50 bg-card px-3 py-1.5 text-foreground"
+          ? "flex h-11 w-full items-center justify-between gap-2 rounded-md border border-emerald-700/50 bg-card px-3 text-foreground sm:w-44"
+          : "flex h-11 w-full items-center justify-between gap-2 rounded-md border border-destructive/50 bg-card px-3 text-foreground sm:w-44"
       }
     >
-      <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
-        <span
-          className={
-            cashStatus.open
-              ? "text-sm font-black text-emerald-800"
-              : "text-sm font-black text-destructive"
-          }
-        >
-          {cashStatus.open ? "Caja abierta" : "Caja cerrada"}
-        </span>
-        {cashStatus.open ? (
-          <span className="text-sm font-bold text-foreground">
-            &middot; Efectivo: {formatMoney(cashStatus.expectedCash)}
-          </span>
-        ) : null}
-      </div>
-      <Button asChild variant="outline" className="h-8 px-3 text-sm font-bold">
+      <span
+        className={
+          cashStatus.open
+            ? "text-sm font-black text-emerald-800"
+            : "text-sm font-black text-destructive"
+        }
+      >
+        {cashStatus.open ? "Abierta" : "Cerrada"}
+      </span>
+      <Button asChild variant="outline" className="h-8 px-2 text-sm font-bold">
         <Link href="/caja">{cashStatus.open ? "Ver caja" : "Abrir caja"}</Link>
       </Button>
     </div>
@@ -1578,17 +1519,9 @@ function TicketLine({
   return (
     <div className="grid gap-2 rounded-md border border-border bg-card p-2">
       <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="line-clamp-2 text-sm font-black leading-tight">
-            {line.description}
-          </p>
-          <p className="font-mono text-sm font-semibold text-muted-foreground">
-            {getLineCodeDisplay(line)}
-          </p>
-          <p className="text-sm font-semibold text-muted-foreground">
-            {line.selectedSaleUnitName} x {formatStockQuantity(line.quantityInBaseUnit)} {line.unit}
-          </p>
-        </div>
+        <p className="line-clamp-2 min-w-0 text-sm font-black leading-tight">
+          {line.description}
+        </p>
         <Button
           type="button"
           variant="outline"
@@ -1661,9 +1594,6 @@ function TicketLine({
           </Button>
         </div>
         <div className="text-right">
-          <p className="text-sm font-bold uppercase tracking-wide text-muted-foreground">
-            {formatMoney(line.price)} c/u
-          </p>
           <p className="text-lg font-black text-primary">
             {formatMoney(line.quantity * line.price)}
           </p>
