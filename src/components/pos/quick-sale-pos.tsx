@@ -217,6 +217,7 @@ export function QuickSalePos({
 }) {
   const router = useRouter();
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchRef = useRef(initialSku ?? "");
   const latestSearchRequestRef = useRef(0);
   const barcodeBufferRef = useRef("");
   const barcodeLastKeyAtRef = useRef(0);
@@ -289,6 +290,10 @@ export function QuickSalePos({
     linesRef.current = lines;
   }, [lines]);
 
+  useEffect(() => {
+    searchRef.current = search;
+  }, [search]);
+
   const runProductSearch = useCallback(
     ({
       term,
@@ -345,6 +350,7 @@ export function QuickSalePos({
 
   const addProduct = useCallback((product: QuoteProduct, saleUnit?: ProductSaleUnit) => {
     const selectedSaleUnit = saleUnit ?? getDefaultSaleUnit(product);
+    const hadSearchTerm = searchRef.current.trim().length > 0;
     const lineKey = getLineKey(product.id, selectedSaleUnit.id);
 
     let wasAdded = false;
@@ -415,12 +421,15 @@ export function QuickSalePos({
     }
 
     if (!isQuoteMode) {
+      searchRef.current = "";
       setSearch("");
-      setResults([]);
-      setResultsTotal(0);
       setPage(1);
-      setSearchStatus("idle");
-      latestSearchRequestRef.current += 1;
+      if (hadSearchTerm) {
+        setResults([]);
+        setResultsTotal(0);
+        setSearchStatus("idle");
+        latestSearchRequestRef.current += 1;
+      }
     }
     setMessage(
       isQuoteMode ? "Producto agregado al presupuesto." : "Producto agregado a la venta."
@@ -636,6 +645,7 @@ export function QuickSalePos({
   }
 
   function handleSearchChange(value: string) {
+    searchRef.current = value;
     setSearch(value);
     setPage(1);
   }
@@ -1072,7 +1082,7 @@ export function QuickSalePos({
                         : "rounded-md border border-border bg-muted/30"
                     }
                   >
-                    <summary className="flex min-h-10 cursor-pointer items-center px-3 text-base font-black">
+                    <summary className="flex h-11 cursor-pointer items-center px-3 text-base font-black">
                       Cliente opcional
                     </summary>
                     <div className="grid gap-2 border-t border-border p-3">
@@ -1449,7 +1459,7 @@ function TicketLine({
   const quantityText = isQuantityEditing ? quantityDraft : String(line.quantity);
 
   return (
-    <div className="grid gap-2 rounded-md border border-border bg-card p-2 md:grid-cols-[auto_minmax(0,1fr)_auto_auto] md:items-center">
+    <div className="grid gap-2 rounded-md border border-border bg-card p-2 md:grid-cols-[auto_auto_minmax(0,1fr)_auto] md:items-center">
       <Button
         type="button"
         variant="outline"
@@ -1458,10 +1468,7 @@ function TicketLine({
       >
         Quitar
       </Button>
-      <p className="min-w-0 truncate text-sm font-black leading-tight">
-        {line.description}
-      </p>
-      <label className="flex items-center gap-2 md:justify-end">
+      <label className="flex items-center gap-2">
         <span className="text-sm font-bold text-muted-foreground">Cantidad</span>
         <input
           value={quantityText}
@@ -1490,13 +1497,16 @@ function TicketLine({
             setIsQuantityEditing(false);
           }}
           type="number"
-          min="0.001"
-          step="0.001"
+          min="1"
+          step="1"
           inputMode="decimal"
           className="h-9 w-24 rounded-md border border-input bg-background px-2 text-center text-sm font-black"
           aria-label={`Cantidad de ${line.description}`}
         />
       </label>
+      <p className="min-w-0 truncate text-sm font-black leading-tight">
+        {line.description}
+      </p>
       <p className="text-right text-lg font-black text-primary">
         {formatMoney(line.quantity * line.price)}
       </p>
