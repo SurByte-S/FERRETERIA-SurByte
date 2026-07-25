@@ -1046,8 +1046,8 @@ export function QuickSalePos({
           <div className="shrink-0 border-t-2 border-border bg-card p-2.5">
             <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
               <div className="grid gap-2">
-                {!isQuoteMode ? (
-                  <div className="grid gap-2">
+                <div className="grid gap-2 md:grid-cols-2">
+                  {!isQuoteMode ? (
                     <Field label="Forma de pago">
                       <select
                         value={paymentMethod}
@@ -1063,98 +1063,105 @@ export function QuickSalePos({
                         ))}
                       </select>
                     </Field>
-                    {isCreditSale ? (
-                      <>
-                        <Field label="Importe pagado ahora">
-                          <input
-                            value={paidAmount}
-                            onChange={(event) =>
-                              setPaidAmount(event.target.value)
-                            }
-                            type="number"
-                            min="0"
-                            max={total}
-                            step="0.01"
-                            className="h-11 rounded-md border border-input bg-muted/30 px-3 text-base font-semibold"
-                          />
-                        </Field>
-                        <div className="rounded-md border border-border bg-card px-3 py-2">
-                          <p className="text-sm font-black uppercase tracking-wide text-foreground">
-                            Saldo a cuenta
-                          </p>
-                          <p className="text-lg font-black text-primary">
-                            {formatMoney(pendingAmount)}
-                          </p>
-                        </div>
-                      </>
-                    ) : null}
-                  </div>
-                ) : null}
+                  ) : null}
 
-                <details className="rounded-md border border-border bg-muted/30">
-                  <summary className="flex min-h-10 cursor-pointer items-center px-3 text-base font-black">
-                    Cliente opcional
-                  </summary>
-                  <div className="grid gap-2 border-t border-border p-3">
-                    <Field label="Cliente guardado">
-                      <select
-                        value={customer.id ?? ""}
-                        onChange={(event) => selectCustomer(event.target.value)}
-                        className="h-10 rounded-md border border-input bg-background px-3 text-base"
-                      >
-                        <option value="">Sin cliente guardado</option>
-                        {customers.map((item) => (
-                          <option key={item.id} value={item.id}>
-                            {item.name}
-                          </option>
-                        ))}
-                      </select>
-                    </Field>
-                    <Field label="Nombre">
-                      <input
-                        value={customer.name}
-                        onChange={(event) =>
-                          updateCustomer("name", event.target.value)
-                        }
-                        disabled={Boolean(customer.id)}
-                        className="h-10 rounded-md border border-input bg-background px-3 text-base"
-                      />
-                    </Field>
-                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-                      <Field label="Telefono">
+                  <details
+                    className={
+                      isQuoteMode
+                        ? "rounded-md border border-border bg-muted/30 md:col-span-2"
+                        : "rounded-md border border-border bg-muted/30"
+                    }
+                  >
+                    <summary className="flex min-h-10 cursor-pointer items-center px-3 text-base font-black">
+                      Cliente opcional
+                    </summary>
+                    <div className="grid gap-2 border-t border-border p-3">
+                      <Field label="Cliente guardado">
+                        <select
+                          value={customer.id ?? ""}
+                          onChange={(event) => selectCustomer(event.target.value)}
+                          className="h-10 rounded-md border border-input bg-background px-3 text-base"
+                        >
+                          <option value="">Sin cliente guardado</option>
+                          {customers.map((item) => (
+                            <option key={item.id} value={item.id}>
+                              {item.name}
+                            </option>
+                          ))}
+                        </select>
+                      </Field>
+                      <Field label="Nombre">
                         <input
-                          value={customer.phone}
+                          value={customer.name}
                           onChange={(event) =>
-                            updateCustomer("phone", event.target.value)
+                            updateCustomer("name", event.target.value)
                           }
                           disabled={Boolean(customer.id)}
                           className="h-10 rounded-md border border-input bg-background px-3 text-base"
                         />
                       </Field>
-                      <Field label="Email">
+                      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                        <Field label="Telefono">
+                          <input
+                            value={customer.phone}
+                            onChange={(event) =>
+                              updateCustomer("phone", event.target.value)
+                            }
+                            disabled={Boolean(customer.id)}
+                            className="h-10 rounded-md border border-input bg-background px-3 text-base"
+                          />
+                        </Field>
+                        <Field label="Email">
+                          <input
+                            type="email"
+                            value={customer.email}
+                            onChange={(event) =>
+                              updateCustomer("email", event.target.value)
+                            }
+                            disabled={Boolean(customer.id)}
+                            className="h-10 rounded-md border border-input bg-background px-3 text-base"
+                          />
+                        </Field>
+                      </div>
+                      <Field label="Domicilio">
                         <input
-                          type="email"
-                          value={customer.email}
+                          value={customer.address}
                           onChange={(event) =>
-                            updateCustomer("email", event.target.value)
+                            updateCustomer("address", event.target.value)
                           }
                           disabled={Boolean(customer.id)}
                           className="h-10 rounded-md border border-input bg-background px-3 text-base"
                         />
                       </Field>
                     </div>
-                    <Field label="Domicilio">
-                      <input
-                        value={customer.address}
-                        onChange={(event) =>
-                          updateCustomer("address", event.target.value)
-                        }
-                        disabled={Boolean(customer.id)}
-                        className="h-10 rounded-md border border-input bg-background px-3 text-base"
-                      />
-                    </Field>
-                  </div>
-                </details>
+                  </details>
+
+                  {!isQuoteMode && isCreditSale ? (
+                    <div className="grid gap-2 md:col-span-2">
+                      <Field label="Importe pagado ahora">
+                        <input
+                          value={paidAmount}
+                          onChange={(event) =>
+                            setPaidAmount(event.target.value)
+                          }
+                          type="number"
+                          min="0"
+                          max={total}
+                          step="0.01"
+                          className="h-11 rounded-md border border-input bg-muted/30 px-3 text-base font-semibold"
+                        />
+                      </Field>
+                      <div className="rounded-md border border-border bg-card px-3 py-2">
+                        <p className="text-sm font-black uppercase tracking-wide text-foreground">
+                          Saldo a cuenta
+                        </p>
+                        <p className="text-lg font-black text-primary">
+                          {formatMoney(pendingAmount)}
+                        </p>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
 
                 {isQuoteMode ? (
                   <Button
@@ -1437,62 +1444,62 @@ function TicketLine({
   onQuantityChange: (value: string) => boolean;
   onRemove: () => void;
 }) {
-  const [quantityText, setQuantityText] = useState(String(line.quantity));
+  const [isQuantityEditing, setIsQuantityEditing] = useState(false);
+  const [quantityDraft, setQuantityDraft] = useState("");
+  const quantityText = isQuantityEditing ? quantityDraft : String(line.quantity);
 
   return (
-    <div className="grid gap-2 rounded-md border border-border bg-card p-2">
-      <div className="flex items-start justify-between gap-2">
-        <p className="line-clamp-2 min-w-0 text-sm font-black leading-tight">
-          {line.description}
-        </p>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onRemove}
-          className="h-8 shrink-0 border-red-300 bg-red-50 px-3 text-sm font-bold text-red-800 hover:bg-red-100"
-        >
-          Quitar
-        </Button>
-      </div>
+    <div className="grid gap-2 rounded-md border border-border bg-card p-2 md:grid-cols-[auto_minmax(0,1fr)_auto_auto] md:items-center">
+      <Button
+        type="button"
+        variant="outline"
+        onClick={onRemove}
+        className="h-8 shrink-0 border-red-300 bg-red-50 px-3 text-sm font-bold text-red-800 hover:bg-red-100"
+      >
+        Quitar
+      </Button>
+      <p className="min-w-0 truncate text-sm font-black leading-tight">
+        {line.description}
+      </p>
+      <label className="flex items-center gap-2 md:justify-end">
+        <span className="text-sm font-bold text-muted-foreground">Cantidad</span>
+        <input
+          value={quantityText}
+          onFocus={() => {
+            setIsQuantityEditing(true);
+            setQuantityDraft(String(line.quantity));
+          }}
+          onChange={(event) => {
+            const nextValue = event.target.value;
+            const nextQuantity = parseQuantity(nextValue);
 
-      <div className="grid grid-cols-[minmax(7rem,10rem)_minmax(0,1fr)] items-end gap-2">
-        <label className="grid gap-1">
-          <span className="text-sm font-bold text-muted-foreground">Cantidad</span>
-          <input
-            value={quantityText}
-            onChange={(event) => {
-              const nextValue = event.target.value;
-              const nextQuantity = parseQuantity(nextValue);
+            setQuantityDraft(nextValue);
 
-              setQuantityText(nextValue);
+            if (Number.isFinite(nextQuantity) && nextQuantity > 0) {
+              const accepted = onQuantityChange(nextValue);
 
-              if (Number.isFinite(nextQuantity) && nextQuantity > 0) {
-                const accepted = onQuantityChange(nextValue);
-
-                if (!accepted) {
-                  setQuantityText(String(line.quantity));
-                }
+              if (!accepted) {
+                setQuantityDraft(String(line.quantity));
               }
-            }}
-            onBlur={() => {
-              if (!onQuantityChange(quantityText)) {
-                setQuantityText(String(line.quantity));
-              }
-            }}
-            type="number"
-            min="0.001"
-            step="0.001"
-            inputMode="decimal"
-            className="h-9 rounded-md border border-input bg-background px-2 text-center text-sm font-black"
-            aria-label={`Cantidad de ${line.description}`}
-          />
-        </label>
-        <div className="text-right">
-          <p className="text-lg font-black text-primary">
-            {formatMoney(line.quantity * line.price)}
-          </p>
-        </div>
-      </div>
+            }
+          }}
+          onBlur={() => {
+            if (!onQuantityChange(quantityText)) {
+              setQuantityDraft(String(line.quantity));
+            }
+            setIsQuantityEditing(false);
+          }}
+          type="number"
+          min="0.001"
+          step="0.001"
+          inputMode="decimal"
+          className="h-9 w-24 rounded-md border border-input bg-background px-2 text-center text-sm font-black"
+          aria-label={`Cantidad de ${line.description}`}
+        />
+      </label>
+      <p className="text-right text-lg font-black text-primary">
+        {formatMoney(line.quantity * line.price)}
+      </p>
     </div>
   );
 }
