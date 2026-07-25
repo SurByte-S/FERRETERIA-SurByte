@@ -1014,45 +1014,40 @@ export function QuickSalePos({
 
   return (
     <div className="grid min-h-[calc(100vh-5.75rem)] gap-2 bg-background p-1 lg:h-[calc(100vh-5.75rem)] lg:grid-rows-[auto_minmax(0,1fr)]">
-      <header className="grid shrink-0 gap-2 rounded-md border-2 border-border bg-card p-2 shadow-sm xl:grid-cols-[minmax(20rem,auto)_minmax(22rem,1fr)_auto] xl:items-stretch">
-        <div className="grid min-w-0 rounded-md border border-border bg-secondary p-2">
-          <div className="grid min-w-[16rem] grid-cols-[minmax(6rem,1fr)_minmax(8rem,1fr)] gap-1 rounded-md border border-border bg-card p-1">
-            <ModeButton
-              active={mode === "sale"}
-              label="Venta"
-              onClick={() => changeMode("sale")}
-            />
-            <ModeButton
-              active={mode === "quote"}
-              label="Presupuesto"
-              onClick={() => changeMode("quote")}
-            />
-          </div>
-        </div>
-
+      <header className="grid shrink-0 gap-2 rounded-md border-2 border-border bg-card p-2 shadow-sm">
         <div className="grid min-w-0 gap-1 rounded-md border border-border bg-secondary p-2">
-          <label className="grid min-w-0 gap-1">
-            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_9rem]">
-              <input
-                ref={searchInputRef}
-                data-pos-product-search="true"
-                aria-label="Buscar producto"
-                value={search}
-                onChange={(event) => handleSearchChange(event.target.value)}
-                onKeyDown={handleSearchKeyDown}
-                placeholder={SEARCH_PLACEHOLDER}
-                className="h-11 w-full rounded-md border border-input bg-card px-3 text-base font-semibold outline-none focus:border-primary focus:ring-2 focus:ring-ring/25"
-              />
-              <Button
-                type="button"
-                onClick={runSearch}
-                disabled={isPending}
-                className="h-11 rounded-md text-base font-black"
-              >
-                Buscar
-              </Button>
-            </div>
-          </label>
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              aria-label="Modo de venta"
+              value={mode}
+              onChange={(event) => changeMode(event.target.value as SaleMode)}
+              className="h-11 w-full rounded-md border border-input bg-card px-3 text-base font-black text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-ring/25 sm:w-44"
+            >
+              <option value="sale">Venta</option>
+              <option value="quote">Presupuesto</option>
+            </select>
+            <input
+              ref={searchInputRef}
+              data-pos-product-search="true"
+              aria-label="Buscar producto"
+              value={search}
+              onChange={(event) => handleSearchChange(event.target.value)}
+              onKeyDown={handleSearchKeyDown}
+              placeholder={SEARCH_PLACEHOLDER}
+              className="h-11 min-w-[14rem] flex-1 rounded-md border border-input bg-card px-3 text-base font-semibold outline-none focus:border-primary focus:ring-2 focus:ring-ring/25"
+            />
+            <Button
+              type="button"
+              onClick={runSearch}
+              disabled={isPending}
+              className="h-11 w-full rounded-md text-base font-black sm:w-36"
+            >
+              Buscar
+            </Button>
+            {!isQuoteMode && cashStatus ? (
+              <CashBadge cashStatus={cashStatus} />
+            ) : null}
+          </div>
 
           {visibleMessage ? (
             <p className="rounded-md border border-primary/20 bg-secondary/10 px-3 py-1.5 text-sm font-semibold text-primary">
@@ -1060,16 +1055,12 @@ export function QuickSalePos({
             </p>
           ) : null}
         </div>
-
-        {!isQuoteMode && cashStatus ? (
-          <CashBadge cashStatus={cashStatus} />
-        ) : null}
       </header>
 
-      <main className="grid min-h-0 gap-2 lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)] lg:items-stretch">
+      <main className="grid min-h-0 gap-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-stretch">
         <section className="grid min-h-[18rem] min-w-0 overflow-hidden rounded-md border-2 border-border bg-card shadow-sm lg:min-h-0 lg:grid-rows-[minmax(0,1fr)]">
           <div className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)]">
-            <div className="grid min-h-[3.25rem] gap-2 border-b-2 border-primary/30 bg-card px-3 py-2 text-foreground xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
+            <div className="flex min-h-[3.25rem] flex-wrap items-center justify-between gap-2 border-b-2 border-primary/30 bg-card px-3 py-2 text-foreground">
               <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
                 <h2 className="text-xl font-black">Productos encontrados</h2>
                 {resultCounter ? (
@@ -1080,22 +1071,20 @@ export function QuickSalePos({
               </div>
 
               {showPageSizeSelector ? (
-                <div className="flex flex-wrap items-center gap-2">
-                  <label className="flex items-center gap-2 text-sm font-bold text-foreground">
-                    Por pagina
-                    <select
-                      value={pageSize}
-                      onChange={(event) => changePageSize(event.target.value)}
-                      className="h-10 rounded-md border border-border bg-background px-2 text-sm font-black text-foreground"
-                    >
-                      {PAGE_SIZE_OPTIONS.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
+                <label className="flex shrink-0 items-center gap-2 text-sm font-bold text-foreground">
+                  Por pagina
+                  <select
+                    value={pageSize}
+                    onChange={(event) => changePageSize(event.target.value)}
+                    className="h-9 rounded-md border border-border bg-background px-2 text-sm font-black text-foreground"
+                  >
+                    {PAGE_SIZE_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               ) : null}
             </div>
 
@@ -1479,28 +1468,6 @@ function CashBadge({ cashStatus }: { cashStatus: CashStatus }) {
         <Link href="/caja">{cashStatus.open ? "Ver caja" : "Abrir caja"}</Link>
       </Button>
     </div>
-  );
-}
-
-function ModeButton({
-  active,
-  label,
-  onClick,
-}: {
-  active: boolean;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <Button
-      type="button"
-      variant={active ? "default" : "ghost"}
-      onClick={onClick}
-      className="h-9 min-w-0 px-4 text-base font-black"
-      aria-pressed={active}
-    >
-      {label}
-    </Button>
   );
 }
 
