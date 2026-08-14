@@ -353,21 +353,14 @@ export function NewProductForm({
 
       <section className="grid gap-3 rounded-lg border border-border bg-background p-4">
         <h3 className="text-base font-bold">Codigos del producto</h3>
-        <div className="grid gap-3 md:grid-cols-3">
+        <input type="hidden" name="sku" value={sku} />
+        <div className="grid gap-3 md:grid-cols-2">
           <div className="grid gap-2 text-base font-semibold">
             <span>Codigo propio</span>
             <p className="flex min-h-11 items-center rounded-lg border border-border bg-muted/40 px-3 text-sm font-semibold text-muted-foreground">
               Se asigna automaticamente al guardar.
             </p>
           </div>
-          <TextField
-            label="Codigo de catalogo"
-            name="sku"
-            value={sku}
-            onChange={setSku}
-            required
-            help="Codigo del catalogo o proveedor."
-          />
           <TextField
             label="Codigo de barras principal"
             name="barcode"

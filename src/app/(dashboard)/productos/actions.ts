@@ -71,6 +71,12 @@ function optionalCodeValue(formData: FormData, key: string) {
   return clean || null;
 }
 
+function generateTechnicalSku() {
+  return normalizeProductCode(
+    `AUTO-${Date.now().toString(36).toUpperCase()}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`
+  );
+}
+
 function numberValue(value: string) {
   return Number(value.replace(",", "."));
 }
@@ -981,7 +987,8 @@ export async function createProductAction(
   formData: FormData
 ): Promise<ProductActionState> {
   const name = textValue(formData, "name");
-  const sku = codeValue(formData, "sku");
+  const requestedSku = codeValue(formData, "sku");
+  const sku = requestedSku || generateTechnicalSku();
   const customCode = optionalCodeValue(formData, "customCode");
   const barcode = optionalCodeValue(formData, "barcode");
   const description = textValue(formData, "description");
@@ -992,13 +999,6 @@ export async function createProductAction(
     return {
       ok: false,
       message: "El nombre es obligatorio.",
-    };
-  }
-
-  if (!sku) {
-    return {
-      ok: false,
-      message: "El codigo de catalogo es obligatorio.",
     };
   }
 
