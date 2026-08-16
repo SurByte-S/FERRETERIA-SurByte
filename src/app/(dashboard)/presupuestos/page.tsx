@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { Eye, Printer, ShoppingCart } from "lucide-react";
+import { Eye, Pencil, Printer, ShoppingCart } from "lucide-react";
 
 import { DeleteQuoteButton } from "@/components/presupuestos/delete-quote-button";
 import { PageHeader } from "@/components/shell/page-header";
@@ -63,6 +63,10 @@ function statusLabel(status: string) {
   };
 
   return labels[status] ?? status;
+}
+
+function canEditQuote(status: string) {
+  return status === "draft" || status === "issued";
 }
 
 function paymentLabel(paymentMethod: string | null) {
@@ -259,6 +263,18 @@ function QuotesHistory({
                         Ver
                       </Link>
                     </Button>
+                    {canEditQuote(quote.status) ? (
+                      <Button
+                        asChild
+                        variant="outline"
+                        className="h-12 min-w-28 gap-2 px-4 text-base"
+                      >
+                        <Link href={`/inicio?mode=quote&quoteId=${quote.id}`}>
+                          <Pencil className="size-5" aria-hidden="true" />
+                          Editar
+                        </Link>
+                      </Button>
+                    ) : null}
                     <Button
                       asChild
                       variant="outline"
@@ -311,6 +327,18 @@ function QuotesHistory({
                     Ver
                   </Link>
                 </Button>
+                {canEditQuote(quote.status) ? (
+                  <Button
+                    asChild
+                    variant="outline"
+                    className="h-12 min-w-[120px] gap-2 px-3 text-base"
+                  >
+                    <Link href={`/inicio?mode=quote&quoteId=${quote.id}`}>
+                      <Pencil className="size-5" aria-hidden="true" />
+                      Editar
+                    </Link>
+                  </Button>
+                ) : null}
                 <Button
                   asChild
                   variant="outline"

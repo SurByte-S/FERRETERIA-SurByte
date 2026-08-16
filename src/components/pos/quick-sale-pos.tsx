@@ -207,13 +207,25 @@ function findGroupedStockIssue(lines: QuoteLine[]) {
 }
 
 export function QuickSalePos({
-  initialSku,
-  customers,
   cashStatus,
+  customers,
+  editingQuoteNumber,
+  initialCustomer,
+  initialLines = [],
+  initialLoadMessage,
+  initialMode = "sale",
+  initialQuoteId,
+  initialSku,
 }: {
-  initialSku?: string;
-  customers: QuoteCustomerOption[];
   cashStatus?: CashStatus;
+  customers: QuoteCustomerOption[];
+  editingQuoteNumber?: number | string;
+  initialCustomer?: QuoteCustomer;
+  initialLines?: QuoteLine[];
+  initialLoadMessage?: string;
+  initialMode?: SaleMode;
+  initialQuoteId?: string;
+  initialSku?: string;
 }) {
   const router = useRouter();
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -225,23 +237,25 @@ export function QuickSalePos({
   const barcodeScanProcessingRef = useRef(false);
   const barcodeScanQueueRef = useRef<string[]>([]);
   const barcodeSearchTermRef = useRef("");
-  const [customer, setCustomer] = useState<QuoteCustomer>({
-    id: "",
-    name: "",
-    phone: "",
-    email: "",
-    address: "",
-  });
+  const [customer, setCustomer] = useState<QuoteCustomer>(
+    initialCustomer ?? {
+      id: "",
+      name: "",
+      phone: "",
+      email: "",
+      address: "",
+    }
+  );
   const [search, setSearch] = useState(initialSku ?? "");
-  const [mode, setMode] = useState<SaleMode>("sale");
+  const [mode, setMode] = useState<SaleMode>(initialMode);
   const [results, setResults] = useState<QuoteProduct[]>([]);
   const [resultsTotal, setResultsTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
   const [searchStatus, setSearchStatus] = useState<SearchStatus>("idle");
-  const [lines, setLines] = useState<QuoteLine[]>([]);
+  const [lines, setLines] = useState<QuoteLine[]>(initialLines);
   const linesRef = useRef<QuoteLine[]>([]);
-  const [message, setMessage] = useState(EMPTY_SEARCH_MESSAGE);
+  const [message, setMessage] = useState(initialLoadMessage ?? EMPTY_SEARCH_MESSAGE);
   const [paymentMethod, setPaymentMethod] = useState(PAYMENT_METHODS[0]);
   const [paidAmount, setPaidAmount] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -256,6 +270,7 @@ export function QuickSalePos({
   );
   const groupedStockIssue = useMemo(() => findGroupedStockIssue(lines), [lines]);
   const isQuoteMode = mode === "quote";
+  const isEditingQuote = Boolean(initialQuoteId);
   const isCashRegisterClosed = !isQuoteMode && cashStatus?.open === false;
   const isCreditSale = paymentMethod === "Cuenta corriente";
   const paidAmountValue =
@@ -960,6 +975,17 @@ export function QuickSalePos({
               {visibleMessage}
             </p>
           ) : null}
+
+          {isEditingQuote ? (
+            <div className="rounded-md border border-primary/30 bg-card px-3 py-2">
+              <p className="text-sm font-black text-primary">
+                Editando presupuesto {editingQuoteNumber ? `#${editingQuoteNumber}` : ""}
+              </p>
+              <p className="text-sm font-semibold text-foreground">
+                Al guardar se creara un nuevo presupuesto basado en este.
+              </p>
+            </div>
+          ) : null}
         </div>
       </header>
 
@@ -1180,7 +1206,9 @@ export function QuickSalePos({
                     disabled={isPending || lines.length === 0}
                     className="h-12 w-full px-4 text-base font-black"
                   >
-                    Guardar presupuesto
+                    {isEditingQuote
+                      ? "Guardar como nuevo presupuesto"
+                      : "Guardar presupuesto"}
                   </Button>
                 ) : (
                   <Button
