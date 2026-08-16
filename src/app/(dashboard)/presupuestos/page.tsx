@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { Eye, Printer, ShoppingCart } from "lucide-react";
 
 import { DeleteQuoteButton } from "@/components/presupuestos/delete-quote-button";
@@ -14,11 +15,26 @@ import {
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { requireTenant } from "@/lib/tenant";
 
+type HistoryType = "presupuestos" | "ventas";
+
+type PresupuestosPageProps = {
+  searchParams: Promise<{ tipo?: string }>;
+};
+
 type QuoteRow = {
   id: string;
   quote_number: number;
   status: string;
   total: number;
+  created_at: string;
+  customers: { name: string } | null;
+};
+
+type SaleRow = {
+  id: string;
+  sale_number: number | null;
+  total: number;
+  payment_method: string | null;
   created_at: string;
   customers: { name: string } | null;
 };
@@ -49,192 +65,409 @@ function statusLabel(status: string) {
   return labels[status] ?? status;
 }
 
-export default async function PresupuestosPage() {
+function paymentLabel(paymentMethod: string | null) {
+  return paymentMethod?.trim() || "Sin forma de pago";
+}
+
+function getHistoryType(value: string | undefined): HistoryType {
+  return value === "ventas" ? "ventas" : "presupuestos";
+}
+
+function TabLink({
+  active,
+  children,
+  href,
+}: {
+  active: boolean;
+  children: ReactNode;
+  href: string;
+}) {
+  return (
+    <Button
+      asChild
+      variant={active ? "default" : "outline"}
+      className="h-12 min-w-36 px-5 text-base font-black"
+    >
+      <Link href={href} aria-current={active ? "page" : undefined}>
+        {children}
+      </Link>
+    </Button>
+  );
+}
+
+export default async function PresupuestosPage({
+  searchParams,
+}: PresupuestosPageProps) {
+  const params = await searchParams;
+  const activeType = getHistoryType(params.tipo);
   const tenant = await requireTenant();
   const supabase = getSupabaseServerClient();
-  const { data, error } = await supabase
-    .from("quotes")
-    .select("id,quote_number,status,total,created_at,customers(name)")
-    .eq("tenant_id", tenant.id)
-    .is("deleted_at", null)
-    .order("created_at", { ascending: false })
-    .limit(100);
-  const quotes = ((data ?? []) as unknown as QuoteRow[]);
+  const [quotesResult, salesResult] = await Promise.all([
+    supabase
+      .from("quotes")
+      .select("id,quote_number,status,total,created_at,customers(name)")
+      .eq("tenant_id", tenant.id)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .limit(100),
+    supabase
+      .from("sales")
+      .select("id,sale_number,total,payment_method,created_at,customers(name)")
+      .eq("tenant_id", tenant.id)
+      .order("created_at", { ascending: false })
+      .limit(100),
+  ]);
+  const quotes = (quotesResult.data ?? []) as unknown as QuoteRow[];
+  const sales = (salesResult.data ?? []) as unknown as SaleRow[];
   const canDeleteQuotes = tenant.role === "owner" || tenant.role === "admin";
 
   return (
     <>
       <PageHeader
-        title="Presupuestos"
-        description="Consultá presupuestos guardados, imprimilos o abrí el detalle."
+        title="Historial"
+        description="Consulta ventas y presupuestos guardados."
         eyebrow=""
         backHref="/inicio"
         backLabel="Volver al inicio"
       />
 
-      <div className="no-print mb-6 rounded-md border-2 border-border bg-secondary p-3">
-        <Button asChild className="h-14 gap-2 px-6 text-lg">
+      <div className="no-print mb-4 flex flex-col gap-3 rounded-md border-2 border-border bg-secondary p-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <TabLink active={activeType === "ventas"} href="/presupuestos?tipo=ventas">
+            Ventas
+          </TabLink>
+          <TabLink active={activeType === "presupuestos"} href="/presupuestos">
+            Presupuestos
+          </TabLink>
+        </div>
+        <Button asChild className="h-12 gap-2 px-5 text-base font-black">
           <Link href="/inicio">
-            <ShoppingCart className="size-6" aria-hidden="true" />
+            <ShoppingCart className="size-5" aria-hidden="true" />
             Ir a vender
           </Link>
         </Button>
       </div>
 
-      {error ? (
-        <Card className="border-destructive/40">
-          <CardHeader>
-            <CardTitle>Necesitan revisión</CardTitle>
-            <CardDescription>
-              No se pudieron cargar los presupuestos. Revisá la conexión.
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      ) : quotes.length === 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>No hay presupuestos guardados</CardTitle>
-            <CardDescription>
-              Creá el primer presupuesto desde el mostrador.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button asChild className="h-11 gap-2 px-5 text-base xl:h-14 xl:px-6 xl:text-lg">
-              <Link href="/inicio">
-                <ShoppingCart className="size-6" aria-hidden="true" />
-                Ir a vender
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
+      {activeType === "ventas" ? (
+        <SalesHistory error={salesResult.error} sales={sales} />
       ) : (
-        <section className="grid gap-3">
-          <div className="hidden overflow-hidden rounded-md border-2 border-border bg-card lg:block">
-            <table className="w-full border-collapse text-left">
-              <thead className="bg-primary">
-                <tr className="border-b-2 border-border">
-                  <th className="border-r border-border px-4 py-4 text-base font-bold text-primary-foreground">
-                    Fecha
-                  </th>
-                  <th className="border-r border-border px-4 py-4 text-base font-bold text-primary-foreground">
-                    Nº presupuesto
-                  </th>
-                  <th className="border-r border-border px-4 py-4 text-base font-bold text-primary-foreground">
-                    Cliente
-                  </th>
-                  <th className="border-r border-border px-4 py-4 text-base font-bold text-primary-foreground">
-                    Estado
-                  </th>
-                  <th className="border-r border-border px-4 py-4 text-right text-base font-bold text-primary-foreground">
-                    Total
-                  </th>
-                  <th className="px-4 py-4 text-right text-base font-bold text-primary-foreground">
-                    Acciones
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {quotes.map((quote) => (
-                  <tr
-                    key={quote.id}
-                    className="border-b border-border last:border-b-0 even:bg-muted/25"
-                  >
-                    <td className="border-r border-border px-4 py-4 text-base font-semibold">
-                      {formatDate(quote.created_at)}
-                    </td>
-                    <td className="border-r border-border px-4 py-4 text-base font-bold">
-                      #{quote.quote_number}
-                    </td>
-                    <td className="border-r border-border px-4 py-4 text-base font-semibold">
-                      {quote.customers?.name ?? "Sin cliente"}
-                    </td>
-                    <td className="border-r border-border px-4 py-4 text-base font-semibold">
-                      {statusLabel(quote.status)}
-                    </td>
-                    <td className="border-r border-border px-4 py-4 text-right font-mono text-lg font-black tabular-nums">
-                      {formatMoney(quote.total)}
-                    </td>
-                    <td className="px-4 py-4">
-                      <div className="flex justify-end gap-2">
-                        <Button asChild className="h-12 min-w-24 gap-2 px-4 text-base">
-                          <Link href={`/presupuestos/${quote.id}`}>
-                            <Eye className="size-5" aria-hidden="true" />
-                            Ver
-                          </Link>
-                        </Button>
-                        <Button
-                          asChild
-                          variant="outline"
-                          className="h-12 min-w-32 gap-2 px-4 text-base"
-                        >
-                          <Link href={`/presupuestos/${quote.id}?print=1`}>
-                            <Printer className="size-5" aria-hidden="true" />
-                            Imprimir
-                          </Link>
-                        </Button>
-                        {canDeleteQuotes ? (
-                          <DeleteQuoteButton
-                            quoteId={quote.id}
-                            isConverted={quote.status === "converted"}
-                            label="Eliminar"
-                            className="h-12 min-w-28 px-4 text-base"
-                          />
-                        ) : null}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="grid gap-2 lg:hidden">
-          {quotes.map((quote) => (
-            <Card key={quote.id} className="min-h-[88px] rounded-md border-2">
-              <CardContent className="grid min-h-[88px] gap-3 p-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
-                <div className="min-w-0 space-y-1">
-                  <p className="text-sm font-semibold leading-tight text-foreground">
-                    {formatDate(quote.created_at)}
-                  </p>
-                  <h2 className="truncate text-lg font-bold leading-tight">
-                    Presupuesto #{quote.quote_number}
-                  </h2>
-                  <p className="truncate text-sm font-semibold leading-tight text-foreground">
-                    Cliente: {quote.customers?.name ?? "Sin cliente"} · Estado:{" "}
-                    {statusLabel(quote.status)}
-                  </p>
-                </div>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-[150px_90px_140px] md:flex md:flex-wrap md:items-center md:justify-end">
-                  <p className="inline-flex h-12 min-w-[150px] items-center justify-center whitespace-nowrap rounded-md border border-border bg-background px-3 font-mono text-lg font-black tabular-nums">
-                    {formatMoney(quote.total)}
-                  </p>
-                  <Button asChild className="h-12 min-w-[90px] gap-2 px-3 text-base">
-                    <Link href={`/presupuestos/${quote.id}`}>
-                      <Eye className="size-5" aria-hidden="true" />
-                      Ver
-                    </Link>
-                  </Button>
-                  <Button asChild variant="outline" className="h-12 min-w-[140px] gap-2 px-3 text-base">
-                    <Link href={`/presupuestos/${quote.id}?print=1`}>
-                      <Printer className="size-5" aria-hidden="true" />
-                      Imprimir
-                    </Link>
-                  </Button>
-                  {canDeleteQuotes ? (
-                    <DeleteQuoteButton
-                      quoteId={quote.id}
-                      isConverted={quote.status === "converted"}
-                      label="Eliminar"
-                      className="h-12 min-w-[140px] px-3 text-base"
-                    />
-                  ) : null}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-          </div>
-        </section>
+        <QuotesHistory
+          canDeleteQuotes={canDeleteQuotes}
+          error={quotesResult.error}
+          quotes={quotes}
+        />
       )}
     </>
+  );
+}
+
+function QuotesHistory({
+  canDeleteQuotes,
+  error,
+  quotes,
+}: {
+  canDeleteQuotes: boolean;
+  error: unknown;
+  quotes: QuoteRow[];
+}) {
+  if (error) {
+    return (
+      <Card className="border-destructive/40">
+        <CardHeader>
+          <CardTitle>Necesitan revision</CardTitle>
+          <CardDescription>
+            No se pudieron cargar los presupuestos. Revisa la conexion.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
+
+  if (quotes.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>No hay presupuestos guardados</CardTitle>
+          <CardDescription>
+            Crea el primer presupuesto desde el mostrador.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button asChild className="h-11 gap-2 px-5 text-base xl:h-14 xl:px-6 xl:text-lg">
+            <Link href="/inicio">
+              <ShoppingCart className="size-6" aria-hidden="true" />
+              Ir a vender
+            </Link>
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <section className="grid gap-3">
+      <div className="hidden overflow-hidden rounded-md border-2 border-border bg-card lg:block">
+        <table className="w-full border-collapse text-left">
+          <thead className="bg-primary">
+            <tr className="border-b-2 border-border">
+              <th className="border-r border-border px-4 py-4 text-base font-bold text-primary-foreground">
+                Fecha
+              </th>
+              <th className="border-r border-border px-4 py-4 text-base font-bold text-primary-foreground">
+                Nro presupuesto
+              </th>
+              <th className="border-r border-border px-4 py-4 text-base font-bold text-primary-foreground">
+                Cliente
+              </th>
+              <th className="border-r border-border px-4 py-4 text-base font-bold text-primary-foreground">
+                Estado
+              </th>
+              <th className="border-r border-border px-4 py-4 text-right text-base font-bold text-primary-foreground">
+                Total
+              </th>
+              <th className="px-4 py-4 text-right text-base font-bold text-primary-foreground">
+                Acciones
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {quotes.map((quote) => (
+              <tr
+                key={quote.id}
+                className="border-b border-border last:border-b-0 even:bg-muted/25"
+              >
+                <td className="border-r border-border px-4 py-4 text-base font-semibold">
+                  {formatDate(quote.created_at)}
+                </td>
+                <td className="border-r border-border px-4 py-4 text-base font-bold">
+                  #{quote.quote_number}
+                </td>
+                <td className="border-r border-border px-4 py-4 text-base font-semibold">
+                  {quote.customers?.name ?? "Sin cliente"}
+                </td>
+                <td className="border-r border-border px-4 py-4 text-base font-semibold">
+                  {statusLabel(quote.status)}
+                </td>
+                <td className="border-r border-border px-4 py-4 text-right font-mono text-lg font-black tabular-nums">
+                  {formatMoney(quote.total)}
+                </td>
+                <td className="px-4 py-4">
+                  <div className="flex justify-end gap-2">
+                    <Button asChild className="h-12 min-w-24 gap-2 px-4 text-base">
+                      <Link href={`/presupuestos/${quote.id}`}>
+                        <Eye className="size-5" aria-hidden="true" />
+                        Ver
+                      </Link>
+                    </Button>
+                    <Button
+                      asChild
+                      variant="outline"
+                      className="h-12 min-w-32 gap-2 px-4 text-base"
+                    >
+                      <Link href={`/presupuestos/${quote.id}?print=1`}>
+                        <Printer className="size-5" aria-hidden="true" />
+                        Imprimir
+                      </Link>
+                    </Button>
+                    {canDeleteQuotes ? (
+                      <DeleteQuoteButton
+                        quoteId={quote.id}
+                        isConverted={quote.status === "converted"}
+                        label="Eliminar"
+                        className="h-12 min-w-28 px-4 text-base"
+                      />
+                    ) : null}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="grid gap-2 lg:hidden">
+        {quotes.map((quote) => (
+          <Card key={quote.id} className="min-h-[88px] rounded-md border-2">
+            <CardContent className="grid min-h-[88px] gap-3 p-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+              <div className="min-w-0 space-y-1">
+                <p className="text-sm font-semibold leading-tight text-foreground">
+                  {formatDate(quote.created_at)}
+                </p>
+                <h2 className="truncate text-lg font-bold leading-tight">
+                  Presupuesto #{quote.quote_number}
+                </h2>
+                <p className="truncate text-sm font-semibold leading-tight text-foreground">
+                  Cliente: {quote.customers?.name ?? "Sin cliente"} - Estado:{" "}
+                  {statusLabel(quote.status)}
+                </p>
+              </div>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-[150px_90px_140px] md:flex md:flex-wrap md:items-center md:justify-end">
+                <p className="inline-flex h-12 min-w-[150px] items-center justify-center whitespace-nowrap rounded-md border border-border bg-background px-3 font-mono text-lg font-black tabular-nums">
+                  {formatMoney(quote.total)}
+                </p>
+                <Button asChild className="h-12 min-w-[90px] gap-2 px-3 text-base">
+                  <Link href={`/presupuestos/${quote.id}`}>
+                    <Eye className="size-5" aria-hidden="true" />
+                    Ver
+                  </Link>
+                </Button>
+                <Button
+                  asChild
+                  variant="outline"
+                  className="h-12 min-w-[140px] gap-2 px-3 text-base"
+                >
+                  <Link href={`/presupuestos/${quote.id}?print=1`}>
+                    <Printer className="size-5" aria-hidden="true" />
+                    Imprimir
+                  </Link>
+                </Button>
+                {canDeleteQuotes ? (
+                  <DeleteQuoteButton
+                    quoteId={quote.id}
+                    isConverted={quote.status === "converted"}
+                    label="Eliminar"
+                    className="h-12 min-w-[140px] px-3 text-base"
+                  />
+                ) : null}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function SalesHistory({
+  error,
+  sales,
+}: {
+  error: unknown;
+  sales: SaleRow[];
+}) {
+  if (error) {
+    return (
+      <Card className="border-destructive/40">
+        <CardHeader>
+          <CardTitle>Necesitan revision</CardTitle>
+          <CardDescription>
+            No se pudieron cargar las ventas. Revisa la conexion.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
+
+  if (sales.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>No hay ventas registradas</CardTitle>
+          <CardDescription>
+            Las ventas cobradas desde el mostrador van a aparecer aca.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
+
+  return (
+    <section className="grid gap-3">
+      <div className="hidden overflow-hidden rounded-md border-2 border-border bg-card lg:block">
+        <table className="w-full border-collapse text-left">
+          <thead className="bg-primary">
+            <tr className="border-b-2 border-border">
+              <th className="border-r border-border px-4 py-4 text-base font-bold text-primary-foreground">
+                Fecha
+              </th>
+              <th className="border-r border-border px-4 py-4 text-base font-bold text-primary-foreground">
+                Nro venta
+              </th>
+              <th className="border-r border-border px-4 py-4 text-base font-bold text-primary-foreground">
+                Cliente
+              </th>
+              <th className="border-r border-border px-4 py-4 text-base font-bold text-primary-foreground">
+                Forma de pago
+              </th>
+              <th className="border-r border-border px-4 py-4 text-right text-base font-bold text-primary-foreground">
+                Total
+              </th>
+              <th className="px-4 py-4 text-right text-base font-bold text-primary-foreground">
+                Acciones
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {sales.map((sale) => (
+              <tr
+                key={sale.id}
+                className="border-b border-border last:border-b-0 even:bg-muted/25"
+              >
+                <td className="border-r border-border px-4 py-4 text-base font-semibold">
+                  {formatDate(sale.created_at)}
+                </td>
+                <td className="border-r border-border px-4 py-4 text-base font-bold">
+                  {sale.sale_number ? `#${sale.sale_number}` : sale.id.slice(0, 8).toUpperCase()}
+                </td>
+                <td className="border-r border-border px-4 py-4 text-base font-semibold">
+                  {sale.customers?.name ?? "Sin cliente"}
+                </td>
+                <td className="border-r border-border px-4 py-4 text-base font-semibold">
+                  {paymentLabel(sale.payment_method)}
+                </td>
+                <td className="border-r border-border px-4 py-4 text-right font-mono text-lg font-black tabular-nums">
+                  {formatMoney(sale.total)}
+                </td>
+                <td className="px-4 py-4">
+                  <div className="flex justify-end gap-2">
+                    <Button asChild className="h-12 min-w-24 gap-2 px-4 text-base">
+                      <Link href={`/ventas/${sale.id}`}>
+                        <Eye className="size-5" aria-hidden="true" />
+                        Ver
+                      </Link>
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="grid gap-2 lg:hidden">
+        {sales.map((sale) => (
+          <Card key={sale.id} className="min-h-[88px] rounded-md border-2">
+            <CardContent className="grid min-h-[88px] gap-3 p-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+              <div className="min-w-0 space-y-1">
+                <p className="text-sm font-semibold leading-tight text-foreground">
+                  {formatDate(sale.created_at)}
+                </p>
+                <h2 className="truncate text-lg font-bold leading-tight">
+                  Venta{" "}
+                  {sale.sale_number
+                    ? `#${sale.sale_number}`
+                    : sale.id.slice(0, 8).toUpperCase()}
+                </h2>
+                <p className="truncate text-sm font-semibold leading-tight text-foreground">
+                  Cliente: {sale.customers?.name ?? "Sin cliente"} - Pago:{" "}
+                  {paymentLabel(sale.payment_method)}
+                </p>
+              </div>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-[150px_90px] md:flex md:flex-wrap md:items-center md:justify-end">
+                <p className="inline-flex h-12 min-w-[150px] items-center justify-center whitespace-nowrap rounded-md border border-border bg-background px-3 font-mono text-lg font-black tabular-nums">
+                  {formatMoney(sale.total)}
+                </p>
+                <Button asChild className="h-12 min-w-[90px] gap-2 px-3 text-base">
+                  <Link href={`/ventas/${sale.id}`}>
+                    <Eye className="size-5" aria-hidden="true" />
+                    Ver
+                  </Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </section>
   );
 }

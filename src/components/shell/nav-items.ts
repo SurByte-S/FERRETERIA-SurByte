@@ -36,10 +36,10 @@ export const navigationItems = [
     description: "Ventas por día, caja y resumen del negocio.",
   },
   {
-    title: "Presupuestos",
+    title: "Historial",
     href: "/presupuestos",
     icon: ClipboardList,
-    description: "Presupuestos guardados",
+    description: "Ventas y presupuestos",
   },
   {
     title: "Stock",
@@ -81,10 +81,10 @@ export const historyItems = [
     description: "Ventas por día, caja y resumen del negocio.",
   },
   {
-    title: "Presupuestos guardados",
+    title: "Historial",
     href: "/presupuestos",
     icon: ClipboardList,
-    description: "Presupuestos guardados",
+    description: "Ventas y presupuestos",
   },
 ] as const;
 
