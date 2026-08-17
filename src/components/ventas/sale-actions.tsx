@@ -5,20 +5,26 @@ import { useSearchParams } from "next/navigation";
 import { Printer } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { printWithPageSize } from "@/lib/print/apply-print-page-size";
+import type { PrintPaperSize } from "@/lib/print/invoice-settings";
 
-export function PrintSaleButton() {
+export function PrintSaleButton({
+  printPaperSize = "a4",
+}: {
+  printPaperSize?: PrintPaperSize;
+}) {
   const searchParams = useSearchParams();
 
   useEffect(() => {
     if (searchParams.get("print") === "1") {
-      window.print();
+      printWithPageSize(printPaperSize);
     }
-  }, [searchParams]);
+  }, [printPaperSize, searchParams]);
 
   return (
     <Button
       type="button"
-      onClick={() => window.print()}
+      onClick={() => printWithPageSize(printPaperSize)}
       className="h-14 gap-2 px-6 text-lg"
     >
       <Printer className="size-6" aria-hidden="true" />

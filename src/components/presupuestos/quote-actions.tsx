@@ -7,6 +7,8 @@ import { Printer, ShoppingCart } from "lucide-react";
 import { convertQuoteToSaleAction } from "@/app/(dashboard)/presupuestos/[id]/actions";
 import { Button } from "@/components/ui/button";
 import { formatStockQuantity } from "@/lib/format";
+import { printWithPageSize } from "@/lib/print/apply-print-page-size";
+import type { PrintPaperSize } from "@/lib/print/invoice-settings";
 
 const PAYMENT_METHODS = [
   "Efectivo",
@@ -32,19 +34,23 @@ function formatMoney(value: number) {
   }).format(value);
 }
 
-export function PrintQuoteButton() {
+export function PrintQuoteButton({
+  printPaperSize = "a4",
+}: {
+  printPaperSize?: PrintPaperSize;
+}) {
   const searchParams = useSearchParams();
 
   useEffect(() => {
     if (searchParams.get("print") === "1") {
-      window.print();
+      printWithPageSize(printPaperSize);
     }
-  }, [searchParams]);
+  }, [printPaperSize, searchParams]);
 
   return (
     <Button
       type="button"
-      onClick={() => window.print()}
+      onClick={() => printWithPageSize(printPaperSize)}
       className="h-11 w-full gap-2 px-4 text-base sm:w-auto"
     >
       <Printer className="size-5" aria-hidden="true" />

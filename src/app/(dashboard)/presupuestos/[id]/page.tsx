@@ -218,7 +218,7 @@ export default async function QuoteDetailPage({ params }: QuotePageProps) {
               Volver a presupuestos
             </Link>
           </Button>
-          <PrintQuoteButton />
+          <PrintQuoteButton printPaperSize={printInvoiceSettings.printPaperSize} />
           {tenant.role === "owner" || tenant.role === "admin" ? (
             <DeleteQuoteButton
               quoteId={quote.id}

@@ -225,7 +225,7 @@ export default async function SaleDetailPage({ params }: SalePageProps) {
         />
 
         <div className="no-print">
-          <PrintSaleButton />
+          <PrintSaleButton printPaperSize={printInvoiceSettings.printPaperSize} />
         </div>
       </div>
     </>
