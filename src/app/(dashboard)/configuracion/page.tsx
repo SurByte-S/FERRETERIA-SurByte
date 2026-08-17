@@ -34,6 +34,13 @@ const configurationSections = [
     actionLabel: "Entrar",
     icon: Factory,
   },
+  {
+    title: "Facturacion e impresion",
+    description: "Datos fiscales y tamano A4/A5/Ticket.",
+    href: "/configuracion/facturacion",
+    actionLabel: "Configurar",
+    icon: FileClock,
+  },
 ] as const;
 
 export default async function ConfiguracionPage() {
@@ -79,28 +86,6 @@ export default async function ConfiguracionPage() {
           );
         })}
 
-        <Card className="flex min-h-[220px] flex-col border-dashed">
-          <CardHeader>
-            <div className="mb-2 flex size-12 items-center justify-center rounded-md bg-secondary text-primary">
-              <FileClock className="size-6" aria-hidden="true" />
-            </div>
-            <CardTitle>Facturacion e impresion</CardTitle>
-            <CardDescription>
-              Proximamente: datos fiscales y tamano A4/A5/Ticket.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="mt-auto">
-            <Button
-              type="button"
-              variant="outline"
-              disabled
-              className="h-12 w-full justify-start gap-2 px-4 text-base"
-            >
-              <FileClock className="size-5" aria-hidden="true" />
-              Proximamente
-            </Button>
-          </CardContent>
-        </Card>
       </section>
     </>
   );

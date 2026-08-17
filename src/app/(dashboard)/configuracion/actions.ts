@@ -17,6 +17,7 @@ export type ConfigActionState = {
 
 const DUPLICATE_BRAND_MESSAGE = "Ya existe una marca con ese nombre.";
 const DUPLICATE_SUPPLIER_MESSAGE = "Ya existe un proveedor con ese nombre.";
+const PRINT_PAPER_SIZES = ["ticket_80mm", "a5", "a4"] as const;
 
 function textValue(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
@@ -25,6 +26,29 @@ function textValue(formData: FormData, key: string) {
 function optionalText(formData: FormData, key: string) {
   const value = textValue(formData, key);
   return value || null;
+}
+
+function optionalCuit(formData: FormData) {
+  const value = textValue(formData, "cuit").replace(/[^\d-]/g, "");
+  return value || null;
+}
+
+function optionalDate(formData: FormData, key: string) {
+  const value = textValue(formData, key);
+
+  if (!value) {
+    return null;
+  }
+
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
+}
+
+function printPaperSizeValue(formData: FormData) {
+  const value = textValue(formData, "print_paper_size");
+
+  return PRINT_PAPER_SIZES.some((size) => size === value)
+    ? (value as (typeof PRINT_PAPER_SIZES)[number])
+    : null;
 }
 
 function isUuid(value: string) {
@@ -113,6 +137,65 @@ export async function updateTenantBusinessAction(
       message: actionErrorMessage(
         error,
         "No se pudieron guardar los datos del negocio."
+      ),
+    };
+  }
+}
+
+export async function upsertTenantInvoiceSettingsAction(
+  _previousState: ConfigActionState,
+  formData: FormData
+): Promise<ConfigActionState> {
+  const printPaperSize = printPaperSizeValue(formData);
+
+  if (!printPaperSize) {
+    return {
+      ok: false,
+      message: "Elegi un tamano de papel valido.",
+    };
+  }
+
+  try {
+    const tenant = await requireTenantRole(["owner", "admin"]);
+    const supabase = getSupabaseServerClient();
+    const { error } = await supabase.from("tenant_invoice_settings").upsert(
+      {
+        tenant_id: tenant.id,
+        legal_name: optionalText(formData, "legal_name"),
+        cuit: optionalCuit(formData),
+        iva_condition: optionalText(formData, "iva_condition"),
+        fiscal_address: optionalText(formData, "fiscal_address"),
+        sale_point: optionalText(formData, "sale_point"),
+        gross_income: optionalText(formData, "gross_income"),
+        activity_start_date: optionalDate(formData, "activity_start_date"),
+        invoice_footer_text: optionalText(formData, "invoice_footer_text"),
+        print_paper_size: printPaperSize,
+      },
+      {
+        onConflict: "tenant_id",
+      }
+    );
+
+    if (error) {
+      return {
+        ok: false,
+        message: "No se pudo guardar la configuracion fiscal.",
+      };
+    }
+
+    revalidatePath("/configuracion");
+    revalidatePath("/configuracion/facturacion");
+
+    return {
+      ok: true,
+      message: "Configuracion fiscal guardada.",
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      message: actionErrorMessage(
+        error,
+        "No se pudo guardar la configuracion fiscal."
       ),
     };
   }
