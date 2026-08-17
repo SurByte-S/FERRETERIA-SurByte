@@ -11,7 +11,11 @@ export default async function DashboardLayout({
 }) {
   await connection();
   const user = await requireUser("/dashboard-layout");
-  await requireTenant("/dashboard-layout");
+  const tenant = await requireTenant("/dashboard-layout");
 
-  return <DashboardShell userEmail={user.email}>{children}</DashboardShell>;
+  return (
+    <DashboardShell tenantRole={tenant.role} userEmail={user.email}>
+      {children}
+    </DashboardShell>
+  );
 }

@@ -6,12 +6,15 @@ import { BrandLogo } from "@/components/brand/brand-logo";
 import { ClassicShortcutsBar } from "@/components/shell/classic-shortcuts-bar";
 import { Button } from "@/components/ui/button";
 import { ferreteriaGuemesBrand } from "@/lib/brand/ferreteria-guemes";
+import type { TenantRole } from "@/lib/tenant";
 
 export function DashboardShell({
   children,
+  tenantRole,
   userEmail,
 }: {
   children: React.ReactNode;
+  tenantRole: TenantRole;
   userEmail?: string;
 }) {
   return (
@@ -59,7 +62,7 @@ export function DashboardShell({
             </div>
           </header>
 
-          <ClassicShortcutsBar />
+          <ClassicShortcutsBar tenantRole={tenantRole} />
 
           <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto p-1 sm:p-1.5">
             {children}

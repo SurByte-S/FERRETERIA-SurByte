@@ -4,12 +4,16 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/utils";
+import type { TenantRole } from "@/lib/tenant";
 import { navigationItems } from "./nav-items";
 
-const shortcutItems = navigationItems;
-
-export function ClassicShortcutsBar() {
+export function ClassicShortcutsBar({ tenantRole }: { tenantRole: TenantRole }) {
   const pathname = usePathname();
+  const shortcutItems = navigationItems.filter(
+    (item) =>
+      !("allowedRoles" in item) ||
+      (item.allowedRoles as readonly TenantRole[]).includes(tenantRole)
+  );
 
   return (
     <nav

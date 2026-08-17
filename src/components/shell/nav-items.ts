@@ -10,6 +10,8 @@ import {
   WalletCards,
 } from "lucide-react";
 
+import type { TenantRole } from "@/lib/tenant";
+
 export const navigationItems = [
   {
     title: "Vender",
@@ -46,6 +48,13 @@ export const navigationItems = [
     href: "/stock",
     icon: Boxes,
     description: "Ver stock y cambiar precios",
+  },
+  {
+    title: "Configuracion",
+    href: "/configuracion",
+    icon: Settings,
+    description: "Datos del negocio, marcas y proveedores.",
+    allowedRoles: ["owner", "admin"] satisfies TenantRole[],
   },
 ] as const;
 
