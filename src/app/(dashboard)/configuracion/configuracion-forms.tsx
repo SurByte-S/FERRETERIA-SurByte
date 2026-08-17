@@ -62,43 +62,7 @@ const initialState: ConfigActionState = {
   message: "",
 };
 
-export function ConfiguracionForms({
-  brands,
-  suppliers,
-  tenant,
-}: {
-  brands: BrandConfigItem[];
-  suppliers: SupplierConfigItem[];
-  tenant: TenantBusinessConfig;
-}) {
-  return (
-    <div className="grid gap-4 pb-6 xl:gap-5">
-      <BusinessForm tenant={tenant} />
-
-      <section className="grid gap-4 xl:grid-cols-2">
-        <BrandsPanel brands={brands} />
-        <SuppliersPanel suppliers={suppliers} />
-      </section>
-
-      <Card className="border-dashed">
-        <CardHeader>
-          <CardTitle>Proximamente: Facturacion e impresion</CardTitle>
-          <CardDescription>
-            Facturacion e impresion se configuraran en una proxima etapa.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ul className="grid gap-2 text-sm font-semibold text-muted-foreground">
-            <li>Datos fiscales completos</li>
-            <li>Tamano de impresion A4, A5 o Ticket</li>
-          </ul>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-function BusinessForm({ tenant }: { tenant: TenantBusinessConfig }) {
+export function BusinessForm({ tenant }: { tenant: TenantBusinessConfig }) {
   const [state, formAction, pending] = useActionState(
     updateTenantBusinessAction,
     initialState
@@ -198,7 +162,7 @@ function BusinessForm({ tenant }: { tenant: TenantBusinessConfig }) {
   );
 }
 
-function BrandsPanel({ brands }: { brands: BrandConfigItem[] }) {
+export function BrandsPanel({ brands }: { brands: BrandConfigItem[] }) {
   const [state, formAction, pending] = useActionState(
     createBrandConfigAction,
     initialState
@@ -311,7 +275,11 @@ function BrandRow({ brand }: { brand: BrandConfigItem }) {
   );
 }
 
-function SuppliersPanel({ suppliers }: { suppliers: SupplierConfigItem[] }) {
+export function SuppliersPanel({
+  suppliers,
+}: {
+  suppliers: SupplierConfigItem[];
+}) {
   const [state, formAction, pending] = useActionState(
     createSupplierConfigAction,
     initialState

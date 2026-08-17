@@ -100,6 +100,7 @@ export async function updateTenantBusinessAction(
     }
 
     revalidatePath("/configuracion");
+    revalidatePath("/configuracion/datos");
     revalidatePath("/inicio");
 
     return {
@@ -187,6 +188,7 @@ export async function createBrandConfigAction(
     }
 
     revalidatePath("/configuracion");
+    revalidatePath("/configuracion/marcas");
     revalidatePath("/stock");
     revalidatePath("/productos");
 
@@ -252,6 +254,7 @@ export async function updateBrandConfigAction(
     }
 
     revalidatePath("/configuracion");
+    revalidatePath("/configuracion/marcas");
     revalidatePath("/stock");
     revalidatePath("/productos");
 
@@ -300,6 +303,7 @@ export async function setBrandActiveConfigAction(
     }
 
     revalidatePath("/configuracion");
+    revalidatePath("/configuracion/marcas");
     revalidatePath("/stock");
     revalidatePath("/productos");
 
@@ -391,6 +395,7 @@ export async function createSupplierConfigAction(
     }
 
     revalidatePath("/configuracion");
+    revalidatePath("/configuracion/proveedores");
     revalidatePath("/stock");
     revalidatePath("/productos");
 
@@ -462,6 +467,7 @@ export async function updateSupplierConfigAction(
     }
 
     revalidatePath("/configuracion");
+    revalidatePath("/configuracion/proveedores");
     revalidatePath("/stock");
     revalidatePath("/productos");
 

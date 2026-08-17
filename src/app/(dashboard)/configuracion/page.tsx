@@ -1,151 +1,107 @@
-import { redirect } from "next/navigation";
+import Link from "next/link";
+import { BadgeCheck, Building2, Factory, FileClock } from "lucide-react";
 
-import {
-  ConfiguracionForms,
-  type BrandConfigItem,
-  type SupplierConfigItem,
-  type TenantBusinessConfig,
-} from "./configuracion-forms";
+import { requireConfigurationTenant } from "./access";
 import { PageHeader } from "@/components/shell/page-header";
-import { getSupabaseServerClient } from "@/lib/supabase";
-import { isTenantRoleForbiddenError, requireTenantRole } from "@/lib/tenant";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
-type TenantBusinessRow = {
-  name: string;
-  slug: string;
-  business_name: string | null;
-  tax_id: string | null;
-  phone: string | null;
-  email: string | null;
-  address: string | null;
-  logo_url: string | null;
-};
-
-type BrandRow = {
-  id: string;
-  name: string;
-  active: boolean | null;
-};
-
-type SupplierRow = {
-  id: string;
-  name: string;
-  phone: string | null;
-  email: string | null;
-  address: string | null;
-  notes: string | null;
-};
-
-type ProductBrandRow = {
-  brand_id: string | null;
-};
+const configurationSections = [
+  {
+    title: "Datos del negocio",
+    description: "Nombre, CUIT, telefono, direccion y logo URL.",
+    href: "/configuracion/datos",
+    actionLabel: "Modificar datos",
+    icon: Building2,
+  },
+  {
+    title: "Marcas",
+    description: "Crear, buscar, editar y activar/desactivar marcas.",
+    href: "/configuracion/marcas",
+    actionLabel: "Entrar",
+    icon: BadgeCheck,
+  },
+  {
+    title: "Proveedores",
+    description: "Crear, buscar y editar proveedores.",
+    href: "/configuracion/proveedores",
+    actionLabel: "Entrar",
+    icon: Factory,
+  },
+] as const;
 
 export default async function ConfiguracionPage() {
-  const tenant = await requireConfigurationTenant();
-  const result = await loadConfigurationData(tenant.id);
+  await requireConfigurationTenant("/configuracion");
 
   return (
     <>
       <PageHeader
         title="Configuracion"
-        description="Datos del negocio, marcas y proveedores."
+        description="Administra los datos principales de tu ferreteria."
         backHref="/inicio"
         backLabel="Volver al inicio"
       />
 
-      <ConfiguracionForms
-        tenant={result.tenant}
-        brands={result.brands}
-        suppliers={result.suppliers}
-      />
+      <section
+        aria-label="Opciones de configuracion"
+        className="grid max-w-5xl gap-4 pb-6 md:grid-cols-2 xl:grid-cols-4"
+      >
+        {configurationSections.map((section) => {
+          const Icon = section.icon;
+
+          return (
+            <Card key={section.href} className="flex min-h-[220px] flex-col">
+              <CardHeader>
+                <div className="mb-2 flex size-12 items-center justify-center rounded-md bg-secondary text-primary">
+                  <Icon className="size-6" aria-hidden="true" />
+                </div>
+                <CardTitle>{section.title}</CardTitle>
+                <CardDescription>{section.description}</CardDescription>
+              </CardHeader>
+              <CardContent className="mt-auto">
+                <Button
+                  asChild
+                  className="h-12 w-full justify-start gap-2 px-4 text-base"
+                >
+                  <Link href={section.href}>
+                    <Icon className="size-5" aria-hidden="true" />
+                    {section.actionLabel}
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+          );
+        })}
+
+        <Card className="flex min-h-[220px] flex-col border-dashed">
+          <CardHeader>
+            <div className="mb-2 flex size-12 items-center justify-center rounded-md bg-secondary text-primary">
+              <FileClock className="size-6" aria-hidden="true" />
+            </div>
+            <CardTitle>Facturacion e impresion</CardTitle>
+            <CardDescription>
+              Proximamente: datos fiscales y tamano A4/A5/Ticket.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="mt-auto">
+            <Button
+              type="button"
+              variant="outline"
+              disabled
+              className="h-12 w-full justify-start gap-2 px-4 text-base"
+            >
+              <FileClock className="size-5" aria-hidden="true" />
+              Proximamente
+            </Button>
+          </CardContent>
+        </Card>
+      </section>
     </>
   );
-}
-
-async function requireConfigurationTenant() {
-  try {
-    return await requireTenantRole(["owner", "admin"], "/configuracion");
-  } catch (error) {
-    if (isTenantRoleForbiddenError(error)) {
-      redirect("/inicio");
-    }
-
-    throw error;
-  }
-}
-
-async function loadConfigurationData(tenantId: string): Promise<{
-  tenant: TenantBusinessConfig;
-  brands: BrandConfigItem[];
-  suppliers: SupplierConfigItem[];
-}> {
-  const supabase = getSupabaseServerClient();
-  const [tenantResult, brandsResult, suppliersResult, productBrandsResult] =
-    await Promise.all([
-      supabase
-        .from("tenants")
-        .select("name,slug,business_name,tax_id,phone,email,address,logo_url")
-        .eq("id", tenantId)
-        .maybeSingle(),
-      supabase
-        .from("brands")
-        .select("id,name,active")
-        .eq("tenant_id", tenantId)
-        .order("active", { ascending: false })
-        .order("name"),
-      supabase
-        .from("suppliers")
-        .select("id,name,phone,email,address,notes")
-        .eq("tenant_id", tenantId)
-        .order("name"),
-      supabase
-        .from("products")
-        .select("brand_id")
-        .eq("tenant_id", tenantId)
-        .not("brand_id", "is", null),
-    ]);
-
-  if (tenantResult.error || !tenantResult.data) {
-    throw new Error("No se pudieron cargar los datos del negocio.");
-  }
-
-  if (brandsResult.error) {
-    throw new Error("No se pudieron cargar las marcas.");
-  }
-
-  if (suppliersResult.error) {
-    throw new Error("No se pudieron cargar los proveedores.");
-  }
-
-  const brandCounts = ((productBrandsResult.data ?? []) as ProductBrandRow[]).reduce(
-    (counts, row) => {
-      if (row.brand_id) {
-        counts.set(row.brand_id, (counts.get(row.brand_id) ?? 0) + 1);
-      }
-
-      return counts;
-    },
-    new Map<string, number>()
-  );
-  const tenant = tenantResult.data as TenantBusinessRow;
-
-  return {
-    tenant,
-    brands: ((brandsResult.data ?? []) as BrandRow[]).map((brand) => ({
-      id: brand.id,
-      name: brand.name,
-      active: brand.active !== false,
-      productsCount: brandCounts.get(brand.id) ?? 0,
-    })),
-    suppliers: ((suppliersResult.data ?? []) as SupplierRow[]).map(
-      (supplier) => ({
-        id: supplier.id,
-        name: supplier.name,
-        phone: supplier.phone,
-        email: supplier.email,
-        address: supplier.address,
-        notes: supplier.notes,
-      })
-    ),
-  };
 }
