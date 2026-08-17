@@ -169,6 +169,17 @@
   box-shadow: 0 18px 45px rgb(0 0 0 / 8%);
 }
 
+.print-document.print-a5 {
+  width: min(100%, 720px);
+  padding: 26px;
+}
+
+.print-document.print-ticket-80mm {
+  width: min(100%, 360px);
+  padding: 18px;
+  font-size: 0.86rem;
+}
+
 .print-header {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 300px;
@@ -241,14 +252,26 @@
   font-size: 0.86rem;
 }
 
+.print-fiscal-grid {
+  display: grid;
+  gap: 4px 18px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 12px;
+  border-top: 1px solid #e4e4e7;
+  padding-top: 10px;
+  font-size: 0.82rem;
+}
+
 .print-contact-grid p,
-.print-customer-details p {
+.print-customer-details p,
+.print-fiscal-grid p {
   margin: 0;
   color: #52525b;
 }
 
 .print-contact-grid span,
-.print-customer-details span {
+.print-customer-details span,
+.print-fiscal-grid span {
   display: block;
   font-size: 0.68rem;
   font-weight: 700;
@@ -257,7 +280,8 @@
 }
 
 .print-contact-grid strong,
-.print-customer-details strong {
+.print-customer-details strong,
+.print-fiscal-grid strong {
   color: #111;
   font-weight: 600;
 }
@@ -486,6 +510,116 @@
   margin: 4px 0 0;
 }
 
+.print-document.print-a5 .print-header,
+.print-document.print-a5 .print-summary,
+.print-document.print-a5 .print-footer {
+  gap: 18px;
+}
+
+.print-document.print-a5 .print-header {
+  grid-template-columns: minmax(0, 1fr) 240px;
+}
+
+.print-document.print-a5 .print-brand h1 {
+  font-size: 2.35rem;
+}
+
+.print-document.print-a5 .print-items-table {
+  min-width: 620px;
+  font-size: 0.84rem;
+}
+
+.print-document.print-a5 .print-items-table th,
+.print-document.print-a5 .print-items-table td {
+  padding: 8px 9px;
+}
+
+.print-document.print-ticket-80mm .print-header,
+.print-document.print-ticket-80mm .print-brand,
+.print-document.print-ticket-80mm .print-customer,
+.print-document.print-ticket-80mm .print-summary,
+.print-document.print-ticket-80mm .print-footer {
+  display: grid;
+  grid-template-columns: 1fr;
+}
+
+.print-document.print-ticket-80mm .print-header {
+  gap: 12px;
+  border-top-width: 2px;
+  padding-top: 10px;
+  padding-bottom: 12px;
+}
+
+.print-document.print-ticket-80mm .print-logo {
+  width: 48px;
+  height: 48px;
+}
+
+.print-document.print-ticket-80mm .print-logo .brand-logo-mark {
+  width: 48px;
+  height: 48px;
+}
+
+.print-document.print-ticket-80mm .print-brand h1 {
+  font-size: 1.55rem;
+  line-height: 1.05;
+}
+
+.print-document.print-ticket-80mm .print-document-meta {
+  border-left: 0;
+  border-top: 1px solid #d4d4d8;
+  padding-top: 12px;
+  padding-left: 0;
+}
+
+.print-document.print-ticket-80mm .print-document-meta h2 {
+  font-size: 1.25rem;
+}
+
+.print-document.print-ticket-80mm .print-contact-grid,
+.print-document.print-ticket-80mm .print-fiscal-grid,
+.print-document.print-ticket-80mm .print-customer-details {
+  grid-template-columns: 1fr;
+}
+
+.print-document.print-ticket-80mm .print-section,
+.print-document.print-ticket-80mm .print-summary,
+.print-document.print-ticket-80mm .print-footer {
+  margin-top: 12px;
+}
+
+.print-document.print-ticket-80mm .print-customer {
+  gap: 10px;
+  padding: 10px;
+}
+
+.print-document.print-ticket-80mm .print-table-wrap {
+  overflow: visible;
+}
+
+.print-document.print-ticket-80mm .print-items-table {
+  min-width: 0;
+  font-size: 0.78rem;
+}
+
+.print-document.print-ticket-80mm .print-items-table th,
+.print-document.print-ticket-80mm .print-items-table td {
+  padding: 6px 4px;
+}
+
+.print-document.print-ticket-80mm .print-items-table th:first-child,
+.print-document.print-ticket-80mm .print-items-table td:first-child {
+  display: none;
+}
+
+.print-document.print-ticket-80mm .print-summary-note {
+  display: none;
+}
+
+.print-document.print-ticket-80mm .print-grand-total strong {
+  font-size: 1.3rem;
+}
+
 @media (max-width: 760px) {
   .print-document {
     padding: 20px;
@@ -510,6 +644,7 @@
   }
 
   .print-contact-grid,
+  .print-fiscal-grid,
   .print-customer-details {
     grid-template-columns: 1fr;
   }
@@ -556,6 +691,17 @@
     box-shadow: none;
   }
 
+  .print-document.print-a5 {
+    padding: 0;
+    font-size: 10px;
+  }
+
+  .print-document.print-ticket-80mm {
+    max-width: 80mm;
+    padding: 0;
+    font-size: 9px;
+  }
+
   .print-header {
     grid-template-columns: minmax(0, 1fr) 270px;
     gap: 20px;
@@ -589,6 +735,11 @@
   .print-contact-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     margin-top: 12px;
+  }
+
+  .print-fiscal-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-top: 10px;
   }
 
   .print-section {
@@ -643,5 +794,39 @@
     grid-template-columns: minmax(0, 1fr) minmax(180px, 0.75fr);
     margin-top: 20px;
     break-inside: avoid;
+  }
+
+  .print-document.print-a5 .print-header {
+    grid-template-columns: minmax(0, 1fr) 220px;
+    gap: 14px;
+  }
+
+  .print-document.print-a5 .print-brand h1 {
+    font-size: 1.85rem;
+  }
+
+  .print-document.print-a5 .print-items-table {
+    font-size: 0.8rem;
+  }
+
+  .print-document.print-ticket-80mm .print-header,
+  .print-document.print-ticket-80mm .print-brand,
+  .print-document.print-ticket-80mm .print-customer,
+  .print-document.print-ticket-80mm .print-summary,
+  .print-document.print-ticket-80mm .print-footer {
+    grid-template-columns: 1fr;
+  }
+
+  .print-document.print-ticket-80mm .print-contact-grid,
+  .print-document.print-ticket-80mm .print-fiscal-grid,
+  .print-document.print-ticket-80mm .print-customer-details {
+    grid-template-columns: 1fr;
+  }
+
+  .print-document.print-ticket-80mm .print-document-meta {
+    border-left: 0;
+    border-top: 1px solid #d4d4d8;
+    padding-top: 10px;
+    padding-left: 0;
   }
 }

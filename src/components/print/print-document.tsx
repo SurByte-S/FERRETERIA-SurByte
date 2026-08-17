@@ -1,4 +1,8 @@
 import { BrandLogo } from "@/components/brand/brand-logo";
+import type {
+  PrintInvoiceSettings,
+  PrintPaperSize,
+} from "@/lib/print/invoice-settings";
 
 export type PrintBusiness = {
   name: string;
@@ -44,6 +48,8 @@ export type PrintTotalRow = {
 
 type PrintDocumentProps = {
   business: PrintBusiness;
+  invoiceSettings?: PrintInvoiceSettings;
+  printPaperSize?: PrintPaperSize;
   document: PrintDocumentMeta;
   customer: PrintCustomer | null;
   items: PrintItem[];
@@ -60,6 +66,12 @@ function visibleText(value: string | null | undefined, fallback: string) {
   return cleanValue ? cleanValue : fallback;
 }
 
+function optionalText(value: string | null | undefined) {
+  const cleanValue = value?.trim();
+
+  return cleanValue ? cleanValue : null;
+}
+
 function DetailLine({ label, value }: { label: string; value?: string | null }) {
   return (
     <p>
@@ -69,15 +81,87 @@ function DetailLine({ label, value }: { label: string; value?: string | null }) 
   );
 }
 
+function FiscalLine({ label, value }: { label: string; value?: string | null }) {
+  const cleanValue = optionalText(value);
+
+  if (!cleanValue) {
+    return null;
+  }
+
+  return (
+    <p>
+      <span>{label}</span>
+      <strong>{cleanValue}</strong>
+    </p>
+  );
+}
+
+function formatFiscalDate(value: string | null | undefined) {
+  const cleanValue = optionalText(value);
+
+  if (!cleanValue) {
+    return null;
+  }
+
+  const date = new Date(`${cleanValue}T00:00:00`);
+
+  if (Number.isNaN(date.getTime())) {
+    return cleanValue;
+  }
+
+  return new Intl.DateTimeFormat("es-AR", {
+    dateStyle: "short",
+  }).format(date);
+}
+
+function PrintFiscalDetails({
+  invoiceSettings,
+}: {
+  invoiceSettings?: PrintInvoiceSettings;
+}) {
+  if (!invoiceSettings) {
+    return null;
+  }
+
+  const fiscalLines = [
+    { label: "Razon social", value: invoiceSettings.legalName },
+    { label: "CUIT", value: invoiceSettings.cuit },
+    { label: "Condicion IVA", value: invoiceSettings.ivaCondition },
+    { label: "Domicilio fiscal", value: invoiceSettings.fiscalAddress },
+    { label: "Punto de venta", value: invoiceSettings.salePoint },
+    { label: "Ingresos brutos", value: invoiceSettings.grossIncome },
+    {
+      label: "Inicio actividades",
+      value: formatFiscalDate(invoiceSettings.activityStartDate),
+    },
+  ].filter((line) => optionalText(line.value));
+
+  if (fiscalLines.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="print-fiscal-grid">
+      {fiscalLines.map((line) => (
+        <FiscalLine key={line.label} label={line.label} value={line.value} />
+      ))}
+    </div>
+  );
+}
+
 function PrintHeader({
   business,
+  invoiceSettings,
   document,
   badgeLabel,
 }: {
   business: PrintBusiness;
+  invoiceSettings?: PrintInvoiceSettings;
   document: PrintDocumentMeta;
   badgeLabel?: string | null;
 }) {
+  const hasFiscalSettings = Boolean(invoiceSettings);
+
   return (
     <header className="print-header">
       <div className="print-brand">
@@ -97,11 +181,16 @@ function PrintHeader({
           </p>
           <h1>{business.name}</h1>
           <div className="print-contact-grid">
-            <DetailLine label="Direccion" value={business.address} />
             <DetailLine label="Telefono / WhatsApp" value={business.phone} />
             <DetailLine label="Email" value={business.email} />
-            <DetailLine label="CUIT" value={business.taxId} />
+            {!hasFiscalSettings ? (
+              <>
+                <DetailLine label="Direccion" value={business.address} />
+                <DetailLine label="CUIT" value={business.taxId} />
+              </>
+            ) : null}
           </div>
+          <PrintFiscalDetails invoiceSettings={invoiceSettings} />
         </div>
       </div>
 
@@ -252,11 +341,15 @@ function PrintFooter({
   business,
   note,
   footerMessage,
+  invoiceSettings,
 }: {
   business: PrintBusiness;
   note: string;
   footerMessage: string;
+  invoiceSettings?: PrintInvoiceSettings;
 }) {
+  const footerText =
+    optionalText(invoiceSettings?.invoiceFooterText) ?? footerMessage;
   const contact = [
     business.phone ? `Tel. ${business.phone}` : null,
     business.email ?? null,
@@ -268,7 +361,7 @@ function PrintFooter({
   return (
     <footer className="print-footer">
       <div>
-        <strong>{footerMessage}</strong>
+        <strong>{footerText}</strong>
         <p>{note}</p>
         <p>Comprobante interno no valido como factura fiscal.</p>
       </div>
@@ -279,6 +372,8 @@ function PrintFooter({
 
 export function PrintDocument({
   business,
+  invoiceSettings,
+  printPaperSize = "a4",
   document,
   customer,
   items,
@@ -289,10 +384,18 @@ export function PrintDocument({
   note,
   footerMessage,
 }: PrintDocumentProps) {
+  const printSizeClass =
+    printPaperSize === "ticket_80mm"
+      ? "print-ticket-80mm"
+      : printPaperSize === "a5"
+        ? "print-a5"
+        : "print-a4";
+
   return (
-    <article className="print-document">
+    <article className={`print-document ${printSizeClass}`}>
       <PrintHeader
         business={business}
+        invoiceSettings={invoiceSettings}
         document={document}
         badgeLabel={badgeLabel}
       />
@@ -305,6 +408,7 @@ export function PrintDocument({
       />
       <PrintFooter
         business={business}
+        invoiceSettings={invoiceSettings}
         note={note}
         footerMessage={footerMessage}
       />

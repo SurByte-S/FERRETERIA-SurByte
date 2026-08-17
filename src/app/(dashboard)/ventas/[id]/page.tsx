@@ -8,6 +8,12 @@ import {
 import { PageHeader } from "@/components/shell/page-header";
 import { PrintSaleButton } from "@/components/ventas/sale-actions";
 import { ferreteriaGuemesBrand } from "@/lib/brand/ferreteria-guemes";
+import {
+  buildPrintInvoiceSettings,
+  type PrintInvoiceSettings,
+  type PrintTenantBusinessDetails,
+  type TenantInvoiceSettingsRow,
+} from "@/lib/print/invoice-settings";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { requireTenant } from "@/lib/tenant";
 
@@ -37,7 +43,7 @@ type SaleRow = {
   } | null;
 };
 
-type TenantBusinessRow = {
+type TenantBusinessRow = PrintTenantBusinessDetails & {
   name: string;
   slug: string;
   business_name: string | null;
@@ -72,14 +78,21 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
-function buildBusiness(tenantDetails: TenantBusinessRow | null): PrintBusiness {
+function buildBusiness(
+  tenantDetails: TenantBusinessRow | null,
+  printInvoiceSettings: PrintInvoiceSettings
+): PrintBusiness {
   return {
-    name: ferreteriaGuemesBrand.brandName,
+    name:
+      printInvoiceSettings.legalName ??
+      tenantDetails?.business_name ??
+      tenantDetails?.name ??
+      ferreteriaGuemesBrand.brandName,
     subtitle: ferreteriaGuemesBrand.slogan,
-    address: tenantDetails?.address ?? ferreteriaGuemesBrand.address,
+    address: printInvoiceSettings.fiscalAddress ?? ferreteriaGuemesBrand.address,
     phone: tenantDetails?.phone ?? ferreteriaGuemesBrand.phone,
     email: tenantDetails?.email ?? ferreteriaGuemesBrand.email,
-    taxId: tenantDetails?.tax_id ?? ferreteriaGuemesBrand.taxId,
+    taxId: printInvoiceSettings.cuit ?? ferreteriaGuemesBrand.taxId,
     logoUrl: tenantDetails?.logo_url ?? ferreteriaGuemesBrand.logoPath,
   };
 }
@@ -88,27 +101,35 @@ export default async function SaleDetailPage({ params }: SalePageProps) {
   const { id } = await params;
   const tenant = await requireTenant();
   const supabase = getSupabaseServerClient();
-  const [saleResult, itemsResult, tenantResult] = await Promise.all([
-    supabase
-      .from("sales")
-      .select(
-        "id,sale_number,subtotal,discount_amount,tax_amount,total,paid_amount,payment_method,cash_session_id,created_at,customers(name,phone,email,address),cash_register_sessions(opened_at)"
-      )
-      .eq("tenant_id", tenant.id)
-      .eq("id", id)
-      .maybeSingle(),
-    supabase
-      .from("sale_items")
-      .select("sku,name,quantity,sale_unit_name,unit_price,total")
-      .eq("tenant_id", tenant.id)
-      .eq("sale_id", id)
-      .order("name"),
-    supabase
-      .from("tenants")
-      .select("name,slug,business_name,tax_id,phone,email,address,logo_url")
-      .eq("id", tenant.id)
-      .maybeSingle(),
-  ]);
+  const [saleResult, itemsResult, tenantResult, invoiceSettingsResult] =
+    await Promise.all([
+      supabase
+        .from("sales")
+        .select(
+          "id,sale_number,subtotal,discount_amount,tax_amount,total,paid_amount,payment_method,cash_session_id,created_at,customers(name,phone,email,address),cash_register_sessions(opened_at)"
+        )
+        .eq("tenant_id", tenant.id)
+        .eq("id", id)
+        .maybeSingle(),
+      supabase
+        .from("sale_items")
+        .select("sku,name,quantity,sale_unit_name,unit_price,total")
+        .eq("tenant_id", tenant.id)
+        .eq("sale_id", id)
+        .order("name"),
+      supabase
+        .from("tenants")
+        .select("name,slug,business_name,tax_id,phone,email,address,logo_url")
+        .eq("id", tenant.id)
+        .maybeSingle(),
+      supabase
+        .from("tenant_invoice_settings")
+        .select(
+          "legal_name,cuit,iva_condition,fiscal_address,sale_point,gross_income,activity_start_date,invoice_footer_text,print_paper_size"
+        )
+        .eq("tenant_id", tenant.id)
+        .maybeSingle(),
+    ]);
 
   if (saleResult.error || !saleResult.data) {
     notFound();
@@ -117,6 +138,13 @@ export default async function SaleDetailPage({ params }: SalePageProps) {
   const sale = saleResult.data as unknown as SaleRow;
   const items = (itemsResult.data ?? []) as unknown as SaleItemRow[];
   const tenantDetails = tenantResult.data as TenantBusinessRow | null;
+  const invoiceSettings = invoiceSettingsResult.error
+    ? null
+    : (invoiceSettingsResult.data as TenantInvoiceSettingsRow | null);
+  const printInvoiceSettings = buildPrintInvoiceSettings(
+    tenantDetails,
+    invoiceSettings
+  );
   const pendingAmount = Math.max(sale.total - sale.paid_amount, 0);
   const isAccountSale = sale.payment_method === "Cuenta corriente";
   const totalRows: PrintTotalRow[] = [
@@ -162,7 +190,9 @@ export default async function SaleDetailPage({ params }: SalePageProps) {
 
       <div className="grid gap-6">
         <PrintDocument
-          business={buildBusiness(tenantDetails)}
+          business={buildBusiness(tenantDetails, printInvoiceSettings)}
+          invoiceSettings={printInvoiceSettings}
+          printPaperSize={printInvoiceSettings.printPaperSize}
           document={{
             typeLabel: "Comprobante de venta",
             numberLabel: `#${sale.sale_number}`,

@@ -15,6 +15,12 @@ import {
 import { PageHeader } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
 import { ferreteriaGuemesBrand } from "@/lib/brand/ferreteria-guemes";
+import {
+  buildPrintInvoiceSettings,
+  type PrintInvoiceSettings,
+  type PrintTenantBusinessDetails,
+  type TenantInvoiceSettingsRow,
+} from "@/lib/print/invoice-settings";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { requireTenant } from "@/lib/tenant";
 
@@ -43,7 +49,7 @@ type CustomerOption = {
   name: string;
 };
 
-type TenantBusinessRow = {
+type TenantBusinessRow = PrintTenantBusinessDetails & {
   name: string;
   slug: string;
   business_name: string | null;
@@ -93,14 +99,21 @@ function statusLabel(status: string) {
   return labels[status] ?? status;
 }
 
-function buildBusiness(tenantDetails: TenantBusinessRow | null): PrintBusiness {
+function buildBusiness(
+  tenantDetails: TenantBusinessRow | null,
+  printInvoiceSettings: PrintInvoiceSettings
+): PrintBusiness {
   return {
-    name: ferreteriaGuemesBrand.brandName,
+    name:
+      printInvoiceSettings.legalName ??
+      tenantDetails?.business_name ??
+      tenantDetails?.name ??
+      ferreteriaGuemesBrand.brandName,
     subtitle: ferreteriaGuemesBrand.slogan,
-    address: tenantDetails?.address ?? ferreteriaGuemesBrand.address,
+    address: printInvoiceSettings.fiscalAddress ?? ferreteriaGuemesBrand.address,
     phone: tenantDetails?.phone ?? ferreteriaGuemesBrand.phone,
     email: tenantDetails?.email ?? ferreteriaGuemesBrand.email,
-    taxId: tenantDetails?.tax_id ?? ferreteriaGuemesBrand.taxId,
+    taxId: printInvoiceSettings.cuit ?? ferreteriaGuemesBrand.taxId,
     logoUrl: tenantDetails?.logo_url ?? ferreteriaGuemesBrand.logoPath,
   };
 }
@@ -109,7 +122,13 @@ export default async function QuoteDetailPage({ params }: QuotePageProps) {
   const { id } = await params;
   const tenant = await requireTenant();
   const supabase = getSupabaseServerClient();
-  const [quoteResult, itemsResult, customersResult, tenantResult] =
+  const [
+    quoteResult,
+    itemsResult,
+    customersResult,
+    tenantResult,
+    invoiceSettingsResult,
+  ] =
     await Promise.all([
       supabase
         .from("quotes")
@@ -138,6 +157,13 @@ export default async function QuoteDetailPage({ params }: QuotePageProps) {
         .select("name,slug,business_name,tax_id,phone,email,address,logo_url")
         .eq("id", tenant.id)
         .maybeSingle(),
+      supabase
+        .from("tenant_invoice_settings")
+        .select(
+          "legal_name,cuit,iva_condition,fiscal_address,sale_point,gross_income,activity_start_date,invoice_footer_text,print_paper_size"
+        )
+        .eq("tenant_id", tenant.id)
+        .maybeSingle(),
     ]);
 
   if (quoteResult.error || !quoteResult.data) {
@@ -148,6 +174,13 @@ export default async function QuoteDetailPage({ params }: QuotePageProps) {
   const items = (itemsResult.data ?? []) as unknown as QuoteItemRow[];
   const customers = (customersResult.data ?? []) as unknown as CustomerOption[];
   const tenantDetails = tenantResult.data as TenantBusinessRow | null;
+  const invoiceSettings = invoiceSettingsResult.error
+    ? null
+    : (invoiceSettingsResult.data as TenantInvoiceSettingsRow | null);
+  const printInvoiceSettings = buildPrintInvoiceSettings(
+    tenantDetails,
+    invoiceSettings
+  );
   const totalRows: PrintTotalRow[] = [
     {
       label: "Subtotal",
@@ -219,7 +252,9 @@ export default async function QuoteDetailPage({ params }: QuotePageProps) {
         ) : null}
 
         <PrintDocument
-          business={buildBusiness(tenantDetails)}
+          business={buildBusiness(tenantDetails, printInvoiceSettings)}
+          invoiceSettings={printInvoiceSettings}
+          printPaperSize={printInvoiceSettings.printPaperSize}
           document={{
             typeLabel: "Presupuesto",
             numberLabel: `#${quote.quote_number}`,
