@@ -118,6 +118,12 @@ const EPSILON = 0.000001;
 const CASH_REGISTER_CLOSED_MESSAGE =
   "Caja cerrada. AbrÃ­ caja antes de registrar ventas.";
 
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value
+  );
+}
+
 async function syncSelectedSaleUnitPrices({
   lines,
   tenantId,
@@ -849,6 +855,18 @@ function getSaveQuoteErrorMessage(message?: string) {
     return "No se encontro la ferreteria configurada.";
   }
 
+  if (message.includes("TENANT_FORBIDDEN")) {
+    return FORBIDDEN_ACTION_MESSAGE;
+  }
+
+  if (message.includes("QUOTE_NOT_FOUND")) {
+    return "No se encontro el presupuesto para esta ferreteria.";
+  }
+
+  if (message.includes("QUOTE_NOT_EDITABLE")) {
+    return "No se puede actualizar este presupuesto porque ya fue convertido o cancelado.";
+  }
+
   if (message.includes("QUOTE_WITHOUT_ITEMS")) {
     return "Agrega al menos un producto antes de guardar.";
   }
@@ -1366,6 +1384,88 @@ export async function saveQuoteAction({
     return {
       ok: false,
       message: "No se pudo guardar el presupuesto. Intenta nuevamente.",
+    };
+  }
+}
+
+export async function updateQuoteAction({
+  customer,
+  lines,
+  quoteId,
+}: {
+  customer: QuoteCustomer;
+  lines: QuoteLine[];
+  quoteId: string;
+}): Promise<SaveQuoteResult> {
+  const cleanQuoteId = quoteId.trim();
+  const cleanLines = lines.filter((line) => line.quantity > 0);
+
+  if (!isUuid(cleanQuoteId)) {
+    return {
+      ok: false,
+      message: "No se encontro el presupuesto para actualizar.",
+    };
+  }
+
+  if (cleanLines.length === 0) {
+    return {
+      ok: false,
+      message: "Agrega al menos un producto antes de guardar.",
+    };
+  }
+
+  try {
+    const [tenant, user] = await Promise.all([
+      requireTenantRole(["owner", "admin", "seller"]),
+      requireUser(),
+    ]);
+    const supabase = getSupabaseServerClient();
+    await syncSelectedSaleUnitPrices({ lines: cleanLines, tenantId: tenant.id });
+    const { data, error } = await supabase.rpc("update_quote_with_items", {
+      input_quote_id: cleanQuoteId,
+      input_tenant_id: tenant.id,
+      input_updated_by: user.id,
+      input_customer_id: customer.id?.trim() || null,
+      input_customer_name: customer.name.trim() || null,
+      input_customer_phone: customer.phone.trim() || null,
+      input_customer_email: customer.email.trim() || null,
+      input_customer_address: customer.address.trim() || null,
+      input_items: cleanLines.map((line) => ({
+        product_id: line.id,
+        sku: line.sku,
+        sale_unit_id: line.selectedSaleUnitId || null,
+        quantity: line.quantity,
+      })),
+      input_notes: "Presupuesto actualizado desde mostrador",
+    });
+
+    if (error || !data) {
+      return {
+        ok: false,
+        message: getSaveQuoteErrorMessage(error?.message),
+      };
+    }
+
+    revalidatePath("/presupuestos");
+    revalidatePath(`/presupuestos/${cleanQuoteId}`);
+    revalidatePath("/inicio");
+
+    return {
+      ok: true,
+      message: "Presupuesto actualizado.",
+      quoteId: cleanQuoteId,
+    };
+  } catch (error) {
+    if (isTenantRoleForbiddenError(error)) {
+      return {
+        ok: false,
+        message: FORBIDDEN_ACTION_MESSAGE,
+      };
+    }
+
+    return {
+      ok: false,
+      message: "No se pudo actualizar el presupuesto. Intenta nuevamente.",
     };
   }
 }

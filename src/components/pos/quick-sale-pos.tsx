@@ -17,6 +17,7 @@ import {
   saveQuoteAction,
   saveQuoteAndConvertToSaleAction,
   searchProductsForPosAction,
+  updateQuoteAction,
 } from "@/app/(dashboard)/presupuestos/nuevo/actions";
 import type {
   QuoteCustomer,
@@ -855,6 +856,37 @@ export function QuickSalePos({
   }
 
   function saveQuote() {
+    if (initialQuoteId) {
+      updateQuote();
+      return;
+    }
+
+    saveQuoteAsNew();
+  }
+
+  function updateQuote() {
+    if (!initialQuoteId) {
+      return;
+    }
+
+    setMessage("");
+    startTransition(async () => {
+      const result = await updateQuoteAction({
+        customer,
+        lines,
+        quoteId: initialQuoteId,
+      });
+
+      if (result.ok && result.quoteId) {
+        router.push(`/presupuestos/${result.quoteId}`);
+        return;
+      }
+
+      setMessage(result.message);
+    });
+  }
+
+  function saveQuoteAsNew() {
     setMessage("");
     startTransition(async () => {
       const result = await saveQuoteAction({ customer, lines });
@@ -982,7 +1014,7 @@ export function QuickSalePos({
                 Editando presupuesto {editingQuoteNumber ? `#${editingQuoteNumber}` : ""}
               </p>
               <p className="text-sm font-semibold text-foreground">
-                Al guardar se creara un nuevo presupuesto basado en este.
+                Podes actualizar este presupuesto o guardarlo como uno nuevo.
               </p>
             </div>
           ) : null}
@@ -1200,16 +1232,38 @@ export function QuickSalePos({
                 </div>
 
                 {isQuoteMode ? (
-                  <Button
-                    type="button"
-                    onClick={saveQuote}
-                    disabled={isPending || lines.length === 0}
-                    className="h-12 w-full px-4 text-base font-black"
-                  >
-                    {isEditingQuote
-                      ? "Guardar como nuevo presupuesto"
-                      : "Guardar presupuesto"}
-                  </Button>
+                  <div className="grid gap-2">
+                    <Button
+                      type="button"
+                      onClick={saveQuote}
+                      disabled={isPending || lines.length === 0}
+                      className="h-12 w-full px-4 text-base font-black"
+                    >
+                      {isEditingQuote
+                        ? "Actualizar presupuesto"
+                        : "Guardar presupuesto"}
+                    </Button>
+                    {isEditingQuote ? (
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={saveQuoteAsNew}
+                          disabled={isPending || lines.length === 0}
+                          className="h-11 w-full px-3 text-sm font-black"
+                        >
+                          Guardar como nuevo presupuesto
+                        </Button>
+                        <Button
+                          asChild
+                          variant="outline"
+                          className="h-11 w-full px-3 text-sm font-black"
+                        >
+                          <Link href="/presupuestos">Cancelar edicion</Link>
+                        </Button>
+                      </div>
+                    ) : null}
+                  </div>
                 ) : (
                   <Button
                     type="button"
