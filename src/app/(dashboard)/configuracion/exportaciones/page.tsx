@@ -1,45 +1,30 @@
 import Link from "next/link";
-import { Download, FileText, Package, Users } from "lucide-react";
+import { Download } from "lucide-react";
 
 import { requireConfigurationTenant } from "../access";
 import { PageHeader } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 
 const exportSections = [
   {
-    title: "Stock",
-    description: "Listado de productos activos, precios y cantidades.",
+    title: "Stock completo",
+    description: "Productos activos, códigos y precios.",
     href: "/api/export/stock?format=pdf",
-    actionLabel: "Descargar stock",
-    icon: Package,
   },
   {
     title: "Clientes",
-    description: "Listado de clientes con datos de contacto.",
+    description: "Listado de clientes registrados.",
     href: "/api/export/clientes?format=pdf",
-    actionLabel: "Descargar clientes",
-    icon: Users,
   },
   {
     title: "Ventas de hoy",
-    description: "Resumen y detalle de ventas registradas hoy.",
+    description: "Ventas registradas durante el día.",
     href: "/api/export/ventas?period=today&format=pdf",
-    actionLabel: "Descargar ventas de hoy",
-    icon: FileText,
   },
   {
     title: "Ventas del mes",
-    description: "Resumen y detalle de ventas del mes actual.",
+    description: "Ventas registradas durante el mes.",
     href: "/api/export/ventas?period=month&format=pdf",
-    actionLabel: "Descargar ventas del mes",
-    icon: FileText,
   },
 ] as const;
 
@@ -50,41 +35,56 @@ export default async function ConfiguracionExportacionesPage() {
     <>
       <PageHeader
         title="Exportaciones"
-        description="Descargas administrativas en PDF."
+        description="Listado de reportes disponibles."
         backHref="/configuracion"
         backLabel="Volver a Configuracion"
       />
 
       <section
         aria-label="Exportaciones disponibles"
-        className="grid max-w-5xl gap-4 pb-6 md:grid-cols-2 xl:grid-cols-4"
+        className="max-w-5xl overflow-hidden rounded-md border border-border bg-card shadow-sm"
       >
-        {exportSections.map((section) => {
-          const Icon = section.icon;
-
-          return (
-            <Card key={section.href} className="flex min-h-[220px] flex-col">
-              <CardHeader>
-                <div className="mb-2 flex size-12 items-center justify-center rounded-md bg-secondary text-primary">
-                  <Icon className="size-6" aria-hidden="true" />
-                </div>
-                <CardTitle>{section.title}</CardTitle>
-                <CardDescription>{section.description}</CardDescription>
-              </CardHeader>
-              <CardContent className="mt-auto">
+        <div className="hidden grid-cols-[minmax(160px,220px)_minmax(0,1fr)_180px] border-b border-border bg-secondary px-4 py-3 text-sm font-bold uppercase tracking-normal text-muted-foreground md:grid">
+          <span>Reporte</span>
+          <span>Detalle</span>
+          <span className="text-right">Acción</span>
+        </div>
+        <div className="divide-y divide-border">
+          {exportSections.map((section) => (
+            <div
+              key={section.href}
+              className="grid gap-3 px-4 py-4 md:grid-cols-[minmax(160px,220px)_minmax(0,1fr)_180px] md:items-center"
+            >
+              <div>
+                <p className="text-xs font-bold uppercase text-muted-foreground md:hidden">
+                  Reporte
+                </p>
+                <p className="text-base font-bold text-foreground">
+                  {section.title}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase text-muted-foreground md:hidden">
+                  Detalle
+                </p>
+                <p className="text-base font-semibold text-muted-foreground">
+                  {section.description}
+                </p>
+              </div>
+              <div className="md:flex md:justify-end">
                 <Button
                   asChild
-                  className="h-14 w-full justify-center gap-2 px-4 text-base font-semibold"
+                  className="h-12 w-full justify-center gap-2 px-4 text-base font-semibold md:w-auto"
                 >
                   <Link href={section.href}>
                     <Download className="size-5" aria-hidden="true" />
-                    {section.actionLabel}
+                    Descargar PDF
                   </Link>
                 </Button>
-              </CardContent>
-            </Card>
-          );
-        })}
+              </div>
+            </div>
+          ))}
+        </div>
       </section>
     </>
   );
