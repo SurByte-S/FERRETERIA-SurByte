@@ -26,6 +26,10 @@ tmp-*.png
 .DS_Store
 *.pem
 
+# Manual import/export data
+/data/imports/**/*.csv
+/productos_*.csv
+
 # debug
 npm-debug.log*
 yarn-debug.log*
