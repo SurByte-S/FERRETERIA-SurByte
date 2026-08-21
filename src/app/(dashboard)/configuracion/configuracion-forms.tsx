@@ -75,9 +75,6 @@ export function BusinessForm({ tenant }: { tenant: TenantBusinessConfig }) {
           <IconBox icon={Store} />
           <div className="min-w-0">
             <CardTitle>Datos del negocio</CardTitle>
-            <CardDescription>
-              Nombre, contacto y datos visibles de la ferreteria.
-            </CardDescription>
           </div>
         </div>
       </CardHeader>

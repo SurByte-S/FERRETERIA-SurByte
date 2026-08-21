@@ -1,12 +1,9 @@
-import Link from "next/link";
-
 import { requireConfigurationTenant } from "../access";
 import {
   BusinessForm,
   type TenantBusinessConfig,
 } from "../configuracion-forms";
 import { PageHeader } from "@/components/shell/page-header";
-import { Button } from "@/components/ui/button";
 import { getSupabaseServerClient } from "@/lib/supabase";
 
 type TenantBusinessRow = {
@@ -28,17 +25,12 @@ export default async function ConfiguracionDatosPage() {
     <>
       <PageHeader
         title="Datos del negocio"
-        description="Nombre, contacto y datos visibles de la ferreteria."
+        eyebrow=""
         backHref="/configuracion"
         backLabel="Volver a Configuracion"
       />
 
       <div className="grid max-w-4xl gap-4 pb-6">
-        <div>
-          <Button asChild variant="outline" className="h-11 gap-2 px-4 text-base">
-            <Link href="/configuracion">Volver a Configuracion</Link>
-          </Button>
-        </div>
         <BusinessForm tenant={business} />
       </div>
     </>
