@@ -1,7 +1,6 @@
-import { AlertTriangle, Search } from "lucide-react";
+import { AlertTriangle, Search, SlidersHorizontal } from "lucide-react";
 import Link from "next/link";
 
-import { ExportMenuButton } from "@/components/common/export-menu-button";
 import { BarcodeStockPanel } from "@/components/productos/barcode-stock-panel";
 import { StockAdjustDetails } from "@/components/productos/stock-adjust-details";
 import { StockSearchScrollAnchor } from "@/components/productos/stock-search-scroll-anchor";
@@ -40,6 +39,7 @@ type StockPageProps = {
     conStock?: string | string[];
     filtro?: string | string[];
     q?: string;
+    showFilters?: string | string[];
     sinStock?: string | string[];
   }>;
 };
@@ -227,9 +227,11 @@ function stockStatus(product: ProductListItem) {
 function buildStockHref({
   filter,
   q,
+  showFilters = false,
 }: {
   filter: StockFilter;
   q: string;
+  showFilters?: boolean;
 }) {
   const params = new URLSearchParams();
 
@@ -241,6 +243,10 @@ function buildStockHref({
     params.set("filtro", filter);
   } else if (q) {
     params.set("filtro", filter);
+  }
+
+  if (showFilters) {
+    params.set("showFilters", "1");
   }
 
   const query = params.toString();
@@ -278,12 +284,29 @@ function hasExplicitStockFilter(params: Awaited<StockPageProps["searchParams"]>)
   );
 }
 
+function hasActiveStockFilters(
+  params: Awaited<StockPageProps["searchParams"]>,
+  q: string
+) {
+  const rawFilter = lastParam(params.filtro);
+
+  return Boolean(
+    q ||
+      lastParam(params.sinStock) ||
+      lastParam(params.conStock) ||
+      (rawFilter && rawFilter !== "con-stock")
+  );
+}
+
 export default async function StockPage({ searchParams }: StockPageProps) {
   const params = await searchParams;
   const q = (params.q ?? "").trim();
   const requestedFilter = parseStockFilter(params);
   const explicitFilter = hasExplicitStockFilter(params);
   const filter = q && !explicitFilter ? "todos" : requestedFilter;
+  const filtersActive = hasActiveStockFilters(params, q);
+  const showFilters = lastParam(params.showFilters) === "1";
+  const filtersPanelOpen = showFilters || filtersActive;
   const result = await loadStockProducts({ q, filter });
 
   return (
@@ -292,14 +315,46 @@ export default async function StockPage({ searchParams }: StockPageProps) {
         <div className="grid w-full max-w-none gap-4 pb-6 xl:gap-5">
           <Card>
             <CardContent className="grid gap-4">
-              <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-                <form
-                  className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end"
-                  action="/stock"
+              <div
+                className={
+                  result.canAdjustStock
+                    ? "grid gap-3 sm:grid-cols-2 lg:max-w-xl"
+                    : "grid gap-3 sm:max-w-[180px]"
+                }
+              >
+                {result.canAdjustStock ? (
+                  <BarcodeStockPanel
+                    brands={result.brands}
+                    canCreate={result.canCreateProduct}
+                    canEditPrice={result.canEditPrice}
+                    suppliers={result.suppliers}
+                    triggerClassName="h-14 w-full justify-center px-6 text-base font-semibold xl:text-lg"
+                    triggerLabel="Agregar producto"
+                  />
+                ) : null}
+                <Button
+                  asChild
+                  variant={filtersPanelOpen ? "default" : "outline"}
+                  className="h-14 w-full min-w-[180px] justify-center gap-2 px-6 text-base font-semibold xl:text-lg"
                 >
-                  {filter !== "con-stock" || q ? (
-                    <input type="hidden" name="filtro" value={filter} />
-                  ) : null}
+                  <Link
+                    href={
+                      filtersPanelOpen && !filtersActive
+                        ? "/stock"
+                        : buildStockHref({ filter, q, showFilters: true })
+                    }
+                  >
+                    <SlidersHorizontal className="size-5" aria-hidden="true" />
+                    {filtersActive ? "Filtros activos" : "Filtros"}
+                  </Link>
+                </Button>
+              </div>
+              {filtersPanelOpen ? (
+                <form
+                  action="/stock"
+                  className="grid gap-4 rounded-lg border border-border bg-muted/30 p-3 md:grid-cols-[minmax(0,1fr)_minmax(180px,240px)] md:items-end xl:p-4"
+                  method="get"
+                >
                   <label className="grid gap-2 text-base font-semibold">
                     <span>Producto</span>
                     <div className="relative">
@@ -307,34 +362,43 @@ export default async function StockPage({ searchParams }: StockPageProps) {
                       <input
                         name="q"
                         defaultValue={q}
-                        placeholder="Buscar por codigo o nombre"
-                        className="h-12 w-full rounded-lg border border-input bg-background pl-11 pr-3 text-base xl:h-14 xl:pl-12 xl:pr-4 xl:text-lg"
+                        placeholder="Buscar por producto, codigo propio o codigo de barras"
+                        className="h-14 w-full rounded-lg border border-input bg-background pl-11 pr-3 text-base xl:pl-12 xl:pr-4 xl:text-lg"
                       />
                     </div>
                   </label>
-                  <Button
-                    type="submit"
-                    className="h-12 gap-2 px-5 text-base xl:h-14 xl:px-6 xl:text-lg"
-                  >
-                    <Search className="size-6" aria-hidden="true" />
-                    Buscar
-                  </Button>
+                  <label className="grid gap-2 text-base font-semibold">
+                    <span>Estado</span>
+                    <select
+                      className="h-14 rounded-lg border border-input bg-background px-3 text-base font-semibold xl:text-lg"
+                      defaultValue={filter}
+                      name="filtro"
+                    >
+                      {stockFilters.map((item) => (
+                        <option key={item.value} value={item.value}>
+                          {item.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <div className="grid gap-2 sm:grid-cols-2 md:col-span-2 md:flex md:flex-wrap">
+                    <Button
+                      type="submit"
+                      className="h-12 justify-center gap-2 px-5 text-base font-semibold"
+                    >
+                      <Search className="size-5" aria-hidden="true" />
+                      Aplicar filtros
+                    </Button>
+                    <Button
+                      asChild
+                      variant="outline"
+                      className="h-12 justify-center px-5 text-base font-semibold"
+                    >
+                      <Link href="/stock">Limpiar filtros</Link>
+                    </Button>
+                  </div>
                 </form>
-                <div className="flex flex-wrap items-end gap-2">
-                  {result.canAdjustStock ? (
-                    <BarcodeStockPanel
-                      brands={result.brands}
-                      canCreate={result.canCreateProduct}
-                      canEditPrice={result.canEditPrice}
-                      suppliers={result.suppliers}
-                    />
-                  ) : null}
-                  <ExportMenuButton
-                    csvHref="/api/export/stock?format=csv"
-                    pdfHref="/api/export/stock?format=pdf"
-                  />
-                </div>
-              </div>
+              ) : null}
               {q && !explicitFilter ? (
                 <p className="rounded-lg border border-primary/30 bg-card p-3 text-sm font-semibold text-foreground">
                   Buscando en todos los productos porque hay una busqueda activa.
@@ -342,20 +406,6 @@ export default async function StockPage({ searchParams }: StockPageProps) {
               ) : null}
               {result.notice ? <StockNotice notice={result.notice} /> : null}
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap gap-2">
-                  {stockFilters.map((item) => (
-                    <Button
-                      key={item.value}
-                      asChild
-                      variant={filter === item.value ? "default" : "outline"}
-                      className="h-10 px-3 text-sm xl:h-11 xl:px-4 xl:text-base"
-                    >
-                      <Link href={buildStockHref({ q, filter: item.value })}>
-                        {item.label}
-                      </Link>
-                    </Button>
-                  ))}
-                </div>
                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm font-semibold text-muted-foreground xl:text-base">
                   <span>Productos encontrados: {result.products.length}</span>
                   <span>Productos sin stock: {result.outOfStockCount}</span>

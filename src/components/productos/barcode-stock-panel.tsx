@@ -18,6 +18,7 @@ import {
   getBarcodeAssociationState,
   normalizeProductCode,
 } from "@/lib/product-code";
+import { cn } from "@/lib/utils";
 import type { ProductListItem } from "./product-types";
 import { StockAdjustDetails } from "./stock-adjust-details";
 
@@ -58,11 +59,15 @@ export function BarcodeStockPanel({
   canCreate,
   canEditPrice,
   suppliers,
+  triggerClassName,
+  triggerLabel = "Buscar o agregar producto",
 }: {
   brands: CatalogOption[];
   canCreate: boolean;
   canEditPrice: boolean;
   suppliers: CatalogOption[];
+  triggerClassName?: string;
+  triggerLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [code, setCode] = useState("");
@@ -189,10 +194,13 @@ export function BarcodeStockPanel({
           setOpen(true);
         }}
         variant="outline"
-        className="h-12 gap-2 px-4 text-base xl:h-14 xl:px-6 xl:text-lg"
+        className={cn(
+          "h-12 gap-2 px-4 text-base xl:h-14 xl:px-6 xl:text-lg",
+          triggerClassName
+        )}
       >
         <Barcode className="size-5" aria-hidden="true" />
-        Buscar o agregar producto
+        {triggerLabel}
       </Button>
 
       {open ? (
