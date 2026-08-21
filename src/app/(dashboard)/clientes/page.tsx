@@ -9,7 +9,6 @@ import {
   Users,
 } from "lucide-react";
 
-import { ExportMenuButton } from "@/components/common/export-menu-button";
 import { PageHeader } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
 import {
@@ -443,13 +442,10 @@ export default async function ClientesPage({ searchParams }: ClientesPageProps) 
 
   return (
     <>
-      <PageHeader
-        title="Clientes"
-        description="Consulta clientes, datos de contacto y deuda actual."
-      />
+      <PageHeader title="Clientes" eyebrow="" />
 
       <section className="rounded-md border-2 border-border bg-secondary p-3 shadow-sm sm:p-4">
-      <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:max-w-xl">
+      <div className="mb-5 grid gap-3 sm:max-w-[280px]">
         <Button
           asChild
           className="h-14 w-full justify-center gap-2 px-6 text-lg font-semibold shadow-sm"
@@ -459,13 +455,6 @@ export default async function ClientesPage({ searchParams }: ClientesPageProps) 
             Nuevo cliente
           </Link>
         </Button>
-        <ExportMenuButton
-          label="Exportar Excel/CSV"
-          csvHref="/api/export/clientes?format=csv"
-          pdfHref="/api/export/clientes?format=pdf"
-          className="h-14 w-full justify-center px-6 text-lg font-semibold"
-          wrapperClassName="w-full"
-        />
       </div>
 
       <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

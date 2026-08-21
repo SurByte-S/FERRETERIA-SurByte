@@ -61,10 +61,7 @@ export default async function ConfiguracionPage() {
 
   return (
     <>
-      <PageHeader
-        title="Configuracion"
-        description="Administra los datos principales de tu ferreteria."
-      />
+      <PageHeader title="Configuracion" eyebrow="" />
 
       <section
         aria-label="Opciones de configuracion"

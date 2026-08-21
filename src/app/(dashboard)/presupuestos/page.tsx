@@ -129,7 +129,6 @@ export default async function PresupuestosPage({
     <>
       <PageHeader
         title="Historial"
-        description="Consulta ventas y presupuestos guardados."
         eyebrow=""
       />
 

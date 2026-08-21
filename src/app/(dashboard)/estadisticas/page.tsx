@@ -1,6 +1,5 @@
 import Link from "next/link";
 
-import { ExportMenuButton } from "@/components/common/export-menu-button";
 import { PageHeader } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,17 +49,7 @@ export default async function EstadisticasPage() {
 
   return (
     <>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <PageHeader
-          title="Estadísticas"
-          description="Resumen de ventas, cobros y movimientos del negocio."
-          eyebrow=""
-        />
-        <ExportMenuButton
-          csvHref="/api/export/estadisticas?format=csv"
-          pdfHref="/api/export/estadisticas?format=pdf"
-        />
-      </div>
+      <PageHeader title="Estadísticas" eyebrow="" />
 
       {salesResult.error ? (
         <Card className="border-destructive/40">
