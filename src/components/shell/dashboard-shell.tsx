@@ -8,15 +8,24 @@ import { Button } from "@/components/ui/button";
 import { ferreteriaGuemesBrand } from "@/lib/brand/ferreteria-guemes";
 import type { TenantRole } from "@/lib/tenant";
 
+type TenantBrand = {
+  logoUrl: string | null;
+  name: string;
+};
+
 export function DashboardShell({
   children,
+  tenantBrand,
   tenantRole,
   userEmail,
 }: {
   children: React.ReactNode;
+  tenantBrand?: TenantBrand;
   tenantRole: TenantRole;
   userEmail?: string;
 }) {
+  const brandName = tenantBrand?.name || ferreteriaGuemesBrand.brandName;
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="grid min-h-screen">
@@ -27,10 +36,15 @@ export function DashboardShell({
                 href="/inicio"
                 className="flex min-w-0 items-center gap-2 rounded-md px-1 py-0.5 transition-colors hover:bg-secondary"
               >
-                <BrandLogo size="small" showText={false} />
+                <BrandLogo
+                  brandName={brandName}
+                  logoUrl={tenantBrand?.logoUrl ?? null}
+                  size="small"
+                  showText={false}
+                />
                 <span className="min-w-0">
                   <span className="block truncate text-base font-bold text-primary">
-                    {ferreteriaGuemesBrand.brandName}
+                    {brandName}
                   </span>
                   <span className="hidden text-xs font-semibold text-muted-foreground sm:block">
                     Mostrador

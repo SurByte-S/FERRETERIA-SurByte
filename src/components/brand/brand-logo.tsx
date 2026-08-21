@@ -6,10 +6,12 @@ import { ferreteriaGuemesBrand } from "@/lib/brand/ferreteria-guemes";
 import { cn } from "@/lib/utils";
 
 type BrandLogoProps = {
+  brandName?: string;
   size?: "small" | "medium" | "large";
   showText?: boolean;
   className?: string;
   imageClassName?: string;
+  logoUrl?: string | null;
 };
 
 const LOGO_SRC = "/brand/ferreteria-guemes-logo.png";
@@ -39,13 +41,18 @@ const sizeClasses = {
 };
 
 export function BrandLogo({
+  brandName,
   size = "medium",
   showText = true,
   className,
   imageClassName,
+  logoUrl,
 }: BrandLogoProps) {
-  const [imageFailed, setImageFailed] = useState(false);
+  const [failedImageSrc, setFailedImageSrc] = useState<string | null>(null);
   const classes = sizeClasses[size];
+  const displayBrandName = brandName?.trim() || ferreteriaGuemesBrand.brandName;
+  const imageSrc = logoUrl?.trim() || LOGO_SRC;
+  const imageFailed = failedImageSrc === imageSrc;
 
   return (
     <div
@@ -70,17 +77,17 @@ export function BrandLogo({
             )}
             aria-hidden="true"
           >
-            FG
+            {getBrandInitials(displayBrandName)}
           </span>
         ) : (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={LOGO_SRC}
-            alt={`Logo de ${ferreteriaGuemesBrand.brandName}`}
+            src={imageSrc}
+            alt={`Logo de ${displayBrandName}`}
             className="block h-full w-full object-contain p-0.5"
             loading="eager"
             decoding="async"
-            onError={() => setImageFailed(true)}
+            onError={() => setFailedImageSrc(imageSrc)}
           />
         )}
       </div>
@@ -92,7 +99,7 @@ export function BrandLogo({
               classes.title
             )}
           >
-            {ferreteriaGuemesBrand.brandName}
+            {displayBrandName}
           </span>
           <span
             className={cn(
@@ -106,4 +113,16 @@ export function BrandLogo({
       ) : null}
     </div>
   );
+}
+
+function getBrandInitials(value: string) {
+  const initials = value
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+
+  return initials || "FG";
 }
