@@ -65,13 +65,13 @@ export default async function ConfiguracionPage() {
 
       <section
         aria-label="Opciones de configuracion"
-        className="grid max-w-6xl gap-4 pb-6 md:grid-cols-2 xl:grid-cols-5"
+        className="grid max-w-6xl grid-cols-1 gap-4 pb-6 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5"
       >
         {configurationSections.map((section) => {
           const Icon = section.icon;
 
           return (
-            <Card key={section.href} className="flex min-h-[220px] flex-col">
+            <Card key={section.href} className="flex h-full min-h-[220px] flex-col">
               <CardHeader>
                 <div className="mb-2 flex size-12 items-center justify-center rounded-md bg-secondary text-primary">
                   <Icon className="size-6" aria-hidden="true" />
