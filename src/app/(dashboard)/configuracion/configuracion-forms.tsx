@@ -6,6 +6,7 @@ import {
   Building2,
   CircleOff,
   Factory,
+  ImageUp,
   Plus,
   RotateCcw,
   Save,
@@ -19,6 +20,7 @@ import {
   updateBrandConfigAction,
   updateSupplierConfigAction,
   updateTenantBusinessAction,
+  uploadTenantLogoAction,
   type ConfigActionState,
 } from "./actions";
 import { Button } from "@/components/ui/button";
@@ -67,6 +69,10 @@ export function BusinessForm({ tenant }: { tenant: TenantBusinessConfig }) {
     updateTenantBusinessAction,
     initialState
   );
+  const [logoState, logoFormAction, logoPending] = useActionState(
+    uploadTenantLogoAction,
+    initialState
+  );
 
   return (
     <Card>
@@ -78,7 +84,7 @@ export function BusinessForm({ tenant }: { tenant: TenantBusinessConfig }) {
           </div>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="grid gap-5">
         <form action={formAction} className="grid gap-4">
           <div className="grid gap-4 md:grid-cols-2">
             <Field label="Nombre de la ferreteria">
@@ -152,6 +158,52 @@ export function BusinessForm({ tenant }: { tenant: TenantBusinessConfig }) {
             pendingLabel="Guardando..."
             submitLabel="Guardar negocio"
             state={state}
+          />
+        </form>
+
+        <form
+          action={logoFormAction}
+          className="grid gap-4 rounded-lg border border-border bg-muted/30 p-4"
+        >
+          <div className="grid gap-3 md:grid-cols-[auto_minmax(0,1fr)] md:items-center">
+            <div className="flex size-20 items-center justify-center overflow-hidden rounded-lg border border-border bg-background">
+              {tenant.logo_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={tenant.logo_url}
+                  alt="Logo actual"
+                  className="h-full w-full object-contain p-1"
+                />
+              ) : (
+                <Store className="size-8 text-muted-foreground" aria-hidden="true" />
+              )}
+            </div>
+            <div className="grid gap-1">
+              <h3 className="text-base font-bold">Logo del negocio</h3>
+              <p className="text-sm font-semibold text-muted-foreground">
+                {tenant.logo_url ? "Logo actual" : "Todavia no hay logo cargado."}
+              </p>
+              <p className="text-xs font-semibold text-muted-foreground">
+                Formatos permitidos: JPG, PNG o WEBP. Maximo 2 MB.
+              </p>
+            </div>
+          </div>
+
+          <Field label="Subir logo">
+            <input
+              name="logo"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="w-full rounded-lg border border-input bg-background px-3 py-3 text-base"
+            />
+          </Field>
+
+          <FormFooter
+            icon={ImageUp}
+            pending={logoPending}
+            pendingLabel="Subiendo..."
+            submitLabel="Subir logo"
+            state={logoState}
           />
         </form>
       </CardContent>

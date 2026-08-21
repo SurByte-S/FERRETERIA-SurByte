@@ -18,6 +18,9 @@ export type ConfigActionState = {
 const DUPLICATE_BRAND_MESSAGE = "Ya existe una marca con ese nombre.";
 const DUPLICATE_SUPPLIER_MESSAGE = "Ya existe un proveedor con ese nombre.";
 const PRINT_PAPER_SIZES = ["ticket_80mm", "a5", "a4"] as const;
+const TENANT_LOGO_BUCKET = "tenant-logos";
+const TENANT_LOGO_MAX_SIZE = 2 * 1024 * 1024;
+const TENANT_LOGO_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
 
 function textValue(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
@@ -49,6 +52,22 @@ function printPaperSizeValue(formData: FormData) {
   return PRINT_PAPER_SIZES.some((size) => size === value)
     ? (value as (typeof PRINT_PAPER_SIZES)[number])
     : null;
+}
+
+function tenantLogoExtension(type: string) {
+  if (type === "image/jpeg") {
+    return "jpg";
+  }
+
+  if (type === "image/png") {
+    return "png";
+  }
+
+  if (type === "image/webp") {
+    return "webp";
+  }
+
+  return null;
 }
 
 function isUuid(value: string) {
@@ -138,6 +157,93 @@ export async function updateTenantBusinessAction(
         error,
         "No se pudieron guardar los datos del negocio."
       ),
+    };
+  }
+}
+
+export async function uploadTenantLogoAction(
+  _previousState: ConfigActionState,
+  formData: FormData
+): Promise<ConfigActionState> {
+  const file = formData.get("logo");
+
+  if (!(file instanceof File) || file.size <= 0) {
+    return {
+      ok: false,
+      message: "Elegi una imagen para subir.",
+    };
+  }
+
+  if (file.size > TENANT_LOGO_MAX_SIZE) {
+    return {
+      ok: false,
+      message: "El logo no puede superar 2 MB.",
+    };
+  }
+
+  if (!TENANT_LOGO_TYPES.some((type) => type === file.type)) {
+    return {
+      ok: false,
+      message: "El logo debe ser JPG, PNG o WebP.",
+    };
+  }
+
+  const extension = tenantLogoExtension(file.type);
+
+  if (!extension) {
+    return {
+      ok: false,
+      message: "El formato del logo no es valido.",
+    };
+  }
+
+  try {
+    const tenant = await requireTenantRole(["owner", "admin"]);
+    const supabase = getSupabaseServerClient();
+    const path = `${tenant.id}/logo-${Date.now()}.${extension}`;
+    const { error: uploadError } = await supabase.storage
+      .from(TENANT_LOGO_BUCKET)
+      .upload(path, file, {
+        contentType: file.type,
+        upsert: false,
+      });
+
+    if (uploadError) {
+      return {
+        ok: false,
+        message: "No se pudo subir el logo. Verifica el bucket tenant-logos.",
+      };
+    }
+
+    const { data } = supabase.storage
+      .from(TENANT_LOGO_BUCKET)
+      .getPublicUrl(path);
+    const { error: updateError } = await supabase
+      .from("tenants")
+      .update({ logo_url: data.publicUrl })
+      .eq("id", tenant.id)
+      .select("id")
+      .maybeSingle();
+
+    if (updateError) {
+      return {
+        ok: false,
+        message: "El logo se subió, pero no se pudo guardar en el negocio.",
+      };
+    }
+
+    revalidatePath("/configuracion");
+    revalidatePath("/configuracion/datos");
+    revalidatePath("/inicio");
+
+    return {
+      ok: true,
+      message: "Logo del negocio actualizado.",
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      message: actionErrorMessage(error, "No se pudo subir el logo."),
     };
   }
 }
