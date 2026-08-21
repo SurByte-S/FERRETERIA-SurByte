@@ -228,10 +228,12 @@ function buildStockHref({
   filter,
   q,
   showFilters = false,
+  writeDefaultSearchFilter = true,
 }: {
   filter: StockFilter;
   q: string;
   showFilters?: boolean;
+  writeDefaultSearchFilter?: boolean;
 }) {
   const params = new URLSearchParams();
 
@@ -239,9 +241,12 @@ function buildStockHref({
     params.set("q", q);
   }
 
-  if (filter !== "con-stock") {
-    params.set("filtro", filter);
-  } else if (q) {
+  const shouldWriteFilter =
+    filter !== "con-stock"
+      ? writeDefaultSearchFilter || filter !== "todos"
+      : q && writeDefaultSearchFilter;
+
+  if (shouldWriteFilter) {
     params.set("filtro", filter);
   }
 
@@ -252,6 +257,17 @@ function buildStockHref({
   const query = params.toString();
 
   return query ? `/stock?${query}` : "/stock";
+}
+
+function buildStockSearchHref(q: string) {
+  if (!q) {
+    return "/stock";
+  }
+
+  const params = new URLSearchParams();
+  params.set("q", q);
+
+  return `/stock?${params.toString()}`;
 }
 
 function lastParam(value?: string | string[]) {
@@ -285,14 +301,12 @@ function hasExplicitStockFilter(params: Awaited<StockPageProps["searchParams"]>)
 }
 
 function hasActiveStockFilters(
-  params: Awaited<StockPageProps["searchParams"]>,
-  q: string
+  params: Awaited<StockPageProps["searchParams"]>
 ) {
   const rawFilter = lastParam(params.filtro);
 
   return Boolean(
-    q ||
-      lastParam(params.sinStock) ||
+    lastParam(params.sinStock) ||
       lastParam(params.conStock) ||
       (rawFilter && rawFilter !== "con-stock")
   );
@@ -304,7 +318,7 @@ export default async function StockPage({ searchParams }: StockPageProps) {
   const requestedFilter = parseStockFilter(params);
   const explicitFilter = hasExplicitStockFilter(params);
   const filter = q && !explicitFilter ? "todos" : requestedFilter;
-  const filtersActive = hasActiveStockFilters(params, q);
+  const filtersActive = hasActiveStockFilters(params);
   const showFilters = lastParam(params.showFilters) === "1";
   const filtersPanelOpen = showFilters || filtersActive;
   const result = await loadStockProducts({ q, filter });
@@ -315,46 +329,11 @@ export default async function StockPage({ searchParams }: StockPageProps) {
         <div className="grid w-full max-w-none gap-4 pb-6 xl:gap-5">
           <Card>
             <CardContent className="grid gap-4">
-              <div
-                className={
-                  result.canAdjustStock
-                    ? "grid gap-3 sm:grid-cols-2 lg:max-w-xl"
-                    : "grid gap-3 sm:max-w-[180px]"
-                }
-              >
-                {result.canAdjustStock ? (
-                  <BarcodeStockPanel
-                    brands={result.brands}
-                    canCreate={result.canCreateProduct}
-                    canEditPrice={result.canEditPrice}
-                    suppliers={result.suppliers}
-                    triggerClassName="h-14 w-full justify-center px-6 text-base font-semibold xl:text-lg"
-                    triggerLabel="Agregar producto"
-                  />
-                ) : null}
-                <Button
-                  asChild
-                  variant={filtersPanelOpen ? "default" : "outline"}
-                  className="h-14 w-full min-w-[180px] justify-center gap-2 px-6 text-base font-semibold xl:text-lg"
-                >
-                  <Link
-                    href={
-                      filtersPanelOpen && !filtersActive
-                        ? "/stock"
-                        : buildStockHref({ filter, q, showFilters: true })
-                    }
-                  >
-                    <SlidersHorizontal className="size-5" aria-hidden="true" />
-                    {filtersActive ? "Filtros activos" : "Filtros"}
-                  </Link>
-                </Button>
-              </div>
-              {filtersPanelOpen ? (
-                <form
-                  action="/stock"
-                  className="grid gap-4 rounded-lg border border-border bg-muted/30 p-3 md:grid-cols-[minmax(0,1fr)_minmax(180px,240px)] md:items-end xl:p-4"
-                  method="get"
-                >
+              <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+                <form action="/stock" className="grid gap-2" method="get">
+                  {explicitFilter && filter !== "con-stock" ? (
+                    <input type="hidden" name="filtro" value={filter} />
+                  ) : null}
                   <label className="grid gap-2 text-base font-semibold">
                     <span>Producto</span>
                     <div className="relative">
@@ -362,11 +341,59 @@ export default async function StockPage({ searchParams }: StockPageProps) {
                       <input
                         name="q"
                         defaultValue={q}
-                        placeholder="Buscar por producto, codigo propio o codigo de barras"
-                        className="h-14 w-full rounded-lg border border-input bg-background pl-11 pr-3 text-base xl:pl-12 xl:pr-4 xl:text-lg"
+                        placeholder="Buscar producto, codigo propio o codigo de barras"
+                        className="h-14 w-full rounded-lg border border-input bg-background pl-11 pr-3 text-base font-semibold outline-none focus:border-primary focus:ring-2 focus:ring-ring/25 xl:pl-12 xl:pr-4 xl:text-lg"
                       />
                     </div>
                   </label>
+                </form>
+                <div
+                  className={
+                    result.canAdjustStock
+                      ? "grid gap-3 sm:grid-cols-2 lg:w-[384px]"
+                      : "grid gap-3 sm:max-w-[180px]"
+                  }
+                >
+                  {result.canAdjustStock ? (
+                    <BarcodeStockPanel
+                      brands={result.brands}
+                      canCreate={result.canCreateProduct}
+                      canEditPrice={result.canEditPrice}
+                      suppliers={result.suppliers}
+                      triggerClassName="h-14 w-full justify-center px-6 text-base font-semibold xl:text-lg"
+                      triggerLabel="Agregar producto"
+                    />
+                  ) : null}
+                  <Button
+                    asChild
+                    variant={filtersPanelOpen ? "default" : "outline"}
+                    className="h-14 w-full min-w-[180px] justify-center gap-2 px-6 text-base font-semibold xl:text-lg"
+                  >
+                    <Link
+                      href={
+                        filtersPanelOpen && !filtersActive
+                          ? buildStockSearchHref(q)
+                          : buildStockHref({
+                              filter,
+                              q,
+                              showFilters: true,
+                              writeDefaultSearchFilter: filtersActive,
+                            })
+                      }
+                    >
+                      <SlidersHorizontal className="size-5" aria-hidden="true" />
+                      {filtersActive ? "Filtros activos" : "Filtros"}
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+              {filtersPanelOpen ? (
+                <form
+                  action="/stock"
+                  className="grid gap-4 rounded-lg border border-border bg-muted/30 p-3 sm:grid-cols-[minmax(180px,240px)_auto] sm:items-end xl:p-4"
+                  method="get"
+                >
+                  {q ? <input type="hidden" name="q" value={q} /> : null}
                   <label className="grid gap-2 text-base font-semibold">
                     <span>Estado</span>
                     <select
@@ -381,7 +408,7 @@ export default async function StockPage({ searchParams }: StockPageProps) {
                       ))}
                     </select>
                   </label>
-                  <div className="grid gap-2 sm:grid-cols-2 md:col-span-2 md:flex md:flex-wrap">
+                  <div className="grid gap-2 sm:grid-cols-2">
                     <Button
                       type="submit"
                       className="h-12 justify-center gap-2 px-5 text-base font-semibold"
