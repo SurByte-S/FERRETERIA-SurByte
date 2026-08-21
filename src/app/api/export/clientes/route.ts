@@ -1,5 +1,5 @@
 import { createCsv, csvResponse } from "@/lib/export/csv";
-import { createSimplePdf, pdfResponse } from "@/lib/export/pdf";
+import { createTablePdf, pdfResponse } from "@/lib/export/pdf";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import {
   FORBIDDEN_ACTION_MESSAGE,
@@ -34,12 +34,17 @@ export async function GET(request: Request) {
     if (format === "pdf") {
       return pdfResponse({
         filename: `clientes-${date}.pdf`,
-        pdf: createSimplePdf({
+        pdf: createTablePdf({
           title: "Listado de clientes",
           subtitle: tenant.name,
           meta: [`Fecha de generacion: ${new Date().toLocaleString("es-AR")}`],
           table: {
-            headers: ["Nombre", "Telefono", "Email", "Direccion"],
+            columns: [
+              { header: "Nombre", width: 150 },
+              { header: "Telefono", width: 85 },
+              { header: "Email", width: 140 },
+              { header: "Direccion", width: 145 },
+            ],
             rows: rows.map((row) => [
               row.name,
               row.phone ?? "",

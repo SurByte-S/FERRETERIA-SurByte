@@ -1,4 +1,4 @@
-import { createSimplePdf, pdfResponse } from "@/lib/export/pdf";
+import { createTablePdf, pdfResponse } from "@/lib/export/pdf";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import {
   FORBIDDEN_ACTION_MESSAGE,
@@ -49,7 +49,7 @@ export async function GET(request: Request) {
 
     return pdfResponse({
       filename: `ventas-${range.period}-${date}.pdf`,
-      pdf: createSimplePdf({
+      pdf: createTablePdf({
         title: `Reporte de ventas - ${range.label}`,
         subtitle: tenant.name,
         meta: [
@@ -78,14 +78,14 @@ export async function GET(request: Request) {
           },
         ],
         table: {
-          headers: [
-            "Fecha",
-            "Nro",
-            "Cliente",
-            "Metodo",
-            "Total",
-            "Pagado",
-            "Pendiente",
+          columns: [
+            { header: "Fecha", width: 80 },
+            { header: "Nro", width: 55 },
+            { header: "Cliente", width: 145 },
+            { header: "Metodo", width: 75 },
+            { align: "right", header: "Total", width: 55 },
+            { align: "right", header: "Pagado", width: 55 },
+            { align: "right", header: "Pendiente", width: 55 },
           ],
           rows: sales.map((sale) => {
             const total = Number(sale.total ?? 0);
