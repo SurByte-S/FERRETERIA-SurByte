@@ -115,6 +115,18 @@ function parseQuantity(value: string) {
   return Number(value.replace(",", "."));
 }
 
+function formatQuantityInput(quantity: number) {
+  if (!Number.isFinite(quantity)) {
+    return "1";
+  }
+
+  if (Number.isInteger(quantity) && quantity > 0 && quantity < 10) {
+    return String(quantity).padStart(2, "0");
+  }
+
+  return String(quantity);
+}
+
 function clampQuantity(value: number) {
   return Math.max(0.001, Math.round(value * 1000) / 1000);
 }
@@ -1538,7 +1550,9 @@ function TicketLine({
 }) {
   const [isQuantityEditing, setIsQuantityEditing] = useState(false);
   const [quantityDraft, setQuantityDraft] = useState("");
-  const quantityText = isQuantityEditing ? quantityDraft : String(line.quantity);
+  const quantityText = isQuantityEditing
+    ? quantityDraft
+    : formatQuantityInput(line.quantity);
 
   return (
     <div className="grid gap-2 rounded-md border border-border bg-card p-2 md:grid-cols-[auto_auto_minmax(0,1fr)_auto] md:items-center">
@@ -1578,9 +1592,7 @@ function TicketLine({
             }
             setIsQuantityEditing(false);
           }}
-          type="number"
-          min="1"
-          step="1"
+          type="text"
           inputMode="decimal"
           className="h-9 w-24 rounded-md border border-input bg-background px-2 text-center text-sm font-black"
           aria-label={`Cantidad de ${line.description}`}
