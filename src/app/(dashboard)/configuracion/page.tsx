@@ -1,5 +1,11 @@
 import Link from "next/link";
-import { BadgeCheck, Building2, Factory, FileClock } from "lucide-react";
+import {
+  BadgeCheck,
+  Building2,
+  Download,
+  Factory,
+  FileClock,
+} from "lucide-react";
 
 import { requireConfigurationTenant } from "./access";
 import { PageHeader } from "@/components/shell/page-header";
@@ -41,6 +47,13 @@ const configurationSections = [
     actionLabel: "Configurar",
     icon: FileClock,
   },
+  {
+    title: "Exportaciones",
+    description: "Descargas PDF de stock, clientes y ventas.",
+    href: "/configuracion/exportaciones",
+    actionLabel: "Entrar",
+    icon: Download,
+  },
 ] as const;
 
 export default async function ConfiguracionPage() {
@@ -55,7 +68,7 @@ export default async function ConfiguracionPage() {
 
       <section
         aria-label="Opciones de configuracion"
-        className="grid max-w-5xl gap-4 pb-6 md:grid-cols-2 xl:grid-cols-4"
+        className="grid max-w-6xl gap-4 pb-6 md:grid-cols-2 xl:grid-cols-5"
       >
         {configurationSections.map((section) => {
           const Icon = section.icon;
