@@ -3,6 +3,12 @@ type PdfTable = {
   rows: (string | number | null | undefined)[][];
 };
 
+type PdfTableColumn = {
+  align?: "left" | "right" | "center";
+  header: string;
+  width: number;
+};
+
 export type SimplePdfDocument = {
   title: string;
   subtitle?: string;
@@ -14,12 +20,27 @@ export type SimplePdfDocument = {
   table?: PdfTable;
 };
 
+export type TablePdfDocument = Omit<SimplePdfDocument, "table"> & {
+  table: {
+    columns: PdfTableColumn[];
+    rows: (string | number | null | undefined)[][];
+  };
+};
+
 const PAGE_WIDTH = 595;
 const PAGE_HEIGHT = 842;
 const LEFT = 40;
 const TOP = 802;
 const LINE_HEIGHT = 16;
 const MAX_CHARS = 112;
+const TABLE_LEFT = 32;
+const TABLE_RIGHT = 32;
+const TABLE_TOP = 802;
+const TABLE_BOTTOM = 54;
+const TABLE_ROW_HEIGHT = 14;
+const TABLE_HEADER_HEIGHT = 16;
+const TABLE_FONT_SIZE = 7;
+const TABLE_HEADER_FONT_SIZE = 7;
 
 export function createSimplePdf(document: SimplePdfDocument) {
   const lines = buildDocumentLines(document);
@@ -47,6 +68,33 @@ export function createSimplePdf(document: SimplePdfDocument) {
   return buildPdf(objects);
 }
 
+export function createTablePdf(document: TablePdfDocument) {
+  const pageCommands = buildTablePageCommands(document);
+  const pageContents = pageCommands.map((commands, index) =>
+    [...commands, pageFooter(index + 1, pageCommands.length)].join("\n")
+  );
+  const objects: string[] = [];
+
+  objects.push("<< /Type /Catalog /Pages 2 0 R >>");
+  objects.push(
+    `<< /Type /Pages /Kids [${pageContents
+      .map((_, index) => `${3 + index * 2} 0 R`)
+      .join(" ")}] /Count ${pageContents.length} >>`
+  );
+
+  pageContents.forEach((content, index) => {
+    const pageObjectId = 3 + index * 2;
+    const contentObjectId = pageObjectId + 1;
+
+    objects.push(
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PAGE_WIDTH} ${PAGE_HEIGHT}] /Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> /F2 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >> >> >> /Contents ${contentObjectId} 0 R >>`
+    );
+    objects.push(`<< /Length ${Buffer.byteLength(content, "binary")} >>\nstream\n${content}\nendstream`);
+  });
+
+  return buildPdf(objects);
+}
+
 export function pdfResponse({
   filename,
   pdf,
@@ -61,6 +109,201 @@ export function pdfResponse({
       "Content-Type": "application/pdf",
     },
   });
+}
+
+function buildTablePageCommands(document: TablePdfDocument) {
+  const pages: string[][] = [];
+  const tableWidth = document.table.columns.reduce(
+    (sum, column) => sum + column.width,
+    0
+  );
+  const tableRight = Math.min(TABLE_LEFT + tableWidth, PAGE_WIDTH - TABLE_RIGHT);
+  let commands: string[] = [];
+  let y = TABLE_TOP;
+
+  function startPage() {
+    commands = [];
+    pages.push(commands);
+    y = TABLE_TOP;
+  }
+
+  function ensureSpace(height: number) {
+    if (y - height >= TABLE_BOTTOM) {
+      return;
+    }
+
+    startPage();
+    drawTableHeader(commands, document.table.columns, tableRight, y);
+    y -= TABLE_HEADER_HEIGHT;
+  }
+
+  startPage();
+  drawText(commands, document.title, TABLE_LEFT, y, 18, {
+    bold: true,
+    width: tableRight - TABLE_LEFT,
+  });
+  y -= 18;
+
+  if (document.subtitle) {
+    drawText(commands, document.subtitle, TABLE_LEFT, y, 11, {
+      width: tableRight - TABLE_LEFT,
+    });
+    y -= 14;
+  }
+
+  for (const meta of document.meta ?? []) {
+    drawText(commands, meta, TABLE_LEFT, y, 9, {
+      width: tableRight - TABLE_LEFT,
+    });
+    y -= 12;
+  }
+
+  y -= 6;
+
+  for (const section of document.sections ?? []) {
+    ensureSpace(32);
+    drawText(commands, section.title, TABLE_LEFT, y, 12, {
+      bold: true,
+      width: tableRight - TABLE_LEFT,
+    });
+    y -= 14;
+
+    for (const line of section.lines) {
+      ensureSpace(14);
+      drawText(commands, line, TABLE_LEFT, y, 9, {
+        width: tableRight - TABLE_LEFT,
+      });
+      y -= 12;
+    }
+
+    y -= 6;
+  }
+
+  ensureSpace(TABLE_HEADER_HEIGHT + TABLE_ROW_HEIGHT);
+  drawTableHeader(commands, document.table.columns, tableRight, y);
+  y -= TABLE_HEADER_HEIGHT;
+
+  if (document.table.rows.length === 0) {
+    drawText(commands, "Sin datos", TABLE_LEFT, y, TABLE_FONT_SIZE, {
+      width: tableRight - TABLE_LEFT,
+    });
+    return pages;
+  }
+
+  for (const row of document.table.rows) {
+    ensureSpace(TABLE_ROW_HEIGHT);
+    drawTableRow(commands, document.table.columns, row, y);
+    y -= TABLE_ROW_HEIGHT;
+  }
+
+  return pages;
+}
+
+function drawTableHeader(
+  commands: string[],
+  columns: PdfTableColumn[],
+  tableRight: number,
+  y: number
+) {
+  drawHorizontalLine(commands, TABLE_LEFT, y + 5, tableRight);
+
+  let x = TABLE_LEFT;
+  for (const column of columns) {
+    drawText(commands, column.header, x, y, TABLE_HEADER_FONT_SIZE, {
+      align: column.align,
+      bold: true,
+      width: column.width,
+    });
+    x += column.width;
+  }
+
+  drawHorizontalLine(commands, TABLE_LEFT, y - 6, tableRight);
+}
+
+function drawTableRow(
+  commands: string[],
+  columns: PdfTableColumn[],
+  row: (string | number | null | undefined)[],
+  y: number
+) {
+  let x = TABLE_LEFT;
+
+  columns.forEach((column, index) => {
+    drawText(commands, cleanCell(row[index]), x, y, TABLE_FONT_SIZE, {
+      align: column.align,
+      width: column.width,
+    });
+    x += column.width;
+  });
+}
+
+function drawText(
+  commands: string[],
+  value: string,
+  x: number,
+  y: number,
+  size: number,
+  options: {
+    align?: "left" | "right" | "center";
+    bold?: boolean;
+    width?: number;
+  } = {}
+) {
+  const font = options.bold ? "F2" : "F1";
+  const text = truncateText(value, options.width, size);
+  const width = approximateTextWidth(text, size);
+  let textX = x;
+
+  if (options.width && options.align === "right") {
+    textX = x + options.width - width;
+  } else if (options.width && options.align === "center") {
+    textX = x + (options.width - width) / 2;
+  }
+
+  commands.push(
+    `BT /${font} ${size} Tf ${formatPdfNumber(textX)} ${formatPdfNumber(y)} Td ${pdfText(text)} Tj ET`
+  );
+}
+
+function drawHorizontalLine(
+  commands: string[],
+  x: number,
+  y: number,
+  x2: number
+) {
+  commands.push(`0.5 w ${x} ${formatPdfNumber(y)} m ${x2} ${formatPdfNumber(y)} l S`);
+}
+
+function pageFooter(page: number, totalPages: number) {
+  return `BT /F1 8 Tf ${TABLE_LEFT} 32 Td ${pdfText(`Pagina ${page} de ${totalPages}`)} Tj ET`;
+}
+
+function truncateText(value: string, width: number | undefined, size: number) {
+  const clean = cleanCell(normalizePdfText(value));
+
+  if (!width) {
+    return clean;
+  }
+
+  const maxChars = Math.max(1, Math.floor(width / (size * 0.52)));
+
+  if (clean.length <= maxChars) {
+    return clean;
+  }
+
+  if (maxChars <= 3) {
+    return clean.slice(0, maxChars);
+  }
+
+  return `${clean.slice(0, maxChars - 3).trimEnd()}...`;
+}
+
+function approximateTextWidth(value: string, size: number) {
+  return normalizePdfText(value).length * size * 0.52;
+}
+
+function formatPdfNumber(value: number) {
+  return Number(value.toFixed(2));
 }
 
 function buildDocumentLines(document: SimplePdfDocument) {

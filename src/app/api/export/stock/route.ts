@@ -1,5 +1,5 @@
 import { createCsv, csvResponse } from "@/lib/export/csv";
-import { createSimplePdf, pdfResponse } from "@/lib/export/pdf";
+import { createTablePdf, pdfResponse } from "@/lib/export/pdf";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import {
   FORBIDDEN_ACTION_MESSAGE,
@@ -51,12 +51,21 @@ export async function GET(request: Request) {
     if (format === "pdf") {
       return pdfResponse({
         filename: `stock-${date}.pdf`,
-        pdf: createSimplePdf({
+        pdf: createTablePdf({
           title: "Reporte de stock",
           subtitle: tenant.name || "Ferretería Güemes",
           meta: [`Fecha de generacion: ${new Date().toLocaleString("es-AR")}`],
           table: {
-            headers: ["Codigo", "Codigo propio", "Producto", "Precio", "Stock", "Minimo", "Marca", "Proveedor"],
+            columns: [
+              { header: "Codigo", width: 58 },
+              { header: "Propio", width: 42 },
+              { header: "Producto", width: 150 },
+              { align: "right", header: "Precio", width: 58 },
+              { align: "right", header: "Stock", width: 46 },
+              { align: "right", header: "Minimo", width: 46 },
+              { header: "Marca", width: 58 },
+              { header: "Proveedor", width: 58 },
+            ],
             rows: rows.map((row) => [
               row.sku,
               row.custom_code,
