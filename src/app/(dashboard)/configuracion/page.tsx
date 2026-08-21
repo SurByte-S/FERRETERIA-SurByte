@@ -51,8 +51,6 @@ export default async function ConfiguracionPage() {
       <PageHeader
         title="Configuracion"
         description="Administra los datos principales de tu ferreteria."
-        backHref="/inicio"
-        backLabel="Volver al inicio"
       />
 
       <section
@@ -74,7 +72,7 @@ export default async function ConfiguracionPage() {
               <CardContent className="mt-auto">
                 <Button
                   asChild
-                  className="h-12 w-full justify-start gap-2 px-4 text-base"
+                  className="h-14 w-full justify-center gap-2 px-4 text-base font-semibold"
                 >
                   <Link href={section.href}>
                     <Icon className="size-5" aria-hidden="true" />

@@ -90,7 +90,7 @@ function TabLink({
     <Button
       asChild
       variant={active ? "default" : "outline"}
-      className="h-12 min-w-36 px-5 text-base font-black"
+      className="h-14 w-full justify-center px-5 text-base font-semibold"
     >
       <Link href={href} aria-current={active ? "page" : undefined}>
         {children}
@@ -131,12 +131,10 @@ export default async function PresupuestosPage({
         title="Historial"
         description="Consulta ventas y presupuestos guardados."
         eyebrow=""
-        backHref="/inicio"
-        backLabel="Volver al inicio"
       />
 
       <div className="no-print mb-4 flex flex-col gap-3 rounded-md border-2 border-border bg-secondary p-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="grid gap-2 sm:grid-cols-2 sm:min-w-[320px]">
           <TabLink active={activeType === "ventas"} href="/presupuestos?tipo=ventas">
             Ventas
           </TabLink>

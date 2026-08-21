@@ -54,8 +54,6 @@ export default async function EstadisticasPage() {
         <PageHeader
           title="Estadísticas"
           description="Resumen de ventas, cobros y movimientos del negocio."
-          backHref="/inicio"
-          backLabel="Volver al inicio"
           eyebrow=""
         />
         <ExportMenuButton
@@ -103,7 +101,11 @@ export default async function EstadisticasPage() {
             </CardContent>
           </Card>
 
-          <Button asChild variant="outline" className="h-11 w-fit px-4 text-base">
+          <Button
+            asChild
+            variant="outline"
+            className="h-14 w-full justify-center px-5 text-base font-semibold sm:w-fit sm:min-w-[280px]"
+          >
             <Link href="/ventas">Ver estadísticas detalladas por período</Link>
           </Button>
         </div>

@@ -1,8 +1,6 @@
-import Link from "next/link";
-import { ArrowLeft, Calculator, Clock } from "lucide-react";
+import { Calculator, Clock } from "lucide-react";
 
 import { OpenCashForm, CloseCashForm } from "@/components/caja/cash-forms";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -116,12 +114,6 @@ export default async function CajaPage() {
   return (
     <>
       <header className="mb-6 flex flex-wrap items-center gap-3">
-        <Button asChild variant="outline" className="h-10 gap-2 px-4 text-sm">
-          <Link href="/inicio">
-            <ArrowLeft className="size-4" aria-hidden="true" />
-            Volver al inicio
-          </Link>
-        </Button>
         <h1 className="text-3xl font-bold leading-tight tracking-normal sm:text-4xl">
           Caja
         </h1>

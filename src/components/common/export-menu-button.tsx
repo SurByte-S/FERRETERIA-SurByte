@@ -1,23 +1,31 @@
 import { Download } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export function ExportMenuButton({
+  className,
   csvHref,
   label = "Exportar",
   pdfHref,
+  wrapperClassName,
 }: {
+  className?: string;
   csvHref: string;
   label?: string;
   pdfHref: string;
+  wrapperClassName?: string;
 }) {
   return (
-    <details className="group relative inline-block text-left">
+    <details className={cn("group relative inline-block text-left", wrapperClassName)}>
       <summary className="list-none [&::-webkit-details-marker]:hidden">
         <Button
           type="button"
           variant="outline"
-          className="h-12 gap-2 px-4 text-base xl:h-14 xl:px-5 xl:text-lg"
+          className={cn(
+            "h-12 gap-2 px-4 text-base xl:h-14 xl:px-5 xl:text-lg",
+            className
+          )}
           asChild
         >
           <span>

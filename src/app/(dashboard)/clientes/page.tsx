@@ -446,15 +446,13 @@ export default async function ClientesPage({ searchParams }: ClientesPageProps) 
       <PageHeader
         title="Clientes"
         description="Consulta clientes, datos de contacto y deuda actual."
-        backHref="/inicio"
-        backLabel="Volver al inicio"
       />
 
       <section className="rounded-md border-2 border-border bg-secondary p-3 shadow-sm sm:p-4">
-      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:max-w-xl">
         <Button
           asChild
-          className="h-14 gap-2 px-6 text-lg shadow-sm"
+          className="h-14 w-full justify-center gap-2 px-6 text-lg font-semibold shadow-sm"
         >
           <Link href="/clientes/nuevo">
             <Plus className="size-6" aria-hidden="true" />
@@ -465,6 +463,8 @@ export default async function ClientesPage({ searchParams }: ClientesPageProps) 
           label="Exportar Excel/CSV"
           csvHref="/api/export/clientes?format=csv"
           pdfHref="/api/export/clientes?format=pdf"
+          className="h-14 w-full justify-center px-6 text-lg font-semibold"
+          wrapperClassName="w-full"
         />
       </div>
 

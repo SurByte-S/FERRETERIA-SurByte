@@ -695,8 +695,6 @@ export default async function VentasPage({ searchParams }: VentasPageProps) {
       <PageHeader
         title="Estadísticas de ventas"
         description="Resumen de ventas, cobros y movimientos del negocio."
-        backHref="/inicio"
-        backLabel="Volver al inicio"
       />
 
       <div className="grid gap-5">
