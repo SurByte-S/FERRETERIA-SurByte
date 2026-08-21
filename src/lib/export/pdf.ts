@@ -198,13 +198,26 @@ function wrapLine(line: string) {
 }
 
 function pdfText(value: string) {
-  const buffer = Buffer.alloc(2 + value.length * 2);
-  buffer[0] = 0xfe;
-  buffer[1] = 0xff;
+  return `(${escapePdfString(normalizePdfText(value))})`;
+}
 
-  for (let index = 0; index < value.length; index += 1) {
-    buffer.writeUInt16BE(value.charCodeAt(index), 2 + index * 2);
-  }
+function normalizePdfText(value: string) {
+  return String(value)
+    .replace(/ñ/g, "n")
+    .replace(/Ñ/g, "N")
+    .replace(/[–—]/g, "-")
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'")
+    .replace(/°/g, "nro")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\x20-\x7E]/g, "");
+}
 
-  return `<${buffer.toString("hex").toUpperCase()}>`;
+function escapePdfString(value: string) {
+  return value
+    .replace(/\\/g, "\\\\")
+    .replace(/\(/g, "\\(")
+    .replace(/\)/g, "\\)")
+    .replace(/\r?\n/g, " ");
 }
