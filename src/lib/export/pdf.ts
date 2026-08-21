@@ -28,9 +28,9 @@ export function createSimplePdf(document: SimplePdfDocument) {
 
   objects.push("<< /Type /Catalog /Pages 2 0 R >>");
   objects.push(
-    `<< /Type /Pages /Kids ${pages
+    `<< /Type /Pages /Kids [${pages
       .map((_, index) => `${3 + index * 2} 0 R`)
-      .join(" ")} /Count ${pages.length} >>`
+      .join(" ")}] /Count ${pages.length} >>`
   );
 
   pages.forEach((pageLines, index) => {
