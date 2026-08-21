@@ -27,6 +27,7 @@ type NewProductFormProps = {
   brands: CatalogOption[];
   canCreate: boolean;
   embedded?: boolean;
+  estimatedCustomCode?: string | null;
   initialBarcode?: string;
   initialName?: string;
   initialSku?: string;
@@ -65,6 +66,7 @@ export function NewProductForm({
   brands,
   canCreate,
   embedded = false,
+  estimatedCustomCode = null,
   initialBarcode = "",
   initialName = "",
   initialSku = "",
@@ -357,9 +359,16 @@ export function NewProductForm({
         <div className="grid gap-3 md:grid-cols-2">
           <div className="grid gap-2 text-base font-semibold">
             <span>Codigo propio</span>
-            <p className="flex min-h-11 items-center rounded-lg border border-border bg-muted/40 px-3 text-sm font-semibold text-muted-foreground">
-              Se asigna automaticamente al guardar.
-            </p>
+            <div className="flex min-h-11 flex-col justify-center rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm font-semibold text-muted-foreground">
+              {estimatedCustomCode ? (
+                <>
+                  <span>Codigo propio estimado: {estimatedCustomCode}</span>
+                  <span>Se confirma al guardar.</span>
+                </>
+              ) : (
+                <span>Se asigna automaticamente al guardar.</span>
+              )}
+            </div>
           </div>
           <TextField
             label="Codigo de barras principal"

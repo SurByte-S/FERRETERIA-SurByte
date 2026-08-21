@@ -75,6 +75,10 @@ type CatalogOption = {
   name: string;
 };
 
+type ProductCustomCodeCounterRow = {
+  next_value: number | string | null;
+};
+
 type ProductSaleUnitRow = {
   id: string;
   product_id: string;
@@ -363,6 +367,7 @@ export default async function StockPage({ searchParams }: StockPageProps) {
                       <NewProductForm
                         brands={result.brands}
                         canCreate={result.canCreateProduct}
+                        estimatedCustomCode={result.estimatedCustomCode}
                         suppliers={result.suppliers}
                         triggerLabel="Agregar producto nuevo"
                       />
@@ -583,6 +588,7 @@ async function loadStockProducts({
       canAdjustStock: boolean;
       canCreateProduct: boolean;
       canEditPrice: boolean;
+      estimatedCustomCode: string | null;
       brands: CatalogOption[];
       notice?: StockSearchNotice;
       suppliers: CatalogOption[];
@@ -595,19 +601,27 @@ async function loadStockProducts({
     const canAdjustStock = ["owner", "admin", "seller"].includes(tenant.role);
     const canEditPrice = ["owner", "admin"].includes(tenant.role);
     const canCreateProduct = canEditPrice;
-    const [brandsResult, suppliersResult] = await Promise.all([
-      supabase
-        .from("brands")
-        .select("id,name")
-        .eq("tenant_id", tenant.id)
-        .eq("active", true)
-        .order("name"),
-      supabase
-        .from("suppliers")
-        .select("id,name")
-        .eq("tenant_id", tenant.id)
-        .order("name"),
-    ]);
+    const [brandsResult, suppliersResult, customCodeCounterResult] =
+      await Promise.all([
+        supabase
+          .from("brands")
+          .select("id,name")
+          .eq("tenant_id", tenant.id)
+          .eq("active", true)
+          .order("name"),
+        supabase
+          .from("suppliers")
+          .select("id,name")
+          .eq("tenant_id", tenant.id)
+          .order("name"),
+        canCreateProduct
+          ? supabase
+              .from("product_custom_code_counters")
+              .select("next_value")
+              .eq("tenant_id", tenant.id)
+              .maybeSingle()
+          : Promise.resolve({ data: null, error: null }),
+      ]);
 
     if (brandsResult.error || suppliersResult.error) {
       return {
@@ -616,6 +630,10 @@ async function loadStockProducts({
       };
     }
 
+    const estimatedCustomCode = formatEstimatedCustomCode(
+      (customCodeCounterResult.data as ProductCustomCodeCounterRow | null)
+        ?.next_value
+    );
     const outOfStockResult = await supabase
       .from("products")
       .select("id", { count: "exact", head: true })
@@ -790,6 +808,7 @@ async function loadStockProducts({
       canAdjustStock,
       canCreateProduct,
       canEditPrice,
+      estimatedCustomCode,
       brands: (brandsResult.data ?? []) as CatalogOption[],
       notice,
       suppliers: (suppliersResult.data ?? []) as CatalogOption[],
@@ -800,4 +819,14 @@ async function loadStockProducts({
       message: "Configura Supabase y la ferreteria antes de usar Stock.",
     };
   }
+}
+
+function formatEstimatedCustomCode(value: number | string | null | undefined) {
+  const nextValue = Number(value);
+
+  if (!Number.isInteger(nextValue) || nextValue <= 0) {
+    return null;
+  }
+
+  return String(nextValue).padStart(4, "0");
 }
