@@ -1,7 +1,7 @@
 import { AlertTriangle, Search, SlidersHorizontal } from "lucide-react";
 import Link from "next/link";
 
-import { BarcodeStockPanel } from "@/components/productos/barcode-stock-panel";
+import { NewProductForm } from "@/app/(dashboard)/stock/new-product-form";
 import { StockAdjustDetails } from "@/components/productos/stock-adjust-details";
 import { StockSearchScrollAnchor } from "@/components/productos/stock-search-scroll-anchor";
 import type { ProductListItem } from "@/components/productos/product-types";
@@ -28,11 +28,12 @@ const stockFilters = [
   { value: "todos", label: "Todos" },
   { value: "con-stock", label: "Con stock" },
   { value: "sin-stock", label: "Sin stock" },
-  { value: "bajo-minimo", label: "Bajo minimo" },
-  { value: "sin-proveedor", label: "Sin proveedor" },
+  { value: "bajo-minimo", label: "Poco stock" },
+  { value: "sin-precio", label: "Sin precio" },
+  { value: "sin-codigo-barra", label: "Sin código de barra" },
 ] as const;
 
-type StockFilter = (typeof stockFilters)[number]["value"];
+type StockFilter = (typeof stockFilters)[number]["value"] | "sin-proveedor";
 
 type StockPageProps = {
   searchParams: Promise<{
@@ -277,7 +278,10 @@ function lastParam(value?: string | string[]) {
 function parseStockFilter(params: Awaited<StockPageProps["searchParams"]>): StockFilter {
   const filter = lastParam(params.filtro);
 
-  if (stockFilters.some((item) => item.value === filter)) {
+  if (
+    stockFilters.some((item) => item.value === filter) ||
+    filter === "sin-proveedor"
+  ) {
     return filter as StockFilter;
   }
 
@@ -341,7 +345,7 @@ export default async function StockPage({ searchParams }: StockPageProps) {
                       <input
                         name="q"
                         defaultValue={q}
-                        placeholder="Buscar producto, codigo propio o codigo de barras"
+                        placeholder="Buscar producto, código propio o código de barras"
                         className="h-14 w-full rounded-lg border border-input bg-background pl-11 pr-3 text-base font-semibold outline-none focus:border-primary focus:ring-2 focus:ring-ring/25 xl:pl-12 xl:pr-4 xl:text-lg"
                       />
                     </div>
@@ -349,20 +353,20 @@ export default async function StockPage({ searchParams }: StockPageProps) {
                 </form>
                 <div
                   className={
-                    result.canAdjustStock
+                    result.canCreateProduct
                       ? "grid gap-3 sm:grid-cols-2 lg:w-[384px]"
                       : "grid gap-3 sm:max-w-[180px]"
                   }
                 >
-                  {result.canAdjustStock ? (
-                    <BarcodeStockPanel
-                      brands={result.brands}
-                      canCreate={result.canCreateProduct}
-                      canEditPrice={result.canEditPrice}
-                      suppliers={result.suppliers}
-                      triggerClassName="h-14 w-full justify-center px-6 text-base font-semibold xl:text-lg"
-                      triggerLabel="Agregar producto"
-                    />
+                  {result.canCreateProduct ? (
+                    <div className="[&>button]:h-14 [&>button]:w-full [&>button]:justify-center [&>button]:px-6 [&>button]:text-base [&>button]:font-semibold [&>button]:xl:text-lg">
+                      <NewProductForm
+                        brands={result.brands}
+                        canCreate={result.canCreateProduct}
+                        suppliers={result.suppliers}
+                        triggerLabel="Agregar producto nuevo"
+                      />
+                    </div>
                   ) : null}
                   <Button
                     asChild
@@ -388,43 +392,27 @@ export default async function StockPage({ searchParams }: StockPageProps) {
                 </div>
               </div>
               {filtersPanelOpen ? (
-                <form
-                  action="/stock"
-                  className="grid gap-4 rounded-lg border border-border bg-muted/30 p-3 sm:grid-cols-[minmax(180px,240px)_auto] sm:items-end xl:p-4"
-                  method="get"
-                >
-                  {q ? <input type="hidden" name="q" value={q} /> : null}
-                  <label className="grid gap-2 text-base font-semibold">
-                    <span>Estado</span>
-                    <select
-                      className="h-14 rounded-lg border border-input bg-background px-3 text-base font-semibold xl:text-lg"
-                      defaultValue={filter}
-                      name="filtro"
-                    >
-                      {stockFilters.map((item) => (
-                        <option key={item.value} value={item.value}>
-                          {item.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <div className="grid gap-2 sm:grid-cols-2">
+                <div className="grid gap-3 rounded-lg border border-border bg-muted/30 p-3 sm:grid-cols-2 lg:grid-cols-3 xl:p-4">
+                  {stockFilters.map((item) => (
                     <Button
-                      type="submit"
-                      className="h-12 justify-center gap-2 px-5 text-base font-semibold"
-                    >
-                      <Search className="size-5" aria-hidden="true" />
-                      Aplicar filtros
-                    </Button>
-                    <Button
+                      key={item.value}
                       asChild
-                      variant="outline"
-                      className="h-12 justify-center px-5 text-base font-semibold"
+                      variant={filter === item.value ? "default" : "outline"}
+                      className="h-12 w-full justify-center px-4 text-base font-semibold"
                     >
-                      <Link href="/stock">Limpiar filtros</Link>
+                      <Link
+                        href={buildStockHref({
+                          filter: item.value,
+                          q,
+                          writeDefaultSearchFilter: item.value !== "todos",
+                        })}
+                        aria-current={filter === item.value ? "page" : undefined}
+                      >
+                        {item.label}
+                      </Link>
                     </Button>
-                  </div>
-                </form>
+                  ))}
+                </div>
               ) : null}
               {q && !explicitFilter ? (
                 <p className="rounded-lg border border-primary/30 bg-card p-3 text-sm font-semibold text-foreground">
@@ -670,6 +658,11 @@ async function loadStockProducts({
       }
     }
 
+    const needsPostFilter =
+      filter === "bajo-minimo" ||
+      filter === "sin-precio" ||
+      filter === "sin-codigo-barra";
+
     let query = supabase
       .from("products")
       .select(
@@ -679,7 +672,7 @@ async function loadStockProducts({
       .eq("active", true)
       .order("name")
       .limit(
-        filter === "bajo-minimo"
+        needsPostFilter
           ? PAGE_SIZE * 10
           : q.length >= 1
             ? PAGE_SIZE * 3
@@ -746,6 +739,14 @@ async function loadStockProducts({
               product.minStock > 0 &&
               product.stockQuantity <= product.minStock
             );
+          }
+
+          if (filter === "sin-precio") {
+            return product.salePrice === null || Number(product.salePrice) <= 0;
+          }
+
+          if (filter === "sin-codigo-barra") {
+            return !product.productBarcode;
           }
 
           return true;
