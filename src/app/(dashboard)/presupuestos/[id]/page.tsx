@@ -1,19 +1,14 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
 
-import {
-  ConvertQuoteButton,
-  PrintQuoteButton,
-} from "@/components/presupuestos/quote-actions";
+import { ConvertQuoteButton } from "@/components/presupuestos/quote-actions";
 import { DeleteQuoteButton } from "@/components/presupuestos/delete-quote-button";
 import {
   PrintDocument,
   type PrintBusiness,
   type PrintTotalRow,
 } from "@/components/print/print-document";
+import { DocumentPreviewToolbar } from "@/components/print/document-preview-toolbar";
 import { PageHeader } from "@/components/shell/page-header";
-import { Button } from "@/components/ui/button";
 import { ferreteriaGuemesBrand } from "@/lib/brand/ferreteria-guemes";
 import {
   buildPrintInvoiceSettings,
@@ -211,21 +206,22 @@ export default async function QuoteDetailPage({ params }: QuotePageProps) {
   return (
     <>
       <div className="no-print">
-        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <Button asChild variant="outline" className="h-9 gap-1.5 px-3 text-sm">
-            <Link href="/presupuestos">
-              <ArrowLeft className="size-4" aria-hidden="true" />
-              Volver a presupuestos
-            </Link>
-          </Button>
-          <PrintQuoteButton printPaperSize={printInvoiceSettings.printPaperSize} />
-          {tenant.role === "owner" || tenant.role === "admin" ? (
-            <DeleteQuoteButton
-              quoteId={quote.id}
-              isConverted={quote.status === "converted"}
-            />
-          ) : null}
-        </div>
+        <DocumentPreviewToolbar
+          backHref="/presupuestos"
+          backLabel="Volver a presupuestos"
+          historyHref="/presupuestos"
+          printLabel="Imprimir presupuesto"
+          printPaperSize={printInvoiceSettings.printPaperSize}
+          extraActions={
+            tenant.role === "owner" || tenant.role === "admin" ? (
+              <DeleteQuoteButton
+                quoteId={quote.id}
+                isConverted={quote.status === "converted"}
+                className="h-12 px-4 text-base"
+              />
+            ) : null
+          }
+        />
         <PageHeader
           title={`Presupuesto #${quote.quote_number}`}
           description={

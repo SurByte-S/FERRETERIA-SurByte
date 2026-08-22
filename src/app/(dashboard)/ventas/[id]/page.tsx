@@ -5,8 +5,8 @@ import {
   type PrintBusiness,
   type PrintTotalRow,
 } from "@/components/print/print-document";
+import { DocumentPreviewToolbar } from "@/components/print/document-preview-toolbar";
 import { PageHeader } from "@/components/shell/page-header";
-import { PrintSaleButton } from "@/components/ventas/sale-actions";
 import { ferreteriaGuemesBrand } from "@/lib/brand/ferreteria-guemes";
 import {
   buildPrintInvoiceSettings,
@@ -180,11 +180,17 @@ export default async function SaleDetailPage({ params }: SalePageProps) {
   return (
     <>
       <div className="no-print">
+        <DocumentPreviewToolbar
+          backHref="/ventas"
+          backLabel="Volver a ventas"
+          historyHref="/presupuestos?tipo=ventas"
+          printLabel="Imprimir venta"
+          printPaperSize={printInvoiceSettings.printPaperSize}
+        />
         <PageHeader
           title={`Venta #${sale.sale_number}`}
           description="Detalle listo para revisar o imprimir."
-          backHref="/ventas"
-          backLabel="Volver a ventas"
+          eyebrow=""
         />
       </div>
 
@@ -223,10 +229,6 @@ export default async function SaleDetailPage({ params }: SalePageProps) {
           note="Operacion registrada como comprobante interno del comercio."
           footerMessage="Gracias por su compra"
         />
-
-        <div className="no-print">
-          <PrintSaleButton printPaperSize={printInvoiceSettings.printPaperSize} />
-        </div>
       </div>
     </>
   );
