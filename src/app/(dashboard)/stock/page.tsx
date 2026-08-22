@@ -24,6 +24,7 @@ import { getSupabaseServerClient } from "@/lib/supabase";
 import { requireTenant } from "@/lib/tenant";
 
 const PAGE_SIZE = 80;
+const POST_FILTER_SCAN_LIMIT = 10000;
 const stockFilters = [
   { value: "todos", label: "Todos" },
   { value: "con-stock", label: "Con stock" },
@@ -676,10 +677,7 @@ async function loadStockProducts({
       }
     }
 
-    const needsPostFilter =
-      filter === "bajo-minimo" ||
-      filter === "sin-precio" ||
-      filter === "sin-codigo-barra";
+    const needsPostFilter = filter === "bajo-minimo";
 
     let query = supabase
       .from("products")
@@ -691,7 +689,7 @@ async function loadStockProducts({
       .order("name")
       .limit(
         needsPostFilter
-          ? PAGE_SIZE * 10
+          ? POST_FILTER_SCAN_LIMIT
           : q.length >= 1
             ? PAGE_SIZE * 3
             : PAGE_SIZE
@@ -701,6 +699,12 @@ async function loadStockProducts({
       query = query.lte("stock_quantity", 0);
     } else if (filter === "con-stock") {
       query = query.gt("stock_quantity", 0);
+    } else if (filter === "bajo-minimo") {
+      query = query.gt("min_stock", 0);
+    } else if (filter === "sin-precio") {
+      query = query.or("sale_price.is.null,sale_price.lte.0");
+    } else if (filter === "sin-codigo-barra") {
+      query = query.or("barcode.is.null,barcode.eq.");
     } else if (filter === "sin-proveedor") {
       query = query.is("supplier_id", null);
     }
@@ -753,18 +757,9 @@ async function loadStockProducts({
         .filter((product) => {
           if (filter === "bajo-minimo") {
             return (
-              product.stockQuantity > 0 &&
               product.minStock > 0 &&
               product.stockQuantity <= product.minStock
             );
-          }
-
-          if (filter === "sin-precio") {
-            return product.salePrice === null || Number(product.salePrice) <= 0;
-          }
-
-          if (filter === "sin-codigo-barra") {
-            return !product.productBarcode;
           }
 
           return true;
