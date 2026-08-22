@@ -208,8 +208,8 @@ export default async function QuoteDetailPage({ params }: QuotePageProps) {
     <>
       <div className="no-print">
         <DocumentPreviewToolbar
-          backHref="/presupuestos"
-          backLabel="Volver a presupuestos"
+          backHref="/inicio"
+          backLabel="Volver a ventas"
           historyHref="/presupuestos"
           printLabel="Imprimir presupuesto"
           printPaperSize={printInvoiceSettings.printPaperSize}

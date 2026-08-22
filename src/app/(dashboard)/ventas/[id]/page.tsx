@@ -182,7 +182,7 @@ export default async function SaleDetailPage({ params }: SalePageProps) {
     <>
       <div className="no-print">
         <DocumentPreviewToolbar
-          backHref="/ventas"
+          backHref="/inicio"
           backLabel="Volver a ventas"
           historyHref="/presupuestos?tipo=ventas"
           printLabel="Imprimir venta"
