@@ -8,6 +8,7 @@ import {
   type PrintTotalRow,
 } from "@/components/print/print-document";
 import { DocumentPreviewToolbar } from "@/components/print/document-preview-toolbar";
+import { PrintPreviewFrame } from "@/components/print/print-preview-frame";
 import { PageHeader } from "@/components/shell/page-header";
 import { ferreteriaGuemesBrand } from "@/lib/brand/ferreteria-guemes";
 import {
@@ -247,33 +248,35 @@ export default async function QuoteDetailPage({ params }: QuotePageProps) {
           </div>
         ) : null}
 
-        <PrintDocument
-          business={buildBusiness(tenantDetails, printInvoiceSettings)}
-          invoiceSettings={printInvoiceSettings}
-          printPaperSize={printInvoiceSettings.printPaperSize}
-          document={{
-            typeLabel: "Presupuesto",
-            numberLabel: `#${quote.quote_number}`,
-            shortId: quote.id.slice(0, 8).toUpperCase(),
-            dateLabel: formatDate(quote.created_at),
-            statusLabel: statusLabel(quote.status),
-          }}
-          customer={quote.customers}
-          items={items.map((item) => ({
-            code: item.sku,
-            description: item.sale_unit_name
-              ? `${item.name} (${item.sale_unit_name})`
-              : item.name,
-            quantity: item.quantity,
-            unitPrice: formatMoney(item.unit_price),
-            total: formatMoney(item.total),
-          }))}
-          totals={totalRows}
-          finalTotalLabel="Total del presupuesto"
-          finalTotal={formatMoney(quote.total)}
-          note="Este presupuesto esta sujeto a disponibilidad de stock y actualizacion de precios."
-          footerMessage="Gracias por consultar"
-        />
+        <PrintPreviewFrame defaultZoom={0.85}>
+          <PrintDocument
+            business={buildBusiness(tenantDetails, printInvoiceSettings)}
+            invoiceSettings={printInvoiceSettings}
+            printPaperSize={printInvoiceSettings.printPaperSize}
+            document={{
+              typeLabel: "Presupuesto",
+              numberLabel: `#${quote.quote_number}`,
+              shortId: quote.id.slice(0, 8).toUpperCase(),
+              dateLabel: formatDate(quote.created_at),
+              statusLabel: statusLabel(quote.status),
+            }}
+            customer={quote.customers}
+            items={items.map((item) => ({
+              code: item.sku,
+              description: item.sale_unit_name
+                ? `${item.name} (${item.sale_unit_name})`
+                : item.name,
+              quantity: item.quantity,
+              unitPrice: formatMoney(item.unit_price),
+              total: formatMoney(item.total),
+            }))}
+            totals={totalRows}
+            finalTotalLabel="Total del presupuesto"
+            finalTotal={formatMoney(quote.total)}
+            note="Este presupuesto esta sujeto a disponibilidad de stock y actualizacion de precios."
+            footerMessage="Gracias por consultar"
+          />
+        </PrintPreviewFrame>
       </div>
     </>
   );

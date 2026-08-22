@@ -180,6 +180,12 @@
   font-size: 0.86rem;
 }
 
+.print-preview-scaled {
+  transform: scale(var(--print-preview-zoom, 1));
+  transform-origin: top center;
+  transition: transform 150ms ease;
+}
+
 .print-header {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 300px;
@@ -689,6 +695,24 @@
     border: 0;
     padding: 0;
     box-shadow: none;
+  }
+
+  .print-preview-frame {
+    overflow: visible !important;
+    border: 0 !important;
+    background: transparent !important;
+    padding: 0 !important;
+  }
+
+  .print-preview-stage {
+    display: block !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+  }
+
+  .print-preview-scaled {
+    transform: none !important;
+    transition: none !important;
   }
 
   .print-document.print-a5 {

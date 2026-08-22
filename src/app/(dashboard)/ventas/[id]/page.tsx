@@ -6,6 +6,7 @@ import {
   type PrintTotalRow,
 } from "@/components/print/print-document";
 import { DocumentPreviewToolbar } from "@/components/print/document-preview-toolbar";
+import { PrintPreviewFrame } from "@/components/print/print-preview-frame";
 import { PageHeader } from "@/components/shell/page-header";
 import { ferreteriaGuemesBrand } from "@/lib/brand/ferreteria-guemes";
 import {
@@ -195,40 +196,42 @@ export default async function SaleDetailPage({ params }: SalePageProps) {
       </div>
 
       <div className="grid gap-6">
-        <PrintDocument
-          business={buildBusiness(tenantDetails, printInvoiceSettings)}
-          invoiceSettings={printInvoiceSettings}
-          printPaperSize={printInvoiceSettings.printPaperSize}
-          document={{
-            typeLabel: "Comprobante de venta",
-            numberLabel: `#${sale.sale_number}`,
-            shortId: sale.id.slice(0, 8).toUpperCase(),
-            dateLabel: formatDate(sale.created_at),
-            statusLabel: pendingAmount > 0 ? "Con saldo pendiente" : "Pagada",
-            paymentMethod: sale.payment_method ?? "Sin forma de pago",
-            cashLabel: sale.cash_session_id
-              ? sale.cash_register_sessions?.opened_at
-                ? `Asociada desde ${formatDate(sale.cash_register_sessions.opened_at)}`
-                : "Caja asociada"
-              : "Sin caja asociada",
-          }}
-          customer={sale.customers}
-          items={items.map((item) => ({
-            code: item.sku,
-            description: item.sale_unit_name
-              ? `${item.name} (${item.sale_unit_name})`
-              : item.name,
-            quantity: item.quantity,
-            unitPrice: formatMoney(item.unit_price),
-            total: formatMoney(item.total),
-          }))}
-          totals={totalRows}
-          finalTotalLabel="Total de la venta"
-          finalTotal={formatMoney(sale.total)}
-          badgeLabel={isAccountSale ? "Cuenta corriente" : null}
-          note="Operacion registrada como comprobante interno del comercio."
-          footerMessage="Gracias por su compra"
-        />
+        <PrintPreviewFrame defaultZoom={0.85}>
+          <PrintDocument
+            business={buildBusiness(tenantDetails, printInvoiceSettings)}
+            invoiceSettings={printInvoiceSettings}
+            printPaperSize={printInvoiceSettings.printPaperSize}
+            document={{
+              typeLabel: "Comprobante de venta",
+              numberLabel: `#${sale.sale_number}`,
+              shortId: sale.id.slice(0, 8).toUpperCase(),
+              dateLabel: formatDate(sale.created_at),
+              statusLabel: pendingAmount > 0 ? "Con saldo pendiente" : "Pagada",
+              paymentMethod: sale.payment_method ?? "Sin forma de pago",
+              cashLabel: sale.cash_session_id
+                ? sale.cash_register_sessions?.opened_at
+                  ? `Asociada desde ${formatDate(sale.cash_register_sessions.opened_at)}`
+                  : "Caja asociada"
+                : "Sin caja asociada",
+            }}
+            customer={sale.customers}
+            items={items.map((item) => ({
+              code: item.sku,
+              description: item.sale_unit_name
+                ? `${item.name} (${item.sale_unit_name})`
+                : item.name,
+              quantity: item.quantity,
+              unitPrice: formatMoney(item.unit_price),
+              total: formatMoney(item.total),
+            }))}
+            totals={totalRows}
+            finalTotalLabel="Total de la venta"
+            finalTotal={formatMoney(sale.total)}
+            badgeLabel={isAccountSale ? "Cuenta corriente" : null}
+            note="Operacion registrada como comprobante interno del comercio."
+            footerMessage="Gracias por su compra"
+          />
+        </PrintPreviewFrame>
       </div>
     </>
   );
