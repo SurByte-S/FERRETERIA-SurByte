@@ -11,13 +11,17 @@ import {
   RotateCcw,
   Save,
   Store,
+  Tags,
 } from "lucide-react";
 
 import {
   createBrandConfigAction,
+  createCategoryConfigAction,
   createSupplierConfigAction,
   setBrandActiveConfigAction,
+  setCategoryActiveConfigAction,
   updateBrandConfigAction,
+  updateCategoryConfigAction,
   updateSupplierConfigAction,
   updateTenantBusinessAction,
   uploadTenantLogoAction,
@@ -44,6 +48,13 @@ export type TenantBusinessConfig = {
 };
 
 export type BrandConfigItem = {
+  id: string;
+  name: string;
+  active: boolean;
+  productsCount: number;
+};
+
+export type CategoryConfigItem = {
   id: string;
   name: string;
   active: boolean;
@@ -300,6 +311,123 @@ function BrandRow({ brand }: { brand: BrandConfigItem }) {
 
       <form action={activeAction} className="flex flex-wrap items-center gap-2">
         <input type="hidden" name="brandId" value={brand.id} />
+        <input type="hidden" name="active" value={String(nextActive)} />
+        <Button
+          type="submit"
+          disabled={activePending}
+          variant="outline"
+          className="h-9 gap-2 px-3 text-sm"
+        >
+          {nextActive ? (
+            <RotateCcw className="size-4" aria-hidden="true" />
+          ) : (
+            <CircleOff className="size-4" aria-hidden="true" />
+          )}
+          {activePending
+            ? "Actualizando..."
+            : nextActive
+              ? "Reactivar"
+              : "Desactivar"}
+        </Button>
+        <StatusMessage state={activeState} />
+      </form>
+    </div>
+  );
+}
+
+export function CategoriesPanel({
+  categories,
+}: {
+  categories: CategoryConfigItem[];
+}) {
+  const [state, formAction, pending] = useActionState(
+    createCategoryConfigAction,
+    initialState
+  );
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-start gap-3">
+          <IconBox icon={Tags} />
+          <div className="min-w-0">
+            <CardTitle>Categorias</CardTitle>
+            <CardDescription>
+              Crear, renombrar y activar o desactivar categorias.
+            </CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        <form action={formAction} className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
+          <Field label="Nombre de la categoria">
+            <input
+              name="name"
+              required
+              className="h-11 rounded-lg border border-input bg-background px-3 text-base"
+            />
+          </Field>
+          <FormFooter
+            compact
+            icon={Plus}
+            pending={pending}
+            pendingLabel="Creando..."
+            submitLabel="Agregar categoria"
+            state={state}
+          />
+        </form>
+
+        <div className="grid gap-2">
+          {categories.length === 0 ? (
+            <EmptyText text="Todavia no hay categorias cargadas." />
+          ) : (
+            categories.map((category) => (
+              <CategoryRow key={category.id} category={category} />
+            ))
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function CategoryRow({ category }: { category: CategoryConfigItem }) {
+  const [editState, editAction, editPending] = useActionState(
+    updateCategoryConfigAction,
+    initialState
+  );
+  const [activeState, activeAction, activePending] = useActionState(
+    setCategoryActiveConfigAction,
+    initialState
+  );
+  const nextActive = !category.active;
+
+  return (
+    <div className="grid gap-2 rounded-lg border border-border bg-background p-3">
+      <form action={editAction} className="grid gap-2 md:grid-cols-[1fr_auto] md:items-end">
+        <input type="hidden" name="categoryId" value={category.id} />
+        <Field
+          label={`${category.active ? "Activa" : "Inactiva"} - ${category.productsCount} productos`}
+        >
+          <input
+            name="name"
+            defaultValue={category.name}
+            required
+            className="h-10 rounded-lg border border-input bg-background px-3 text-base"
+          />
+        </Field>
+        <FormFooter
+          compact
+          icon={Save}
+          pending={editPending}
+          pendingLabel="Guardando..."
+          submitLabel="Guardar"
+          state={editState}
+        />
+      </form>
+
+      <form action={activeAction} className="flex flex-wrap items-center gap-2">
+        <input type="hidden" name="categoryId" value={category.id} />
         <input type="hidden" name="active" value={String(nextActive)} />
         <Button
           type="submit"

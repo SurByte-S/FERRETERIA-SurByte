@@ -5,6 +5,7 @@ import {
   Download,
   Factory,
   FileClock,
+  Tags,
 } from "lucide-react";
 
 import { requireConfigurationTenant } from "./access";
@@ -32,6 +33,13 @@ const configurationSections = [
     href: "/configuracion/marcas",
     actionLabel: "Entrar",
     icon: BadgeCheck,
+  },
+  {
+    title: "Categorias",
+    description: "Ordena tus productos por rubro o familia.",
+    href: "/configuracion/categorias",
+    actionLabel: "Administrar categorias",
+    icon: Tags,
   },
   {
     title: "Proveedores",
@@ -65,7 +73,7 @@ export default async function ConfiguracionPage() {
 
       <section
         aria-label="Opciones de configuracion"
-        className="grid max-w-6xl grid-cols-1 gap-4 pb-6 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5"
+        className="grid max-w-6xl grid-cols-1 gap-4 pb-6 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6"
       >
         {configurationSections.map((section) => {
           const Icon = section.icon;

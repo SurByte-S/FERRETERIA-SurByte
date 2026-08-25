@@ -16,6 +16,7 @@ export type ConfigActionState = {
 };
 
 const DUPLICATE_BRAND_MESSAGE = "Ya existe una marca con ese nombre.";
+const DUPLICATE_CATEGORY_MESSAGE = "Ya existe una categoria con ese nombre.";
 const DUPLICATE_SUPPLIER_MESSAGE = "Ya existe un proveedor con ese nombre.";
 const PRINT_PAPER_SIZES = ["ticket_80mm", "a5", "a4"] as const;
 const TENANT_LOGO_BUCKET = "tenant-logos";
@@ -88,12 +89,22 @@ function actionErrorMessage(error: unknown, fallback: string) {
   return fallback;
 }
 
-function isDuplicateError(errorMessage: string, label: "brand" | "supplier") {
+function isDuplicateError(
+  errorMessage: string,
+  label: "brand" | "category" | "supplier"
+) {
   const normalized = errorMessage.toLowerCase();
 
   if (label === "brand") {
     return (
       normalized.includes("brands_tenant_id_name_key") ||
+      normalized.includes("duplicate key value")
+    );
+  }
+
+  if (label === "category") {
+    return (
+      normalized.includes("categories_tenant_id_name_key") ||
       normalized.includes("duplicate key value")
     );
   }
@@ -337,6 +348,36 @@ async function brandExists({
   return (data ?? []).length > 0;
 }
 
+async function categoryExists({
+  categoryId,
+  name,
+  tenantId,
+}: {
+  categoryId?: string;
+  name: string;
+  tenantId: string;
+}) {
+  const supabase = getSupabaseServerClient();
+  let query = supabase
+    .from("categories")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .ilike("name", name)
+    .limit(1);
+
+  if (categoryId) {
+    query = query.neq("id", categoryId);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw new Error("No se pudo validar la categoria.");
+  }
+
+  return (data ?? []).length > 0;
+}
+
 export async function createBrandConfigAction(
   _previousState: ConfigActionState,
   formData: FormData
@@ -389,6 +430,62 @@ export async function createBrandConfigAction(
     return {
       ok: false,
       message: actionErrorMessage(error, "No se pudo crear la marca."),
+    };
+  }
+}
+
+export async function createCategoryConfigAction(
+  _previousState: ConfigActionState,
+  formData: FormData
+): Promise<ConfigActionState> {
+  const name = textValue(formData, "name");
+
+  if (!name) {
+    return {
+      ok: false,
+      message: "Escribi el nombre de la categoria.",
+    };
+  }
+
+  try {
+    const tenant = await requireTenantRole(["owner", "admin"]);
+
+    if (await categoryExists({ name, tenantId: tenant.id })) {
+      return {
+        ok: false,
+        message: DUPLICATE_CATEGORY_MESSAGE,
+      };
+    }
+
+    const supabase = getSupabaseServerClient();
+    const { error } = await supabase.from("categories").insert({
+      tenant_id: tenant.id,
+      name,
+      active: true,
+    });
+
+    if (error) {
+      return {
+        ok: false,
+        message: isDuplicateError(error.message, "category")
+          ? DUPLICATE_CATEGORY_MESSAGE
+          : "No se pudo crear la categoria.",
+      };
+    }
+
+    revalidatePath("/configuracion");
+    revalidatePath("/configuracion/categorias");
+    revalidatePath("/stock");
+    revalidatePath("/productos");
+
+    return {
+      ok: true,
+      message: "Categoria creada.",
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      message: actionErrorMessage(error, "No se pudo crear la categoria."),
     };
   }
 }
@@ -459,6 +556,72 @@ export async function updateBrandConfigAction(
   }
 }
 
+export async function updateCategoryConfigAction(
+  _previousState: ConfigActionState,
+  formData: FormData
+): Promise<ConfigActionState> {
+  const categoryId = textValue(formData, "categoryId");
+  const name = textValue(formData, "name");
+
+  if (!isUuid(categoryId)) {
+    return {
+      ok: false,
+      message: "No se encontro la categoria.",
+    };
+  }
+
+  if (!name) {
+    return {
+      ok: false,
+      message: "Escribi el nombre de la categoria.",
+    };
+  }
+
+  try {
+    const tenant = await requireTenantRole(["owner", "admin"]);
+
+    if (await categoryExists({ categoryId, name, tenantId: tenant.id })) {
+      return {
+        ok: false,
+        message: DUPLICATE_CATEGORY_MESSAGE,
+      };
+    }
+
+    const supabase = getSupabaseServerClient();
+    const { data, error } = await supabase
+      .from("categories")
+      .update({ name })
+      .eq("tenant_id", tenant.id)
+      .eq("id", categoryId)
+      .select("id")
+      .maybeSingle();
+
+    if (error || !data) {
+      return {
+        ok: false,
+        message: error && isDuplicateError(error.message, "category")
+          ? DUPLICATE_CATEGORY_MESSAGE
+          : "No se pudo actualizar la categoria.",
+      };
+    }
+
+    revalidatePath("/configuracion");
+    revalidatePath("/configuracion/categorias");
+    revalidatePath("/stock");
+    revalidatePath("/productos");
+
+    return {
+      ok: true,
+      message: "Categoria actualizada.",
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      message: actionErrorMessage(error, "No se pudo actualizar la categoria."),
+    };
+  }
+}
+
 export async function setBrandActiveConfigAction(
   _previousState: ConfigActionState,
   formData: FormData
@@ -506,6 +669,58 @@ export async function setBrandActiveConfigAction(
       message: actionErrorMessage(
         error,
         "No se pudo cambiar el estado de la marca."
+      ),
+    };
+  }
+}
+
+export async function setCategoryActiveConfigAction(
+  _previousState: ConfigActionState,
+  formData: FormData
+): Promise<ConfigActionState> {
+  const categoryId = textValue(formData, "categoryId");
+  const active = textValue(formData, "active") === "true";
+
+  if (!isUuid(categoryId)) {
+    return {
+      ok: false,
+      message: "No se encontro la categoria.",
+    };
+  }
+
+  try {
+    const tenant = await requireTenantRole(["owner", "admin"]);
+    const supabase = getSupabaseServerClient();
+    const { data, error } = await supabase
+      .from("categories")
+      .update({ active })
+      .eq("tenant_id", tenant.id)
+      .eq("id", categoryId)
+      .select("id")
+      .maybeSingle();
+
+    if (error || !data) {
+      return {
+        ok: false,
+        message: "No se pudo cambiar el estado de la categoria.",
+      };
+    }
+
+    revalidatePath("/configuracion");
+    revalidatePath("/configuracion/categorias");
+    revalidatePath("/stock");
+    revalidatePath("/productos");
+
+    return {
+      ok: true,
+      message: active ? "Categoria activada." : "Categoria desactivada.",
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      message: actionErrorMessage(
+        error,
+        "No se pudo cambiar el estado de la categoria."
       ),
     };
   }
