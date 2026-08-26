@@ -1125,8 +1125,16 @@ export function QuickSalePos({
 
           <div className="shrink-0 border-t-2 border-border bg-card p-2.5">
             <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-              <div className="grid gap-2">
-                <div className="grid gap-2 md:grid-cols-2">
+              <div
+                className={
+                  isQuoteMode ? "grid gap-2" : "grid w-full max-w-md gap-2"
+                }
+              >
+                <div
+                  className={
+                    isQuoteMode ? "grid gap-2 md:grid-cols-2" : "grid gap-2"
+                  }
+                >
                   {!isQuoteMode ? (
                     <Field label="Forma de pago">
                       <select
@@ -1134,7 +1142,7 @@ export function QuickSalePos({
                         onChange={(event) =>
                           changePaymentMethod(event.target.value)
                         }
-                        className="h-11 w-full rounded-md border border-input bg-muted/30 px-3 text-base font-semibold"
+                        className="h-12 w-full rounded-md border border-input bg-muted/30 px-3 text-base font-semibold"
                       >
                         {PAYMENT_METHODS.map((method) => (
                           <option key={method} value={method}>
@@ -1152,7 +1160,7 @@ export function QuickSalePos({
                         : "rounded-md border border-border bg-muted/30"
                     }
                   >
-                    <summary className="flex h-11 cursor-pointer items-center px-3 text-base font-black">
+                    <summary className="flex h-12 cursor-pointer items-center px-3 text-base font-black">
                       Cliente opcional
                     </summary>
                     <div className="grid gap-2 border-t border-border p-3">
@@ -1180,7 +1188,7 @@ export function QuickSalePos({
                           className="h-10 rounded-md border border-input bg-background px-3 text-base"
                         />
                       </Field>
-                      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                      <div className="grid gap-2">
                         <Field label="Telefono">
                           <input
                             value={customer.phone}
