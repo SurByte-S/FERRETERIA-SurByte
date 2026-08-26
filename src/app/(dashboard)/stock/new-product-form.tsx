@@ -26,6 +26,7 @@ type CatalogOption = {
 type NewProductFormProps = {
   brands: CatalogOption[];
   canCreate: boolean;
+  categories?: CatalogOption[];
   embedded?: boolean;
   estimatedCustomCode?: string | null;
   initialBarcode?: string;
@@ -65,6 +66,7 @@ function formatQuantity(value: number) {
 export function NewProductForm({
   brands,
   canCreate,
+  categories = [],
   embedded = false,
   estimatedCustomCode = null,
   initialBarcode = "",
@@ -335,7 +337,12 @@ export function NewProductForm({
 
       <section className="grid gap-3 rounded-lg border border-border bg-background p-4">
         <h3 className="text-base font-bold">Clasificacion</h3>
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-3 md:grid-cols-3">
+          <CategorySelect
+            label="Categoria"
+            name="categoryId"
+            options={categories}
+          />
           <CatalogSelectWithCreate
             label="Marca"
             name="brandId"
@@ -496,6 +503,49 @@ function TextField({
       {help ? (
         <span className="text-sm font-semibold text-muted-foreground">
           {help}
+        </span>
+      ) : null}
+    </label>
+  );
+}
+
+function CategorySelect({
+  currentId = "",
+  currentName = "",
+  label,
+  name,
+  options,
+}: {
+  currentId?: string;
+  currentName?: string;
+  label: string;
+  name: string;
+  options: CatalogOption[];
+}) {
+  const hasCurrentOption =
+    currentId && !options.some((option) => option.id === currentId);
+
+  return (
+    <label className="grid gap-2">
+      <span className="text-sm font-semibold">{label}</span>
+      <select
+        name={name}
+        defaultValue={currentId}
+        className="h-11 min-w-0 rounded-lg border border-input bg-background px-3 text-base"
+      >
+        <option value="">Sin categoria</option>
+        {hasCurrentOption ? (
+          <option value={currentId}>{currentName || currentId}</option>
+        ) : null}
+        {options.map((option) => (
+          <option key={option.id} value={option.id}>
+            {option.name}
+          </option>
+        ))}
+      </select>
+      {options.length === 0 ? (
+        <span className="text-sm font-semibold text-muted-foreground">
+          Podes crear categorias desde Configuracion &gt; Categorias.
         </span>
       ) : null}
     </label>

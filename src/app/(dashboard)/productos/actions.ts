@@ -30,7 +30,7 @@ export type CatalogCreateState = {
   name?: string;
 };
 
-type CatalogTable = "brands" | "suppliers";
+type CatalogTable = "brands" | "categories" | "suppliers";
 
 type SaleUnitInput = {
   id?: string;
@@ -586,6 +586,10 @@ function createProductErrorMessage(message?: string) {
     return "La marca no pertenece a esta ferreteria.";
   }
 
+  if (cleanMessage.includes("PRODUCT_CATEGORY_INVALID")) {
+    return "La categoria no pertenece a esta ferreteria o esta inactiva.";
+  }
+
   if (cleanMessage.includes("PRODUCT_SUPPLIER_INVALID")) {
     return "El proveedor no pertenece a esta ferreteria.";
   }
@@ -607,7 +611,7 @@ function createProductErrorMessage(message?: string) {
   }
 
   if (cleanMessage.includes("Could not find the function")) {
-    return "Falta aplicar la migracion 021 de stock y codigos.";
+    return "Falta aplicar la migracion 033 de categorias de productos.";
   }
 
   if (cleanMessage && !normalizedMessage.includes("duplicate key value")) {
@@ -620,11 +624,13 @@ function createProductErrorMessage(message?: string) {
 async function validateTenantCatalogId({
   fieldName,
   label,
+  requireActive = false,
   table,
   tenantId,
 }: {
   fieldName: string;
   label: string;
+  requireActive?: boolean;
   table: CatalogTable;
   tenantId: string;
 }) {
@@ -639,12 +645,17 @@ async function validateTenantCatalogId({
   }
 
   const supabase = getSupabaseServerClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from(table)
     .select("id")
     .eq("tenant_id", tenantId)
-    .eq("id", id)
-    .maybeSingle();
+    .eq("id", id);
+
+  if (requireActive) {
+    query = query.eq("active", true);
+  }
+
+  const { data, error } = await query.maybeSingle();
 
   if (error || !data) {
     throw new Error(`${label} no pertenece a esta ferreteria.`);
@@ -1010,6 +1021,7 @@ export async function createProductAction(
     const supabase = getSupabaseServerClient();
     const [
       brandId,
+      categoryId,
       supplierId,
       costWithoutTax,
       costWithTax,
@@ -1023,6 +1035,15 @@ export async function createProductAction(
         fieldName: textValue(formData, "brandId"),
         label: "La marca",
         table: "brands",
+        tenantId: tenant.id,
+      }),
+      validateTenantCatalogId({
+        fieldName:
+          textValue(formData, "categoryId") ||
+          textValue(formData, "category_id"),
+        label: "La categoria",
+        requireActive: true,
+        table: "categories",
         tenantId: tenant.id,
       }),
       validateTenantCatalogId({
@@ -1086,6 +1107,7 @@ export async function createProductAction(
       input_active: active,
       input_barcode: barcode,
       input_brand_id: brandId,
+      input_category_id: categoryId,
       input_cost_with_tax: finalCostWithTax,
       input_cost_without_tax: costWithoutTax,
       input_custom_code: customCode,
@@ -1308,11 +1330,20 @@ export async function updateProductStockCommercialAction(
       salePrice: salePrice ?? 0,
     }));
     const supabase = getSupabaseServerClient();
-    const [brandId, supplierId] = await Promise.all([
+    const [brandId, categoryId, supplierId] = await Promise.all([
       validateTenantCatalogId({
         fieldName: textValue(formData, "brandId"),
         label: "La marca",
         table: "brands",
+        tenantId: tenant.id,
+      }),
+      validateTenantCatalogId({
+        fieldName:
+          textValue(formData, "categoryId") ||
+          textValue(formData, "category_id"),
+        label: "La categoria",
+        requireActive: true,
+        table: "categories",
         tenantId: tenant.id,
       }),
       validateTenantCatalogId({
@@ -1332,6 +1363,7 @@ export async function updateProductStockCommercialAction(
       .from("products")
       .update({
         brand_id: brandId,
+        category_id: categoryId,
         custom_code: customCode,
         name,
         normalized_name: normalizeName(name),

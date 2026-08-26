@@ -81,6 +81,7 @@ function formDataSignature(form: HTMLFormElement) {
 
 export function StockAdjustDetails({
   brands = [],
+  categories = [],
   children,
   defaultOpen = false,
   onAdjusted,
@@ -91,6 +92,7 @@ export function StockAdjustDetails({
   suppliers = [],
 }: {
   brands?: CatalogOption[];
+  categories?: CatalogOption[];
   children?: ReactNode;
   defaultOpen?: boolean;
   onAdjusted?: () => void;
@@ -303,6 +305,7 @@ export function StockAdjustDetails({
                   <ProductCommercialForm
                     ref={commercialFormRef}
                     brands={brands}
+                    categories={categories}
                     product={product}
                     primaryBarcodeRef={primaryBarcodeRef}
                     suppliers={suppliers}
@@ -452,12 +455,13 @@ const ProductCommercialForm = forwardRef<
   CommercialFormHandle,
   {
     brands: CatalogOption[];
+    categories: CatalogOption[];
     primaryBarcodeRef: React.RefObject<PrimaryBarcodeHandle | null>;
     product: ProductListItem;
     suppliers: CatalogOption[];
   }
 >(function ProductCommercialForm(
-  { brands, primaryBarcodeRef, product, suppliers },
+  { brands, categories, primaryBarcodeRef, product, suppliers },
   ref
 ) {
   const formRef = useRef<HTMLFormElement>(null);
@@ -610,12 +614,19 @@ const ProductCommercialForm = forwardRef<
 
       <section className="order-4 grid min-w-0 gap-3 rounded-lg border border-border bg-background p-3">
         <h3 className="text-base font-bold">Clasificacion</h3>
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <NumberField
             label="Stock minimo"
             name="minStock"
             defaultValue={String(product.minStock)}
             step="1"
+          />
+          <CategorySelect
+            currentId={product.categoryId}
+            currentName={product.category}
+            label="Categoria"
+            name="categoryId"
+            options={categories}
           />
           <CatalogSelectWithCreate
             currentId={product.brandId}
@@ -676,6 +687,49 @@ const ProductCommercialForm = forwardRef<
     </form>
   );
 });
+
+function CategorySelect({
+  currentId = "",
+  currentName = "",
+  label,
+  name,
+  options,
+}: {
+  currentId?: string;
+  currentName?: string;
+  label: string;
+  name: string;
+  options: CatalogOption[];
+}) {
+  const hasCurrentOption =
+    currentId && !options.some((option) => option.id === currentId);
+
+  return (
+    <label className="grid gap-2">
+      <span className="text-sm font-semibold">{label}</span>
+      <select
+        name={name}
+        defaultValue={currentId}
+        className="h-11 min-w-0 rounded-lg border border-input bg-background px-3 text-base"
+      >
+        <option value="">Sin categoria</option>
+        {hasCurrentOption ? (
+          <option value={currentId}>{currentName || currentId}</option>
+        ) : null}
+        {options.map((option) => (
+          <option key={option.id} value={option.id}>
+            {option.name}
+          </option>
+        ))}
+      </select>
+      {options.length === 0 ? (
+        <span className="text-sm font-semibold text-muted-foreground">
+          Podes crear categorias desde Configuracion &gt; Categorias.
+        </span>
+      ) : null}
+    </label>
+  );
+}
 
 const PrimaryBarcodeSection = forwardRef<
   PrimaryBarcodeHandle,

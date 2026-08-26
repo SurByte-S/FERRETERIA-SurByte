@@ -67,6 +67,7 @@ type ProductRow = {
   category_id: string | null;
   brand_id: string | null;
   supplier_id: string | null;
+  categories: { name: string } | null;
   brands: { name: string } | null;
   suppliers: { name: string } | null;
 };
@@ -140,7 +141,7 @@ function mapProduct(row: ProductRow): ProductListItem {
     }),
     name: row.name,
     description: row.description ?? row.name,
-    category: "",
+    category: row.categories?.name ?? "",
     categoryId: row.category_id ?? "",
     brand: row.brands?.name ?? "",
     brandId: row.brand_id ?? "",
@@ -368,6 +369,7 @@ export default async function StockPage({ searchParams }: StockPageProps) {
                       <NewProductForm
                         brands={result.brands}
                         canCreate={result.canCreateProduct}
+                        categories={result.categories}
                         estimatedCustomCode={result.estimatedCustomCode}
                         suppliers={result.suppliers}
                         triggerLabel="Agregar producto nuevo"
@@ -457,6 +459,7 @@ export default async function StockPage({ searchParams }: StockPageProps) {
                   key={product.id}
                   product={product}
                   brands={result.brands}
+                  categories={result.categories}
                   canAdjustStock={result.canAdjustStock}
                   canEditPrice={result.canEditPrice}
                   suppliers={result.suppliers}
@@ -502,12 +505,14 @@ function StockNotice({ notice }: { notice: StockSearchNotice }) {
 function StockProductCard({
   product,
   brands,
+  categories,
   canAdjustStock,
   canEditPrice,
   suppliers,
 }: {
   product: ProductListItem;
   brands: CatalogOption[];
+  categories: CatalogOption[];
   canAdjustStock: boolean;
   canEditPrice: boolean;
   suppliers: CatalogOption[];
@@ -564,6 +569,7 @@ function StockProductCard({
   return (
     <StockAdjustDetails
       brands={brands}
+      categories={categories}
       product={product}
       canEditPrice={canEditPrice}
       suppliers={suppliers}
@@ -591,6 +597,7 @@ async function loadStockProducts({
       canEditPrice: boolean;
       estimatedCustomCode: string | null;
       brands: CatalogOption[];
+      categories: CatalogOption[];
       notice?: StockSearchNotice;
       suppliers: CatalogOption[];
     }
@@ -602,10 +609,16 @@ async function loadStockProducts({
     const canAdjustStock = ["owner", "admin", "seller"].includes(tenant.role);
     const canEditPrice = ["owner", "admin"].includes(tenant.role);
     const canCreateProduct = canEditPrice;
-    const [brandsResult, suppliersResult, customCodeCounterResult] =
+    const [brandsResult, categoriesResult, suppliersResult, customCodeCounterResult] =
       await Promise.all([
         supabase
           .from("brands")
+          .select("id,name")
+          .eq("tenant_id", tenant.id)
+          .eq("active", true)
+          .order("name"),
+        supabase
+          .from("categories")
           .select("id,name")
           .eq("tenant_id", tenant.id)
           .eq("active", true)
@@ -624,7 +637,7 @@ async function loadStockProducts({
           : Promise.resolve({ data: null, error: null }),
       ]);
 
-    if (brandsResult.error || suppliersResult.error) {
+    if (brandsResult.error || categoriesResult.error || suppliersResult.error) {
       return {
         ok: false,
         message: "No se pudieron cargar las opciones para crear productos.",
@@ -682,7 +695,7 @@ async function loadStockProducts({
     let query = supabase
       .from("products")
       .select(
-        "id,sku,custom_code,barcode,name,normalized_name,description,unit,cost_without_tax,cost_with_tax,sale_price,tax_rate,profit_margin_percent,stock_quantity,min_stock,active,image_url,category_id,brand_id,supplier_id,brands(name),suppliers(name)"
+        "id,sku,custom_code,barcode,name,normalized_name,description,unit,cost_without_tax,cost_with_tax,sale_price,tax_rate,profit_margin_percent,stock_quantity,min_stock,active,image_url,category_id,brand_id,supplier_id,categories(name),brands(name),suppliers(name)"
       )
       .eq("tenant_id", tenant.id)
       .eq("active", true)
@@ -805,6 +818,7 @@ async function loadStockProducts({
       canEditPrice,
       estimatedCustomCode,
       brands: (brandsResult.data ?? []) as CatalogOption[],
+      categories: (categoriesResult.data ?? []) as CatalogOption[],
       notice,
       suppliers: (suppliersResult.data ?? []) as CatalogOption[],
     };
