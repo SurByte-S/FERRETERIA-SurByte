@@ -28,7 +28,7 @@ export function ClassicShortcutsBar({ tenantRole }: { tenantRole: TenantRole }) 
       aria-label="Accesos rapidos"
       className="no-print border-b border-[#9aa7b8] bg-[#e9edf3] px-2 py-2 sm:px-2.5"
     >
-      <div className="grid grid-flow-col auto-cols-[minmax(180px,1fr)] gap-2 overflow-x-auto pb-0.5">
+      <div className="grid grid-flow-col auto-cols-[minmax(170px,1fr)] gap-2 overflow-x-auto pb-0.5 lg:grid-flow-row lg:grid-cols-[repeat(auto-fit,minmax(135px,1fr))] lg:auto-cols-auto lg:overflow-visible">
         {shortcutItems.map((item) => {
           const Icon = item.icon;
           const active = isNavigationItemActive(pathname, item.href);
@@ -39,9 +39,9 @@ export function ClassicShortcutsBar({ tenantRole }: { tenantRole: TenantRole }) 
               href={item.href}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "flex min-h-14 w-full min-w-[180px] shrink-0 items-center justify-center gap-2 rounded-md border px-4 text-center text-base font-semibold whitespace-nowrap shadow-sm transition-colors",
+                "flex min-h-14 w-full min-w-[170px] shrink-0 items-center justify-center gap-2 rounded-md border px-4 text-center text-base font-semibold whitespace-nowrap shadow-sm transition-colors lg:min-w-0 lg:shrink",
                 active
-                  ? "border-primary/80 bg-primary/10 text-primary shadow-md ring-2 ring-primary/20"
+                  ? "border-primary/80 bg-primary/15 text-primary shadow-md ring-2 ring-primary/25"
                   : "border-border bg-card text-foreground hover:border-primary/40 hover:bg-muted/50"
               )}
             >
