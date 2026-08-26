@@ -1597,82 +1597,81 @@ function TicketLine({
   }
 
   return (
-    <div className="grid gap-2 rounded-md border border-border bg-card p-2 md:grid-cols-[auto_minmax(0,1fr)_auto_auto] md:items-center">
-      <Button
-        type="button"
-        variant="outline"
-        onClick={onRemove}
-        className="h-8 shrink-0 border-red-300 bg-red-50 px-3 text-sm font-bold text-red-800 hover:bg-red-100"
-      >
-        Quitar
-      </Button>
-      <div className="min-w-0">
-        <p className="truncate text-sm font-black leading-tight">
+    <div className="grid gap-2 rounded-md border border-border bg-card p-2">
+      <div className="grid gap-2 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onRemove}
+          className="h-8 w-fit shrink-0 border-red-300 bg-red-50 px-3 text-sm font-bold text-red-800 hover:bg-red-100"
+        >
+          Quitar
+        </Button>
+        <p className="min-w-0 truncate text-sm font-black leading-tight">
           {line.description}
         </p>
-        <p className="text-xs font-bold text-muted-foreground">
-          Unitario: {formatMoney(line.price)}
-        </p>
-      </div>
-      <label className="flex flex-wrap items-center gap-2 md:flex-nowrap">
-        <span className="text-sm font-bold text-muted-foreground">Cantidad</span>
-        <span className="flex items-center gap-1">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => changeQuantityBy(-1)}
-            className="h-9 w-9 px-0 text-lg font-black"
-            aria-label="Disminuir cantidad"
-          >
-            -
-          </Button>
-          <input
-            value={quantityText}
-            onFocus={() => {
-              setIsQuantityEditing(true);
-              setQuantityDraft(String(line.quantity));
-            }}
-            onChange={(event) => {
-              const nextValue = event.target.value;
-              const nextQuantity = parseQuantity(nextValue);
+        <label className="flex items-center gap-2 sm:justify-end">
+          <span className="text-sm font-bold text-muted-foreground">
+            Cantidad
+          </span>
+          <span className="flex items-center gap-1">
+            <input
+              value={quantityText}
+              onFocus={() => {
+                setIsQuantityEditing(true);
+                setQuantityDraft(String(line.quantity));
+              }}
+              onChange={(event) => {
+                const nextValue = event.target.value;
+                const nextQuantity = parseQuantity(nextValue);
 
-              setQuantityDraft(nextValue);
+                setQuantityDraft(nextValue);
 
-              if (Number.isFinite(nextQuantity) && nextQuantity > 0) {
-                const accepted = onQuantityChange(nextValue);
+                if (Number.isFinite(nextQuantity) && nextQuantity > 0) {
+                  const accepted = onQuantityChange(nextValue);
 
-                if (!accepted) {
+                  if (!accepted) {
+                    setQuantityDraft(String(line.quantity));
+                  }
+                }
+              }}
+              onBlur={() => {
+                if (!onQuantityChange(quantityText)) {
                   setQuantityDraft(String(line.quantity));
                 }
-              }
-            }}
-            onBlur={() => {
-              if (!onQuantityChange(quantityText)) {
-                setQuantityDraft(String(line.quantity));
-              }
-              setIsQuantityEditing(false);
-            }}
-            type="text"
-            inputMode="decimal"
-            className="h-9 w-20 rounded-md border border-input bg-background px-2 text-center text-sm font-black"
-            aria-label={`Cantidad de ${line.description}`}
-          />
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => changeQuantityBy(1)}
-            className="h-9 w-9 px-0 text-lg font-black"
-            aria-label="Aumentar cantidad"
-          >
-            +
-          </Button>
-        </span>
-      </label>
-      <div className="text-left md:text-right">
-        <p className="text-xs font-bold text-muted-foreground">Total</p>
-        <p className="text-lg font-black text-primary">
-          {formatMoney(lineTotal)}
-        </p>
+                setIsQuantityEditing(false);
+              }}
+              type="text"
+              inputMode="decimal"
+              className="h-10 w-20 rounded-md border border-input bg-background px-2 text-center text-sm font-black"
+              aria-label={`Cantidad de ${line.description}`}
+            />
+            <span className="grid gap-1">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => changeQuantityBy(1)}
+                className="h-[1.15rem] w-8 px-0 text-xs font-black leading-none"
+                aria-label="Aumentar cantidad"
+              >
+                ▲
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => changeQuantityBy(-1)}
+                className="h-[1.15rem] w-8 px-0 text-xs font-black leading-none"
+                aria-label="Disminuir cantidad"
+              >
+                ▼
+              </Button>
+            </span>
+          </span>
+        </label>
+      </div>
+      <div className="flex flex-col gap-1 border-t border-border pt-2 text-sm font-bold text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+        <span>Unitario: {formatMoney(line.price)}</span>
+        <span className="text-primary">Total: {formatMoney(lineTotal)}</span>
       </div>
     </div>
   );
