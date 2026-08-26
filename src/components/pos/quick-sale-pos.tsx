@@ -1598,19 +1598,24 @@ function TicketLine({
 
   return (
     <div className="grid gap-2 rounded-md border border-border bg-card p-2">
-      <div className="grid gap-2 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onRemove}
-          className="h-8 w-fit shrink-0 border-red-300 bg-red-50 px-3 text-sm font-bold text-red-800 hover:bg-red-100"
+      <div className="grid gap-2 md:grid-cols-[auto_minmax(0,1fr)_auto_auto_auto] md:items-center">
+        <div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onRemove}
+            className="h-8 w-fit shrink-0 border-red-300 bg-red-50 px-3 text-sm font-bold text-red-800 hover:bg-red-100"
+          >
+            Quitar
+          </Button>
+        </div>
+        <p
+          className="min-w-0 truncate text-sm font-black leading-tight"
+          title={line.description}
         >
-          Quitar
-        </Button>
-        <p className="min-w-0 truncate text-sm font-black leading-tight">
           {line.description}
         </p>
-        <label className="flex items-center gap-2 sm:justify-end">
+        <label className="flex items-center gap-2 md:justify-end">
           <span className="text-sm font-bold text-muted-foreground">
             Cantidad
           </span>
@@ -1668,10 +1673,18 @@ function TicketLine({
             </span>
           </span>
         </label>
-      </div>
-      <div className="flex flex-col gap-1 border-t border-border pt-2 text-sm font-bold text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-        <span>Unitario: {formatMoney(line.price)}</span>
-        <span className="text-primary">Total: {formatMoney(lineTotal)}</span>
+        <div className="min-w-[6rem] text-sm font-bold text-muted-foreground md:text-right">
+          <p className="text-xs uppercase tracking-normal">Unitario</p>
+          <p className="text-foreground">{formatMoney(line.price)}</p>
+        </div>
+        <div className="min-w-[6rem] text-sm font-bold md:text-right">
+          <p className="text-xs uppercase tracking-normal text-muted-foreground">
+            Total
+          </p>
+          <p className="text-lg leading-tight text-primary">
+            {formatMoney(lineTotal)}
+          </p>
+        </div>
       </div>
     </div>
   );
