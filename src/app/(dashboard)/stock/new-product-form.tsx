@@ -215,14 +215,20 @@ export function NewProductForm({
   }
 
   const formContent = (
-    <form key={formKey} action={formAction} className="grid gap-4">
+    <form
+      key={formKey}
+      action={formAction}
+      className="grid gap-3 lg:grid-cols-2 lg:items-start"
+    >
       <input type="hidden" name="active" value="true" />
 
       {state.message ? (
-        <FormStatusMessage ok={state.ok} message={state.message} />
+        <div className="lg:col-span-2">
+          <FormStatusMessage ok={state.ok} message={state.message} />
+        </div>
       ) : null}
 
-      <section className="grid gap-3 rounded-lg border border-border bg-background p-4">
+      <section className="grid gap-3 rounded-lg border border-border bg-background p-3 lg:col-start-1 lg:row-start-1">
         <h3 className="text-base font-bold">Datos principales</h3>
         <div className="grid gap-3 md:grid-cols-2">
           <TextField
@@ -241,7 +247,7 @@ export function NewProductForm({
         </div>
       </section>
 
-      <section className="grid gap-3 rounded-lg border border-border bg-background p-4">
+      <section className="grid gap-3 rounded-lg border border-border bg-background p-3 lg:col-start-2 lg:row-start-1">
         <h3 className="text-base font-bold">Stock</h3>
         <input type="hidden" name="stockQuantity" value={stockQuantity} />
         <div className="grid gap-3 md:grid-cols-2">
@@ -265,9 +271,9 @@ export function NewProductForm({
         </p>
       </section>
 
-      <section className="grid gap-3 rounded-lg border border-border bg-background p-4">
+      <section className="grid gap-3 rounded-lg border border-border bg-background p-3 lg:col-start-2 lg:row-start-2">
         <h3 className="text-base font-bold">Precio</h3>
-        <div className="grid gap-3 md:grid-cols-5">
+        <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-5">
           <NumberField
             label="Costo sin IVA"
             name="costWithoutTax"
@@ -335,9 +341,9 @@ export function NewProductForm({
         </div>
       </section>
 
-      <section className="grid gap-3 rounded-lg border border-border bg-background p-4">
+      <section className="grid gap-3 rounded-lg border border-border bg-background p-3 lg:col-start-1 lg:row-start-2">
         <h3 className="text-base font-bold">Clasificacion</h3>
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1 2xl:grid-cols-3">
           <CategorySelect
             label="Categoria"
             name="categoryId"
@@ -360,7 +366,7 @@ export function NewProductForm({
         </div>
       </section>
 
-      <section className="grid gap-3 rounded-lg border border-border bg-background p-4">
+      <section className="grid gap-3 rounded-lg border border-border bg-background p-3 lg:col-start-1 lg:row-start-3">
         <h3 className="text-base font-bold">Codigos del producto</h3>
         <input type="hidden" name="sku" value={sku} />
         <div className="grid gap-3 md:grid-cols-2">
@@ -387,7 +393,7 @@ export function NewProductForm({
         </div>
       </section>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center lg:col-span-2">
         <Button
           type="submit"
           disabled={pending}
@@ -445,7 +451,7 @@ export function NewProductForm({
 
       {open ? (
         <div className="fixed inset-0 z-40 grid place-items-center bg-black/35 p-3 sm:p-4">
-          <div className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-lg border border-border bg-card shadow-xl">
+          <div className="flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-lg border border-border bg-card shadow-xl">
             <div className="sticky top-0 z-20 flex shrink-0 items-start justify-between gap-3 border-b border-border bg-card/95 px-3 py-3 backdrop-blur sm:px-4">
               <div className="min-w-0 pr-2">
                 <p className="truncate text-xl font-bold">Nuevo producto</p>
@@ -465,7 +471,7 @@ export function NewProductForm({
               </Button>
             </div>
 
-            <div className="min-h-0 overflow-x-hidden overflow-y-auto px-3 py-4 sm:px-4">
+            <div className="min-h-0 overflow-x-hidden overflow-y-auto px-3 py-3 sm:px-4">
               {formContent}
             </div>
           </div>
