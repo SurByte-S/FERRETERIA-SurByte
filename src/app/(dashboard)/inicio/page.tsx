@@ -112,6 +112,9 @@ export default async function InicioPage({
 
   return (
     <QuickSalePos
+      key={
+        quoteForEditing?.quoteId ?? (shouldStartInQuoteMode ? "quote" : "sale")
+      }
       cashStatus={cashStatus}
       customers={customers}
       editingQuoteNumber={quoteForEditing?.editingQuoteNumber}

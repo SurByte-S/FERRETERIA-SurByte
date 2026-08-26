@@ -115,6 +115,26 @@ function parseQuantity(value: string) {
   return Number(value.replace(",", "."));
 }
 
+function emptyQuoteCustomer(): QuoteCustomer {
+  return {
+    id: "",
+    name: "",
+    phone: "",
+    email: "",
+    address: "",
+  };
+}
+
+function normalizeQuoteCustomerForSave(customer: QuoteCustomer): QuoteCustomer {
+  return {
+    id: customer.id?.trim() ?? "",
+    name: customer.name.trim(),
+    phone: customer.phone.trim(),
+    email: customer.email.trim(),
+    address: customer.address.trim(),
+  };
+}
+
 function formatQuantityInput(quantity: number) {
   if (!Number.isFinite(quantity)) {
     return "1";
@@ -251,13 +271,7 @@ export function QuickSalePos({
   const barcodeScanQueueRef = useRef<string[]>([]);
   const barcodeSearchTermRef = useRef("");
   const [customer, setCustomer] = useState<QuoteCustomer>(
-    initialCustomer ?? {
-      id: "",
-      name: "",
-      phone: "",
-      email: "",
-      address: "",
-    }
+    initialCustomer ?? emptyQuoteCustomer()
   );
   const [search, setSearch] = useState(initialSku ?? "");
   const [mode, setMode] = useState<SaleMode>(initialMode);
@@ -884,7 +898,7 @@ export function QuickSalePos({
     setMessage("");
     startTransition(async () => {
       const result = await updateQuoteAction({
-        customer,
+        customer: normalizeQuoteCustomerForSave(customer),
         lines,
         quoteId: initialQuoteId,
       });
@@ -901,7 +915,10 @@ export function QuickSalePos({
   function saveQuoteAsNew() {
     setMessage("");
     startTransition(async () => {
-      const result = await saveQuoteAction({ customer, lines });
+      const result = await saveQuoteAction({
+        customer: normalizeQuoteCustomerForSave(customer),
+        lines,
+      });
 
       if (result.ok && result.quoteId) {
         router.push(`/presupuestos/${result.quoteId}`);
