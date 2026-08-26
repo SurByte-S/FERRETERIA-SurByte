@@ -300,7 +300,7 @@ export function StockAdjustDetails({
             </div>
 
             <div className="min-h-0 overflow-x-hidden overflow-y-auto p-3">
-              <div className="grid gap-3 rounded-lg border border-border bg-muted/20 p-3 xl:grid-cols-2 xl:items-start">
+              <div className="grid gap-3 rounded-lg border border-border bg-muted/20 p-3 lg:grid-cols-2 lg:items-start xl:grid-cols-3">
                 {canEditPrice ? (
                   <ProductCommercialForm
                     ref={commercialFormRef}
@@ -315,8 +315,8 @@ export function StockAdjustDetails({
                 <section
                   className={
                     canEditPrice
-                      ? "order-3 min-w-0 xl:col-start-2 xl:row-start-2"
-                      : "order-1 min-w-0 xl:col-span-2"
+                      ? "order-2 min-w-0 xl:col-start-2 xl:row-start-1"
+                      : "order-1 min-w-0 lg:col-span-2 xl:col-span-3"
                   }
                 >
                   <StockAdjustForm
@@ -326,7 +326,7 @@ export function StockAdjustDetails({
                 </section>
 
                 {canEditPrice ? (
-                  <section className="order-8 min-w-0 xl:col-span-2">
+                  <section className="order-8 min-w-0 lg:col-span-2 xl:col-span-3">
                     <DangerZone
                       product={product}
                       onDeleted={(nextMessage) => {
@@ -557,7 +557,7 @@ const ProductCommercialForm = forwardRef<
         </label>
       </section>
 
-      <section className="order-2 grid min-w-0 content-start gap-3 rounded-lg border border-border bg-background p-3 xl:col-start-2 xl:row-start-1">
+      <section className="order-3 grid min-w-0 content-start gap-3 rounded-lg border border-border bg-background p-3 xl:col-start-3 xl:row-start-1">
         <h3 className="text-base font-bold">Precio</h3>
         <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-5">
           <NumberField
@@ -655,7 +655,7 @@ const ProductCommercialForm = forwardRef<
         </div>
       </section>
 
-      <section className="order-5 grid min-w-0 gap-3 rounded-lg border border-border bg-background p-3 xl:col-start-1 xl:row-start-3">
+      <section className="order-5 grid min-w-0 gap-3 rounded-lg border border-border bg-background p-3 xl:col-start-2 xl:row-start-2">
         <h3 className="text-base font-bold">Codigos del producto</h3>
         <div className="grid gap-3 md:grid-cols-2">
           <div className="grid gap-2 text-base font-semibold">
@@ -675,7 +675,7 @@ const ProductCommercialForm = forwardRef<
         </div>
       </section>
 
-      <div className="order-6 min-w-0 xl:col-start-1 xl:row-start-4">
+      <div className="order-6 min-w-0 xl:col-start-3 xl:row-start-2">
         <PrimaryBarcodeSection
           ref={primaryBarcodeRef}
           key={`${product.id}:${product.productBarcode}:${product.hasProductBarcode}`}
@@ -683,7 +683,7 @@ const ProductCommercialForm = forwardRef<
         />
       </div>
 
-      <div className="order-7 min-w-0 xl:col-span-2">
+      <div className="order-7 min-w-0 lg:col-span-2 xl:col-span-3">
         <SaleUnitsEditor
           fallbackPrice={product.salePrice}
           saleUnits={product.saleUnits}
