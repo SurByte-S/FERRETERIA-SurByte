@@ -30,6 +30,105 @@ type CategoryFilter = {
   name: string;
 };
 
+type StockPdfColumnKey =
+  | "custom_code"
+  | "sku"
+  | "barcode"
+  | "name"
+  | "category"
+  | "brand"
+  | "supplier"
+  | "sale_price"
+  | "stock_quantity"
+  | "min_stock";
+
+type StockPdfColumn = {
+  align?: "left" | "right" | "center";
+  header: string;
+  key: StockPdfColumnKey;
+  value: (row: StockExportRow) => string | number | null | undefined;
+  weight: number;
+};
+
+const STOCK_PDF_COLUMNS: Record<StockPdfColumnKey, StockPdfColumn> = {
+  custom_code: {
+    header: "Codigo propio",
+    key: "custom_code",
+    value: (row) => row.custom_code,
+    weight: 62,
+  },
+  sku: {
+    header: "Codigo catalogo",
+    key: "sku",
+    value: (row) => row.sku,
+    weight: 62,
+  },
+  barcode: {
+    header: "Codigo barras",
+    key: "barcode",
+    value: (row) => row.barcode,
+    weight: 72,
+  },
+  name: {
+    header: "Producto",
+    key: "name",
+    value: (row) => row.name,
+    weight: 150,
+  },
+  category: {
+    header: "Categoria",
+    key: "category",
+    value: (row) => row.categories?.name ?? "",
+    weight: 70,
+  },
+  brand: {
+    header: "Marca",
+    key: "brand",
+    value: (row) => row.brands?.name ?? "",
+    weight: 58,
+  },
+  supplier: {
+    header: "Proveedor",
+    key: "supplier",
+    value: (row) => row.suppliers?.name ?? "",
+    weight: 68,
+  },
+  sale_price: {
+    align: "right",
+    header: "Precio",
+    key: "sale_price",
+    value: (row) => formatMoney(row.sale_price),
+    weight: 58,
+  },
+  stock_quantity: {
+    align: "right",
+    header: "Stock",
+    key: "stock_quantity",
+    value: (row) => formatNumber(row.stock_quantity),
+    weight: 46,
+  },
+  min_stock: {
+    align: "right",
+    header: "Stock minimo",
+    key: "min_stock",
+    value: (row) => formatNumber(row.min_stock),
+    weight: 52,
+  },
+};
+
+const DEFAULT_STOCK_PDF_COLUMNS: StockPdfColumnKey[] = [
+  "sku",
+  "custom_code",
+  "name",
+  "sale_price",
+  "stock_quantity",
+  "min_stock",
+  "brand",
+  "supplier",
+];
+
+const PDF_TABLE_WIDTH = 516;
+
 const CSV_HEADERS = [
   "codigo",
   "codigo_propio",
@@ -63,6 +162,8 @@ export async function GET(request: Request) {
     const date = dateStamp();
 
     if (format === "pdf") {
+      const pdfColumns = resolveStockPdfColumns(searchParams.getAll("columns"));
+
       return pdfResponse({
         filename: `stock-${date}.pdf`,
         pdf: createTablePdf({
@@ -73,26 +174,14 @@ export async function GET(request: Request) {
             category ? `Categoria: ${category.name}` : "Categoria: Todas",
           ],
           table: {
-            columns: [
-              { header: "Codigo", width: 58 },
-              { header: "Propio", width: 42 },
-              { header: "Producto", width: 150 },
-              { align: "right", header: "Precio", width: 58 },
-              { align: "right", header: "Stock", width: 46 },
-              { align: "right", header: "Minimo", width: 46 },
-              { header: "Marca", width: 58 },
-              { header: "Proveedor", width: 58 },
-            ],
-            rows: rows.map((row) => [
-              row.sku,
-              row.custom_code,
-              row.name,
-              formatNumber(row.sale_price),
-              formatNumber(row.stock_quantity),
-              formatNumber(row.min_stock),
-              row.brands?.name ?? "",
-              row.suppliers?.name ?? "",
-            ]),
+            columns: pdfColumns.map((column) => ({
+              align: column.align,
+              header: column.header,
+              width: column.width,
+            })),
+            rows: rows.map((row) =>
+              pdfColumns.map((column) => column.value(row))
+            ),
           },
         }),
       });
@@ -198,8 +287,39 @@ async function loadStockRows({
   }
 }
 
+function resolveStockPdfColumns(values: string[]) {
+  const selectedKeys = values
+    .flatMap((value) => value.split(","))
+    .map((value) => value.trim())
+    .filter((value): value is StockPdfColumnKey =>
+      Object.prototype.hasOwnProperty.call(STOCK_PDF_COLUMNS, value)
+    );
+  const uniqueKeys = [...new Set(selectedKeys)];
+  const keys =
+    uniqueKeys.length > 0 ? uniqueKeys : DEFAULT_STOCK_PDF_COLUMNS;
+  const columns = keys.map((key) => STOCK_PDF_COLUMNS[key]);
+  const totalWeight = columns.reduce((sum, column) => sum + column.weight, 0);
+
+  return columns.map((column) => ({
+    ...column,
+    width: Math.round((column.weight / totalWeight) * PDF_TABLE_WIDTH),
+  }));
+}
+
 function dateStamp() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function formatMoney(value: number | null | undefined) {
+  if (value === null || value === undefined) {
+    return "";
+  }
+
+  return new Intl.NumberFormat("es-AR", {
+    currency: "ARS",
+    maximumFractionDigits: 2,
+    style: "currency",
+  }).format(value);
 }
 
 function formatNumber(value: number | null | undefined) {
