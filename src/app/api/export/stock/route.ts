@@ -42,6 +42,8 @@ type StockPdfColumnKey =
   | "stock_quantity"
   | "min_stock";
 
+type StockOrderMode = "alphabetical" | "category";
+
 type StockPdfColumn = {
   align?: "left" | "right" | "center";
   header: string;
@@ -151,6 +153,7 @@ export async function GET(request: Request) {
     const tenant = await requireTenantRole(["owner", "admin"]);
     const searchParams = new URL(request.url).searchParams;
     const format = searchParams.get("format") ?? "csv";
+    const orderMode = resolveStockOrderMode(searchParams.get("orderMode"));
     const category = await resolveCategoryFilter({
       categoryId: searchParams.get("categoryId"),
       tenantId: tenant.id,
@@ -172,6 +175,11 @@ export async function GET(request: Request) {
           meta: [
             `Fecha de generacion: ${new Date().toLocaleString("es-AR")}`,
             category ? `Categoria: ${category.name}` : "Categoria: Todas",
+            `Orden: ${
+              orderMode === "category"
+                ? "Separado por categorias"
+                : "Alfabetico"
+            }`,
           ],
           table: {
             columns: pdfColumns.map((column) => ({
@@ -179,9 +187,11 @@ export async function GET(request: Request) {
               header: column.header,
               width: column.width,
             })),
-            rows: rows.map((row) =>
-              pdfColumns.map((column) => column.value(row))
-            ),
+            rows: buildStockPdfRows({
+              columns: pdfColumns,
+              orderMode,
+              rows,
+            }),
           },
         }),
       });
@@ -212,6 +222,57 @@ export async function GET(request: Request) {
   } catch (error) {
     return exportErrorResponse(error);
   }
+}
+
+function buildStockPdfRows({
+  columns,
+  orderMode,
+  rows,
+}: {
+  columns: ReturnType<typeof resolveStockPdfColumns>;
+  orderMode: StockOrderMode;
+  rows: StockExportRow[];
+}) {
+  if (orderMode === "alphabetical") {
+    return sortProductsByName(rows).map((row) =>
+      columns.map((column) => column.value(row))
+    );
+  }
+
+  const groupedRows: (string | number | null | undefined)[][] = [];
+  const groups = new Map<string, StockExportRow[]>();
+
+  for (const row of rows) {
+    const categoryName = row.categories?.name?.trim() || "Sin categoria";
+    const products = groups.get(categoryName) ?? [];
+    products.push(row);
+    groups.set(categoryName, products);
+  }
+
+  const sortedGroups = [...groups.entries()].sort(([first], [second]) => {
+    if (first === "Sin categoria") {
+      return 1;
+    }
+
+    if (second === "Sin categoria") {
+      return -1;
+    }
+
+    return first.localeCompare(second, "es");
+  });
+
+  for (const [categoryName, products] of sortedGroups) {
+    const separatorRow = Array.from({ length: columns.length }, () => "");
+    separatorRow[0] = `Categoria: ${categoryName}`;
+    groupedRows.push(separatorRow);
+    groupedRows.push(
+      ...sortProductsByName(products).map((row) =>
+        columns.map((column) => column.value(row))
+      )
+    );
+  }
+
+  return groupedRows;
 }
 
 async function resolveCategoryFilter({
@@ -287,6 +348,10 @@ async function loadStockRows({
   }
 }
 
+function resolveStockOrderMode(value: string | null): StockOrderMode {
+  return value === "category" ? "category" : "alphabetical";
+}
+
 function resolveStockPdfColumns(values: string[]) {
   const selectedKeys = values
     .flatMap((value) => value.split(","))
@@ -304,6 +369,12 @@ function resolveStockPdfColumns(values: string[]) {
     ...column,
     width: Math.round((column.weight / totalWeight) * PDF_TABLE_WIDTH),
   }));
+}
+
+function sortProductsByName(rows: StockExportRow[]) {
+  return [...rows].sort((first, second) =>
+    first.name.localeCompare(second.name, "es")
+  );
 }
 
 function dateStamp() {

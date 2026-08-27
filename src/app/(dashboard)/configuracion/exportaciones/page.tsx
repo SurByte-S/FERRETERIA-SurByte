@@ -49,11 +49,13 @@ const defaultStockColumns = [
 ] as const;
 
 type StockColumnKey = (typeof stockColumnOptions)[number]["value"];
+type StockOrderMode = "alphabetical" | "category";
 
 type ExportacionesPageProps = {
   searchParams: Promise<{
     categoryId?: string;
     columns?: string | string[];
+    orderMode?: string;
   }>;
 };
 
@@ -74,9 +76,11 @@ export default async function ConfiguracionExportacionesPage({
     ? params.categoryId ?? ""
     : "";
   const selectedStockColumns = parseStockColumns(params.columns);
+  const selectedStockOrderMode = parseStockOrderMode(params.orderMode);
   const stockPdfHref = stockExportHref({
     categoryId: selectedCategoryId,
     columns: selectedStockColumns,
+    orderMode: selectedStockOrderMode,
   });
 
   return (
@@ -118,7 +122,7 @@ export default async function ConfiguracionExportacionesPage({
                 action="/configuracion/exportaciones"
                 className="grid gap-3"
               >
-                <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-end">
                   <label className="grid gap-2 text-sm font-semibold text-foreground">
                     <span>Categoria</span>
                     <select
@@ -134,10 +138,21 @@ export default async function ConfiguracionExportacionesPage({
                       ))}
                     </select>
                   </label>
+                  <label className="grid gap-2 text-sm font-semibold text-foreground">
+                    <span>Orden del catálogo</span>
+                    <select
+                      name="orderMode"
+                      defaultValue={selectedStockOrderMode}
+                      className="h-11 min-w-0 rounded-lg border border-input bg-background px-3 text-base"
+                    >
+                      <option value="alphabetical">Orden alfabético</option>
+                      <option value="category">Separado por categorías</option>
+                    </select>
+                  </label>
                   <Button
                     type="submit"
                     variant="outline"
-                    className="h-11 px-4 text-base"
+                    className="h-11 px-4 text-base sm:col-span-2 lg:col-span-1"
                   >
                     Aplicar columnas
                   </Button>
@@ -260,11 +275,16 @@ function parseStockColumns(value: string | string[] | undefined) {
 function stockExportHref({
   categoryId,
   columns,
+  orderMode,
 }: {
   categoryId: string;
   columns: StockColumnKey[];
+  orderMode: StockOrderMode;
 }) {
-  const params = new URLSearchParams({ format: "pdf" });
+  const params = new URLSearchParams({
+    format: "pdf",
+    orderMode,
+  });
 
   if (categoryId) {
     params.set("categoryId", categoryId);
@@ -273,4 +293,8 @@ function stockExportHref({
   params.set("columns", columns.join(","));
 
   return `/api/export/stock?${params.toString()}`;
+}
+
+function parseStockOrderMode(value: string | undefined): StockOrderMode {
+  return value === "category" ? "category" : "alphabetical";
 }
