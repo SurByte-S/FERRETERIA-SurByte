@@ -73,7 +73,7 @@ export default async function ConfiguracionPage() {
 
       <section
         aria-label="Opciones de configuracion"
-        className="grid max-w-6xl grid-cols-1 gap-4 pb-6 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6"
+        className="grid w-full max-w-screen-2xl grid-cols-1 gap-4 pb-6 sm:grid-cols-2 xl:grid-cols-3"
       >
         {configurationSections.map((section) => {
           const Icon = section.icon;
