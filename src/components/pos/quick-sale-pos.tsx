@@ -935,7 +935,7 @@ export function QuickSalePos({
     });
   }
 
-  function registerSale() {
+  function finalizeSale({ openReceipt }: { openReceipt: boolean }) {
     if (isCashRegisterClosed) {
       setMessage(CASH_REGISTER_CLOSED_MESSAGE);
       return;
@@ -992,7 +992,17 @@ export function QuickSalePos({
       });
 
       if (result.ok && result.saleId) {
-        router.push(`/ventas/${result.saleId}`);
+        if (openReceipt) {
+          router.push(`/ventas/${result.saleId}?print=1`);
+          return;
+        }
+
+        setLines([]);
+        setCustomer(emptyQuoteCustomer());
+        setPaymentMethod(PAYMENT_METHODS[0]);
+        setPaidAmount("");
+        setMessage("Venta guardada en historial.");
+        router.refresh();
         return;
       }
 
@@ -1285,7 +1295,7 @@ export function QuickSalePos({
                     <>
                       <Button
                         type="button"
-                        onClick={registerSale}
+                        onClick={() => finalizeSale({ openReceipt: false })}
                         disabled={saleActionDisabled}
                         className="h-11 w-full text-base font-black"
                       >
@@ -1294,7 +1304,7 @@ export function QuickSalePos({
                       <Button
                         type="button"
                         variant="outline"
-                        onClick={registerSale}
+                        onClick={() => finalizeSale({ openReceipt: true })}
                         disabled={saleActionDisabled}
                         className="h-11 w-full text-base font-black"
                       >
