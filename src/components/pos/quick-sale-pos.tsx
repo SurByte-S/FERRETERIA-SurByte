@@ -327,6 +327,12 @@ export function QuickSalePos({
     hasGroupedStockIssue: Boolean(groupedStockIssue),
     isQuoteMode,
   });
+  const saleActionDisabled =
+    isPending ||
+    lines.length === 0 ||
+    hasOutOfStockLines ||
+    Boolean(groupedStockIssue) ||
+    isCashRegisterClosed;
 
   useEffect(() => {
     linesRef.current = lines;
@@ -1141,15 +1147,17 @@ export function QuickSalePos({
           </div>
 
           <div className="shrink-0 border-t-2 border-border bg-card p-2.5">
-            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+            <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
               <div
                 className={
-                  isQuoteMode ? "grid gap-2" : "grid w-full max-w-md gap-2"
+                  isQuoteMode ? "grid gap-2" : "grid w-full max-w-lg gap-2"
                 }
               >
                 <div
                   className={
-                    isQuoteMode ? "grid gap-2 md:grid-cols-2" : "grid gap-2"
+                    isQuoteMode
+                      ? "grid gap-2 md:grid-cols-2"
+                      : "grid gap-2 sm:grid-cols-2"
                   }
                 >
                   {!isQuoteMode ? (
@@ -1159,7 +1167,7 @@ export function QuickSalePos({
                         onChange={(event) =>
                           changePaymentMethod(event.target.value)
                         }
-                        className="h-12 w-full rounded-md border border-input bg-muted/30 px-3 text-base font-semibold"
+                        className="h-10 w-full rounded-md border border-input bg-muted/30 px-3 text-base font-semibold"
                       >
                         {PAYMENT_METHODS.map((method) => (
                           <option key={method} value={method}>
@@ -1177,8 +1185,14 @@ export function QuickSalePos({
                         : "rounded-md border border-border bg-muted/30"
                     }
                   >
-                    <summary className="flex h-12 cursor-pointer items-center px-3 text-base font-black">
-                      Cliente opcional
+                    <summary
+                      className={
+                        isQuoteMode
+                          ? "flex h-12 cursor-pointer items-center px-3 text-base font-black"
+                          : "flex h-10 cursor-pointer items-center px-3 text-base font-black"
+                      }
+                    >
+                      {isQuoteMode ? "Cliente opcional" : "Cliente"}
                     </summary>
                     <div className="grid gap-2 border-t border-border p-3">
                       <Field label="Cliente guardado">
@@ -1242,7 +1256,7 @@ export function QuickSalePos({
                   </details>
 
                   {!isQuoteMode && isCreditSale ? (
-                    <div className="grid gap-2 md:col-span-2">
+                    <div className="grid gap-2 sm:col-span-2">
                       <Field label="Importe pagado ahora">
                         <input
                           value={paidAmount}
@@ -1265,6 +1279,28 @@ export function QuickSalePos({
                         </p>
                       </div>
                     </div>
+                  ) : null}
+
+                  {!isQuoteMode ? (
+                    <>
+                      <Button
+                        type="button"
+                        onClick={registerSale}
+                        disabled={saleActionDisabled}
+                        className="h-11 w-full text-base font-black"
+                      >
+                        Cobrar venta
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={registerSale}
+                        disabled={saleActionDisabled}
+                        className="h-11 w-full text-base font-black"
+                      >
+                        Imprimir
+                      </Button>
+                    </>
                   ) : null}
                 </div>
 
@@ -1301,29 +1337,20 @@ export function QuickSalePos({
                       </div>
                     ) : null}
                   </div>
-                ) : (
-                  <Button
-                    type="button"
-                    onClick={registerSale}
-                    disabled={
-                      isPending ||
-                      lines.length === 0 ||
-                      hasOutOfStockLines ||
-                      Boolean(groupedStockIssue) ||
-                      isCashRegisterClosed
-                    }
-                    className="h-12 w-full text-base font-black"
-                  >
-                    Cobrar venta
-                  </Button>
-                )}
+                ) : null}
               </div>
 
               <div className="min-w-0 lg:w-64 lg:text-right">
                 <p className="text-sm font-black uppercase tracking-wide text-foreground">
                   {isQuoteMode ? "Total presupuesto" : "Total"}
                 </p>
-                <p className="truncate text-[2.75rem] font-black leading-none text-primary">
+                <p
+                  className={
+                    isQuoteMode
+                      ? "truncate text-[2.75rem] font-black leading-none text-primary"
+                      : "truncate text-[2.25rem] font-black leading-none text-primary"
+                  }
+                >
                   {formatMoney(total)}
                 </p>
 
