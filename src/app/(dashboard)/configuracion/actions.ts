@@ -19,6 +19,9 @@ const DUPLICATE_BRAND_MESSAGE = "Ya existe una marca con ese nombre.";
 const DUPLICATE_CATEGORY_MESSAGE = "Ya existe una categoria con ese nombre.";
 const DUPLICATE_SUPPLIER_MESSAGE = "Ya existe un proveedor con ese nombre.";
 const PRINT_PAPER_SIZES = ["ticket_80mm", "a5", "a4"] as const;
+const THEME_PRESETS = ["azul_clasico", "verde_comercio", "gris_sobrio"] as const;
+const FONT_PRESETS = ["sistema", "legible", "compacta"] as const;
+const COLOR_MODES = ["claro", "oscuro"] as const;
 const TENANT_LOGO_BUCKET = "tenant-logos";
 const TENANT_LOGO_MAX_SIZE = 2 * 1024 * 1024;
 const TENANT_LOGO_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
@@ -52,6 +55,18 @@ function printPaperSizeValue(formData: FormData) {
 
   return PRINT_PAPER_SIZES.some((size) => size === value)
     ? (value as (typeof PRINT_PAPER_SIZES)[number])
+    : null;
+}
+
+function allowedValue<TValue extends readonly string[]>(
+  formData: FormData,
+  key: string,
+  allowedValues: TValue
+) {
+  const value = textValue(formData, key);
+
+  return allowedValues.some((item) => item === value)
+    ? (value as TValue[number])
     : null;
 }
 
@@ -113,6 +128,62 @@ function isDuplicateError(
     normalized.includes("suppliers_tenant_id_name_key") ||
     normalized.includes("duplicate key value")
   );
+}
+
+export async function updateTenantUiSettingsAction(
+  _previousState: ConfigActionState,
+  formData: FormData
+): Promise<ConfigActionState> {
+  const themePreset = allowedValue(formData, "theme_preset", THEME_PRESETS);
+  const fontPreset = allowedValue(formData, "font_preset", FONT_PRESETS);
+  const colorMode = allowedValue(formData, "color_mode", COLOR_MODES);
+
+  if (!themePreset || !fontPreset || !colorMode) {
+    return {
+      ok: false,
+      message: "Elegi una personalizacion valida.",
+    };
+  }
+
+  try {
+    const tenant = await requireTenantRole(["owner", "admin"]);
+    const supabase = getSupabaseServerClient();
+    const { error } = await supabase.from("tenant_ui_settings").upsert(
+      {
+        tenant_id: tenant.id,
+        theme_preset: themePreset,
+        font_preset: fontPreset,
+        color_mode: colorMode,
+      },
+      {
+        onConflict: "tenant_id",
+      }
+    );
+
+    if (error) {
+      return {
+        ok: false,
+        message: "No se pudo guardar la personalizacion.",
+      };
+    }
+
+    revalidatePath("/configuracion");
+    revalidatePath("/configuracion/personalizacion");
+    revalidatePath("/inicio");
+
+    return {
+      ok: true,
+      message: "Personalizacion guardada.",
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      message: actionErrorMessage(
+        error,
+        "No se pudo guardar la personalizacion."
+      ),
+    };
+  }
 }
 
 export async function updateTenantBusinessAction(

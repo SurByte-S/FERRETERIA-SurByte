@@ -13,21 +13,39 @@ type TenantBrand = {
   name: string;
 };
 
+type TenantAppearance = {
+  colorMode: "claro" | "oscuro";
+  fontPreset: "sistema" | "legible" | "compacta";
+  themePreset: "azul_clasico" | "verde_comercio" | "gris_sobrio";
+};
+
 export function DashboardShell({
   children,
+  tenantAppearance,
   tenantBrand,
   tenantRole,
   userEmail,
 }: {
   children: React.ReactNode;
+  tenantAppearance?: TenantAppearance;
   tenantBrand?: TenantBrand;
   tenantRole: TenantRole;
   userEmail?: string;
 }) {
   const brandName = tenantBrand?.name || ferreteriaGuemesBrand.brandName;
+  const appearance = tenantAppearance ?? {
+    colorMode: "claro",
+    fontPreset: "sistema",
+    themePreset: "azul_clasico",
+  };
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div
+      className="min-h-screen bg-background text-foreground"
+      data-font={appearance.fontPreset}
+      data-mode={appearance.colorMode}
+      data-theme={appearance.themePreset}
+    >
       <div className="grid min-h-screen">
         <main className="flex min-h-screen min-w-0 flex-col lg:h-screen">
           <header className="no-print border-b border-sidebar-border bg-card px-2 py-1 sm:px-2.5">

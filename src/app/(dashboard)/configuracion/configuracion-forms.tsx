@@ -7,11 +7,14 @@ import {
   CircleOff,
   Factory,
   ImageUp,
+  MonitorCog,
+  Palette,
   Plus,
   RotateCcw,
   Save,
   Store,
   Tags,
+  Type,
 } from "lucide-react";
 
 import {
@@ -24,6 +27,7 @@ import {
   updateCategoryConfigAction,
   updateSupplierConfigAction,
   updateTenantBusinessAction,
+  updateTenantUiSettingsAction,
   uploadTenantLogoAction,
   type ConfigActionState,
 } from "./actions";
@@ -69,6 +73,33 @@ export type SupplierConfigItem = {
   address: string | null;
   notes: string | null;
 };
+
+export type ThemePreset = "azul_clasico" | "verde_comercio" | "gris_sobrio";
+export type FontPreset = "sistema" | "legible" | "compacta";
+export type ColorMode = "claro" | "oscuro";
+
+export type TenantUiSettingsConfig = {
+  color_mode: ColorMode;
+  font_preset: FontPreset;
+  theme_preset: ThemePreset;
+};
+
+const themeOptions: { label: string; value: ThemePreset }[] = [
+  { label: "Azul clasico", value: "azul_clasico" },
+  { label: "Verde comercio", value: "verde_comercio" },
+  { label: "Gris sobrio", value: "gris_sobrio" },
+];
+
+const fontOptions: { label: string; value: FontPreset }[] = [
+  { label: "Sistema", value: "sistema" },
+  { label: "Mas legible", value: "legible" },
+  { label: "Compacta", value: "compacta" },
+];
+
+const modeOptions: { label: string; value: ColorMode }[] = [
+  { label: "Claro", value: "claro" },
+  { label: "Oscuro", value: "oscuro" },
+];
 
 const initialState: ConfigActionState = {
   ok: false,
@@ -215,6 +246,99 @@ export function BusinessForm({ tenant }: { tenant: TenantBusinessConfig }) {
             pendingLabel="Subiendo..."
             submitLabel="Subir logo"
             state={logoState}
+          />
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
+
+export function PersonalizacionForm({
+  settings,
+}: {
+  settings: TenantUiSettingsConfig;
+}) {
+  const [state, formAction, pending] = useActionState(
+    updateTenantUiSettingsAction,
+    initialState
+  );
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-start gap-3">
+          <IconBox icon={Palette} />
+          <div className="min-w-0">
+            <CardTitle>Personalizacion</CardTitle>
+            <CardDescription>
+              Colores, letra y apariencia del sistema.
+            </CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <form action={formAction} className="grid gap-5">
+          <div className="grid gap-3 lg:grid-cols-3">
+            <section className="grid gap-3 rounded-lg border border-border bg-background p-3">
+              <div className="flex items-center gap-2">
+                <Palette className="size-5 text-primary" aria-hidden="true" />
+                <h2 className="text-base font-bold">Color del sistema</h2>
+              </div>
+              <OptionGroup
+                name="theme_preset"
+                options={themeOptions}
+                value={settings.theme_preset}
+              />
+            </section>
+
+            <section className="grid gap-3 rounded-lg border border-border bg-background p-3">
+              <div className="flex items-center gap-2">
+                <Type className="size-5 text-primary" aria-hidden="true" />
+                <h2 className="text-base font-bold">Letra</h2>
+              </div>
+              <OptionGroup
+                name="font_preset"
+                options={fontOptions}
+                value={settings.font_preset}
+              />
+            </section>
+
+            <section className="grid gap-3 rounded-lg border border-border bg-background p-3">
+              <div className="flex items-center gap-2">
+                <MonitorCog className="size-5 text-primary" aria-hidden="true" />
+                <h2 className="text-base font-bold">Modo de pantalla</h2>
+              </div>
+              <OptionGroup
+                name="color_mode"
+                options={modeOptions}
+                value={settings.color_mode}
+              />
+            </section>
+          </div>
+
+          <section className="grid gap-3 rounded-lg border border-border bg-background p-3">
+            <h2 className="text-base font-bold">Vista previa</h2>
+            <div className="grid gap-3 rounded-lg border border-border bg-card p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+              <div className="grid gap-1">
+                <p className="text-base font-bold text-foreground">
+                  Tarjeta de ejemplo
+                </p>
+                <p className="text-sm font-semibold text-muted-foreground">
+                  Asi se veran los textos, bordes y botones principales.
+                </p>
+              </div>
+              <Button type="button" className="h-11 px-4 text-base">
+                Boton de ejemplo
+              </Button>
+            </div>
+          </section>
+
+          <FormFooter
+            icon={Save}
+            pending={pending}
+            pendingLabel="Guardando..."
+            submitLabel="Guardar personalizacion"
+            state={state}
           />
         </form>
       </CardContent>
@@ -615,6 +739,36 @@ function Field({
         </span>
       ) : null}
     </label>
+  );
+}
+
+function OptionGroup<TValue extends string>({
+  name,
+  options,
+  value,
+}: {
+  name: string;
+  options: { label: string; value: TValue }[];
+  value: TValue;
+}) {
+  return (
+    <div className="grid gap-2">
+      {options.map((option) => (
+        <label
+          key={option.value}
+          className="flex min-h-11 items-center gap-3 rounded-lg border border-border bg-card px-3 text-base font-semibold"
+        >
+          <input
+            type="radio"
+            name={name}
+            value={option.value}
+            defaultChecked={option.value === value}
+            className="size-4"
+          />
+          <span>{option.label}</span>
+        </label>
+      ))}
+    </div>
   );
 }
 

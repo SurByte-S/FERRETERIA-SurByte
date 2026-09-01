@@ -117,6 +117,119 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+[data-theme="azul_clasico"] {
+  --primary: #25577f;
+  --primary-foreground: #f8fbff;
+  --ring: #2d628b;
+  --accent: #8a5a3b;
+  --accent-foreground: #241208;
+  --chart-1: #25577f;
+  --chart-2: #8a5a3b;
+  --chart-3: #357a92;
+  --sidebar-primary: #25577f;
+  --sidebar-primary-foreground: #f8fbff;
+}
+
+[data-theme="verde_comercio"] {
+  --primary: #256b4b;
+  --primary-foreground: #f7fffb;
+  --ring: #2f7a58;
+  --accent: #7a5a24;
+  --accent-foreground: #241806;
+  --chart-1: #256b4b;
+  --chart-2: #7a5a24;
+  --chart-3: #2f7a72;
+  --sidebar-primary: #256b4b;
+  --sidebar-primary-foreground: #f7fffb;
+}
+
+[data-theme="gris_sobrio"] {
+  --primary: #3f5364;
+  --primary-foreground: #f8fafc;
+  --ring: #526779;
+  --accent: #6b5b4a;
+  --accent-foreground: #1f1710;
+  --chart-1: #3f5364;
+  --chart-2: #6b5b4a;
+  --chart-3: #647887;
+  --sidebar-primary: #3f5364;
+  --sidebar-primary-foreground: #f8fafc;
+}
+
+[data-font="sistema"] {
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-heading: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+[data-font="legible"] {
+  --font-sans: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-heading: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 1.04em;
+  line-height: 1.55;
+}
+
+[data-font="compacta"] {
+  --font-sans: Arial, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-heading: Arial, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 0.96em;
+  line-height: 1.35;
+}
+
+[data-mode="claro"] {
+  color-scheme: light;
+}
+
+[data-mode="oscuro"] {
+  color-scheme: dark;
+  --background: #111827;
+  --foreground: #f8fafc;
+  --card: #1f2937;
+  --card-foreground: #f8fafc;
+  --popover: #111827;
+  --popover-foreground: #f8fafc;
+  --secondary: #273449;
+  --secondary-foreground: #f8fafc;
+  --muted: #344258;
+  --muted-foreground: #cbd5e1;
+  --border: #526174;
+  --input: #64748b;
+  --sidebar: #172033;
+  --sidebar-foreground: #f8fafc;
+  --sidebar-accent: #273449;
+  --sidebar-accent-foreground: #f8fafc;
+  --sidebar-border: #526174;
+}
+
+[data-mode="oscuro"][data-theme="azul_clasico"] {
+  --primary: #9cc7f2;
+  --primary-foreground: #081927;
+  --ring: #78addd;
+  --accent: #f0c36a;
+  --accent-foreground: #1f1605;
+  --sidebar-primary: #9cc7f2;
+  --sidebar-primary-foreground: #081927;
+}
+
+[data-mode="oscuro"][data-theme="verde_comercio"] {
+  --primary: #8fd8ad;
+  --primary-foreground: #062015;
+  --ring: #74bf98;
+  --accent: #e7c86b;
+  --accent-foreground: #201904;
+  --sidebar-primary: #8fd8ad;
+  --sidebar-primary-foreground: #062015;
+}
+
+[data-mode="oscuro"][data-theme="gris_sobrio"] {
+  --primary: #cbd5e1;
+  --primary-foreground: #111827;
+  --ring: #94a3b8;
+  --accent: #d6c3ad;
+  --accent-foreground: #1f1710;
+  --sidebar-primary: #cbd5e1;
+  --sidebar-primary-foreground: #111827;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

@@ -5,6 +5,7 @@ import {
   Download,
   Factory,
   FileClock,
+  Palette,
   Tags,
 } from "lucide-react";
 
@@ -54,6 +55,13 @@ const configurationSections = [
     href: "/configuracion/facturacion",
     actionLabel: "Configurar",
     icon: FileClock,
+  },
+  {
+    title: "Personalizacion",
+    description: "Colores, letra y apariencia del sistema.",
+    href: "/configuracion/personalizacion",
+    actionLabel: "Configurar",
+    icon: Palette,
   },
   {
     title: "Exportaciones",
