@@ -16,7 +16,13 @@ type TenantBrand = {
 type TenantAppearance = {
   colorMode: "claro" | "oscuro";
   fontPreset: "sistema" | "legible" | "compacta";
-  themePreset: "azul_clasico" | "verde_comercio" | "gris_sobrio";
+  themePreset:
+    | "azul_clasico"
+    | "verde_comercio"
+    | "gris_sobrio"
+    | "rojo_ferreteria"
+    | "naranja_calido"
+    | "violeta_moderno";
 };
 
 export function DashboardShell({

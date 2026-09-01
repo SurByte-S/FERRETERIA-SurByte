@@ -74,7 +74,13 @@ export type SupplierConfigItem = {
   notes: string | null;
 };
 
-export type ThemePreset = "azul_clasico" | "verde_comercio" | "gris_sobrio";
+export type ThemePreset =
+  | "azul_clasico"
+  | "verde_comercio"
+  | "gris_sobrio"
+  | "rojo_ferreteria"
+  | "naranja_calido"
+  | "violeta_moderno";
 export type FontPreset = "sistema" | "legible" | "compacta";
 export type ColorMode = "claro" | "oscuro";
 
@@ -88,6 +94,9 @@ const themeOptions: { label: string; value: ThemePreset }[] = [
   { label: "Azul clasico", value: "azul_clasico" },
   { label: "Verde comercio", value: "verde_comercio" },
   { label: "Gris sobrio", value: "gris_sobrio" },
+  { label: "Rojo ferreteria", value: "rojo_ferreteria" },
+  { label: "Naranja calido", value: "naranja_calido" },
+  { label: "Violeta moderno", value: "violeta_moderno" },
 ];
 
 const fontOptions: { label: string; value: FontPreset }[] = [

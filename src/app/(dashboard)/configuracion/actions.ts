@@ -19,7 +19,14 @@ const DUPLICATE_BRAND_MESSAGE = "Ya existe una marca con ese nombre.";
 const DUPLICATE_CATEGORY_MESSAGE = "Ya existe una categoria con ese nombre.";
 const DUPLICATE_SUPPLIER_MESSAGE = "Ya existe un proveedor con ese nombre.";
 const PRINT_PAPER_SIZES = ["ticket_80mm", "a5", "a4"] as const;
-const THEME_PRESETS = ["azul_clasico", "verde_comercio", "gris_sobrio"] as const;
+const THEME_PRESETS = [
+  "azul_clasico",
+  "verde_comercio",
+  "gris_sobrio",
+  "rojo_ferreteria",
+  "naranja_calido",
+  "violeta_moderno",
+] as const;
 const FONT_PRESETS = ["sistema", "legible", "compacta"] as const;
 const COLOR_MODES = ["claro", "oscuro"] as const;
 const TENANT_LOGO_BUCKET = "tenant-logos";

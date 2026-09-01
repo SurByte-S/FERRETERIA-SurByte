@@ -156,6 +156,45 @@
   --sidebar-primary-foreground: #f8fafc;
 }
 
+[data-theme="rojo_ferreteria"] {
+  --primary: #8f2f3d;
+  --primary-foreground: #fff8f8;
+  --ring: #a43d4a;
+  --accent: #73512c;
+  --accent-foreground: #201509;
+  --chart-1: #8f2f3d;
+  --chart-2: #73512c;
+  --chart-3: #3f6b75;
+  --sidebar-primary: #8f2f3d;
+  --sidebar-primary-foreground: #fff8f8;
+}
+
+[data-theme="naranja_calido"] {
+  --primary: #9a4f12;
+  --primary-foreground: #fffaf4;
+  --ring: #b76520;
+  --accent: #255f6f;
+  --accent-foreground: #f7fdff;
+  --chart-1: #9a4f12;
+  --chart-2: #255f6f;
+  --chart-3: #6f5d25;
+  --sidebar-primary: #9a4f12;
+  --sidebar-primary-foreground: #fffaf4;
+}
+
+[data-theme="violeta_moderno"] {
+  --primary: #5b4a8f;
+  --primary-foreground: #fbf9ff;
+  --ring: #6d5ca5;
+  --accent: #2f6c68;
+  --accent-foreground: #f6fffe;
+  --chart-1: #5b4a8f;
+  --chart-2: #2f6c68;
+  --chart-3: #7a5a24;
+  --sidebar-primary: #5b4a8f;
+  --sidebar-primary-foreground: #fbf9ff;
+}
+
 [data-font="sistema"] {
   --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-heading: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -228,6 +267,36 @@
   --accent-foreground: #1f1710;
   --sidebar-primary: #cbd5e1;
   --sidebar-primary-foreground: #111827;
+}
+
+[data-mode="oscuro"][data-theme="rojo_ferreteria"] {
+  --primary: #f0a0ad;
+  --primary-foreground: #2a060d;
+  --ring: #dc7b8a;
+  --accent: #e7c36a;
+  --accent-foreground: #201604;
+  --sidebar-primary: #f0a0ad;
+  --sidebar-primary-foreground: #2a060d;
+}
+
+[data-mode="oscuro"][data-theme="naranja_calido"] {
+  --primary: #f3b16d;
+  --primary-foreground: #2a1303;
+  --ring: #db924c;
+  --accent: #7fd3df;
+  --accent-foreground: #061b20;
+  --sidebar-primary: #f3b16d;
+  --sidebar-primary-foreground: #2a1303;
+}
+
+[data-mode="oscuro"][data-theme="violeta_moderno"] {
+  --primary: #c7b9ff;
+  --primary-foreground: #161026;
+  --ring: #a999e6;
+  --accent: #8ed8d1;
+  --accent-foreground: #061f1d;
+  --sidebar-primary: #c7b9ff;
+  --sidebar-primary-foreground: #161026;
 }
 
 @layer base {

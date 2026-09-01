@@ -21,7 +21,14 @@ const defaultUiSettings: TenantUiSettingsConfig = {
   theme_preset: "azul_clasico",
 };
 
-const themePresets = ["azul_clasico", "verde_comercio", "gris_sobrio"] as const;
+const themePresets = [
+  "azul_clasico",
+  "verde_comercio",
+  "gris_sobrio",
+  "rojo_ferreteria",
+  "naranja_calido",
+  "violeta_moderno",
+] as const;
 const fontPresets = ["sistema", "legible", "compacta"] as const;
 const colorModes = ["claro", "oscuro"] as const;
 

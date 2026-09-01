@@ -15,7 +15,13 @@ type TenantBrandRow = {
 type TenantAppearance = {
   colorMode: "claro" | "oscuro";
   fontPreset: "sistema" | "legible" | "compacta";
-  themePreset: "azul_clasico" | "verde_comercio" | "gris_sobrio";
+  themePreset:
+    | "azul_clasico"
+    | "verde_comercio"
+    | "gris_sobrio"
+    | "rojo_ferreteria"
+    | "naranja_calido"
+    | "violeta_moderno";
 };
 
 type TenantUiSettingsRow = {
@@ -29,6 +35,15 @@ const defaultTenantAppearance: TenantAppearance = {
   fontPreset: "sistema",
   themePreset: "azul_clasico",
 };
+
+const themePresets: TenantAppearance["themePreset"][] = [
+  "azul_clasico",
+  "verde_comercio",
+  "gris_sobrio",
+  "rojo_ferreteria",
+  "naranja_calido",
+  "violeta_moderno",
+];
 
 export default async function DashboardLayout({
   children,
@@ -124,9 +139,11 @@ async function loadTenantAppearance(
   }
 }
 
-function parseThemePreset(value: string | null | undefined) {
-  return value === "verde_comercio" || value === "gris_sobrio"
-    ? value
+function parseThemePreset(
+  value: string | null | undefined
+): TenantAppearance["themePreset"] {
+  return themePresets.some((item) => item === value)
+    ? (value as TenantAppearance["themePreset"])
     : defaultTenantAppearance.themePreset;
 }
 
