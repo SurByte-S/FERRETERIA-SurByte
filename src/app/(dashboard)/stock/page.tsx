@@ -2,6 +2,7 @@ import { AlertTriangle, Search, SlidersHorizontal } from "lucide-react";
 import Link from "next/link";
 
 import { NewProductForm } from "@/app/(dashboard)/stock/new-product-form";
+import { OfflineCatalogPanel } from "@/components/pwa/offline-catalog-panel";
 import { StockAdjustDetails } from "@/components/productos/stock-adjust-details";
 import { StockSearchScrollAnchor } from "@/components/productos/stock-search-scroll-anchor";
 import type { ProductListItem } from "@/components/productos/product-types";
@@ -441,6 +442,11 @@ export default async function StockPage({ searchParams }: StockPageProps) {
             <StockSearchScrollAnchor enabled={q.length > 0} />
           </div>
 
+          <OfflineCatalogPanel
+            tenantId={result.tenantId}
+            tenantName={result.tenantName}
+          />
+
           {result.products.length === 0 ? (
             <Card>
               <CardHeader>
@@ -596,6 +602,8 @@ async function loadStockProducts({
       canCreateProduct: boolean;
       canEditPrice: boolean;
       estimatedCustomCode: string | null;
+      tenantId: string;
+      tenantName: string;
       brands: CatalogOption[];
       categories: CatalogOption[];
       notice?: StockSearchNotice;
@@ -817,6 +825,8 @@ async function loadStockProducts({
       canCreateProduct,
       canEditPrice,
       estimatedCustomCode,
+      tenantId: tenant.id,
+      tenantName: tenant.name,
       brands: (brandsResult.data ?? []) as CatalogOption[],
       categories: (categoriesResult.data ?? []) as CatalogOption[],
       notice,
