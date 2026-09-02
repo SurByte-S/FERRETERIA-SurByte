@@ -15,8 +15,12 @@ import {
   createProductAction,
   type ProductActionState,
 } from "@/app/(dashboard)/productos/actions";
-import { Button } from "@/components/ui/button";
 import { CatalogSelectWithCreate } from "@/components/productos/catalog-select-with-create";
+import {
+  OFFLINE_ACTION_MESSAGE,
+  isBrowserOffline,
+} from "@/components/pwa/use-online-status";
+import { Button } from "@/components/ui/button";
 
 type CatalogOption = {
   id: string;
@@ -42,6 +46,21 @@ const initialState: ProductActionState = {
   ok: false,
   message: "",
 };
+
+async function createProductOnlineAction(
+  previousState: ProductActionState,
+  formData: FormData
+) {
+  if (isBrowserOffline()) {
+    return {
+      ...previousState,
+      ok: false,
+      message: OFFLINE_ACTION_MESSAGE,
+    };
+  }
+
+  return createProductAction(previousState, formData);
+}
 
 const BASE_UNIT_OPTIONS = ["unidad", "kg", "metro", "litro"] as const;
 
@@ -83,7 +102,7 @@ export function NewProductForm({
   const handledCreatedKeyRef = useRef<string | null>(null);
   const onCreatedRef = useRef(onCreated);
   const [state, formAction, pending] = useActionState(
-    createProductAction,
+    createProductOnlineAction,
     initialState
   );
   const [name, setName] = useState(initialName);

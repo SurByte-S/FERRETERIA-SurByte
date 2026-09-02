@@ -7,12 +7,31 @@ import {
   updateProductPriceAction,
   type ProductActionState,
 } from "@/app/(dashboard)/productos/actions";
+import {
+  OFFLINE_ACTION_MESSAGE,
+  isBrowserOffline,
+} from "@/components/pwa/use-online-status";
 import { Button } from "@/components/ui/button";
 
 const initialState: ProductActionState = {
   ok: false,
   message: "",
 };
+
+async function updateProductPriceOnlineAction(
+  previousState: ProductActionState,
+  formData: FormData
+) {
+  if (isBrowserOffline()) {
+    return {
+      ...previousState,
+      ok: false,
+      message: OFFLINE_ACTION_MESSAGE,
+    };
+  }
+
+  return updateProductPriceAction(previousState, formData);
+}
 
 function formatMoney(value: number | null) {
   if (value === null) {
@@ -38,7 +57,7 @@ export function ProductPriceForm({
   salePrice: number | null;
 }) {
   const [state, formAction, pending] = useActionState(
-    updateProductPriceAction,
+    updateProductPriceOnlineAction,
     initialState
   );
 

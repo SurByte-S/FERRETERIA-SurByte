@@ -7,6 +7,10 @@ import {
   updateProductAction,
   type ProductActionState,
 } from "@/app/(dashboard)/productos/actions";
+import {
+  OFFLINE_ACTION_MESSAGE,
+  isBrowserOffline,
+} from "@/components/pwa/use-online-status";
 import { Button } from "@/components/ui/button";
 import type { ProductCatalogOption, ProductListItem } from "./product-types";
 
@@ -14,6 +18,21 @@ const initialState: ProductActionState = {
   ok: false,
   message: "",
 };
+
+async function updateProductOnlineAction(
+  previousState: ProductActionState,
+  formData: FormData
+) {
+  if (isBrowserOffline()) {
+    return {
+      ...previousState,
+      ok: false,
+      message: OFFLINE_ACTION_MESSAGE,
+    };
+  }
+
+  return updateProductAction(previousState, formData);
+}
 
 export function ProductEditForm({
   brands,
@@ -25,7 +44,7 @@ export function ProductEditForm({
   suppliers: ProductCatalogOption[];
 }) {
   const [state, formAction, pending] = useActionState(
-    updateProductAction,
+    updateProductOnlineAction,
     initialState
   );
 

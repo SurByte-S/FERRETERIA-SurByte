@@ -7,6 +7,10 @@ import {
   upsertTenantInvoiceSettingsAction,
   type ConfigActionState,
 } from "./actions";
+import {
+  OFFLINE_ACTION_MESSAGE,
+  isBrowserOffline,
+} from "@/components/pwa/use-online-status";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -33,6 +37,21 @@ const initialState: ConfigActionState = {
   message: "",
 };
 
+async function upsertTenantInvoiceSettingsOnlineAction(
+  previousState: ConfigActionState,
+  formData: FormData
+) {
+  if (isBrowserOffline()) {
+    return {
+      ...previousState,
+      ok: false,
+      message: OFFLINE_ACTION_MESSAGE,
+    };
+  }
+
+  return upsertTenantInvoiceSettingsAction(previousState, formData);
+}
+
 const paperSizeOptions = [
   { value: "a4", label: "A4" },
   { value: "a5", label: "A5" },
@@ -45,7 +64,7 @@ export function FacturacionForm({
   settings: TenantInvoiceSettingsConfig;
 }) {
   const [state, formAction, pending] = useActionState(
-    upsertTenantInvoiceSettingsAction,
+    upsertTenantInvoiceSettingsOnlineAction,
     initialState
   );
 

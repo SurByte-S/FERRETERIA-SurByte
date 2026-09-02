@@ -31,6 +31,10 @@ import {
   uploadTenantLogoAction,
   type ConfigActionState,
 } from "./actions";
+import {
+  OFFLINE_ACTION_MESSAGE,
+  isBrowserOffline,
+} from "@/components/pwa/use-online-status";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -115,13 +119,50 @@ const initialState: ConfigActionState = {
   message: "",
 };
 
+type ConfigFormAction = (
+  previousState: ConfigActionState,
+  formData: FormData
+) => Promise<ConfigActionState>;
+
+function withOnlineGuard(action: ConfigFormAction): ConfigFormAction {
+  return async (previousState, formData) => {
+    if (isBrowserOffline()) {
+      return {
+        ...previousState,
+        ok: false,
+        message: OFFLINE_ACTION_MESSAGE,
+      };
+    }
+
+    return action(previousState, formData);
+  };
+}
+
+const createBrandOnlineAction = withOnlineGuard(createBrandConfigAction);
+const createCategoryOnlineAction = withOnlineGuard(createCategoryConfigAction);
+const createSupplierOnlineAction = withOnlineGuard(createSupplierConfigAction);
+const setBrandActiveOnlineAction = withOnlineGuard(setBrandActiveConfigAction);
+const setCategoryActiveOnlineAction = withOnlineGuard(
+  setCategoryActiveConfigAction
+);
+const updateBrandOnlineAction = withOnlineGuard(updateBrandConfigAction);
+const updateCategoryOnlineAction = withOnlineGuard(updateCategoryConfigAction);
+const updateSupplierOnlineAction = withOnlineGuard(updateSupplierConfigAction);
+const updateTenantBusinessOnlineAction = withOnlineGuard(
+  updateTenantBusinessAction
+);
+const updateTenantUiSettingsOnlineAction = withOnlineGuard(
+  updateTenantUiSettingsAction
+);
+const uploadTenantLogoOnlineAction = withOnlineGuard(uploadTenantLogoAction);
+
 export function BusinessForm({ tenant }: { tenant: TenantBusinessConfig }) {
   const [state, formAction, pending] = useActionState(
-    updateTenantBusinessAction,
+    updateTenantBusinessOnlineAction,
     initialState
   );
   const [logoState, logoFormAction, logoPending] = useActionState(
-    uploadTenantLogoAction,
+    uploadTenantLogoOnlineAction,
     initialState
   );
 
@@ -268,7 +309,7 @@ export function PersonalizacionForm({
   settings: TenantUiSettingsConfig;
 }) {
   const [state, formAction, pending] = useActionState(
-    updateTenantUiSettingsAction,
+    updateTenantUiSettingsOnlineAction,
     initialState
   );
 
@@ -357,7 +398,7 @@ export function PersonalizacionForm({
 
 export function BrandsPanel({ brands }: { brands: BrandConfigItem[] }) {
   const [state, formAction, pending] = useActionState(
-    createBrandConfigAction,
+    createBrandOnlineAction,
     initialState
   );
 
@@ -409,11 +450,11 @@ export function BrandsPanel({ brands }: { brands: BrandConfigItem[] }) {
 
 function BrandRow({ brand }: { brand: BrandConfigItem }) {
   const [editState, editAction, editPending] = useActionState(
-    updateBrandConfigAction,
+    updateBrandOnlineAction,
     initialState
   );
   const [activeState, activeAction, activePending] = useActionState(
-    setBrandActiveConfigAction,
+    setBrandActiveOnlineAction,
     initialState
   );
   const nextActive = !brand.active;
@@ -474,7 +515,7 @@ export function CategoriesPanel({
   categories: CategoryConfigItem[];
 }) {
   const [state, formAction, pending] = useActionState(
-    createCategoryConfigAction,
+    createCategoryOnlineAction,
     initialState
   );
 
@@ -526,11 +567,11 @@ export function CategoriesPanel({
 
 function CategoryRow({ category }: { category: CategoryConfigItem }) {
   const [editState, editAction, editPending] = useActionState(
-    updateCategoryConfigAction,
+    updateCategoryOnlineAction,
     initialState
   );
   const [activeState, activeAction, activePending] = useActionState(
-    setCategoryActiveConfigAction,
+    setCategoryActiveOnlineAction,
     initialState
   );
   const nextActive = !category.active;
@@ -591,7 +632,7 @@ export function SuppliersPanel({
   suppliers: SupplierConfigItem[];
 }) {
   const [state, formAction, pending] = useActionState(
-    createSupplierConfigAction,
+    createSupplierOnlineAction,
     initialState
   );
 
@@ -670,7 +711,7 @@ export function SuppliersPanel({
 
 function SupplierRow({ supplier }: { supplier: SupplierConfigItem }) {
   const [state, formAction, pending] = useActionState(
-    updateSupplierConfigAction,
+    updateSupplierOnlineAction,
     initialState
   );
 

@@ -1,27 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { WifiOff } from "lucide-react";
 
+import { useOnlineStatus } from "@/components/pwa/use-online-status";
+
 export function OfflineStatusBanner() {
-  const [isOffline, setIsOffline] = useState(false);
+  const isOnline = useOnlineStatus();
 
-  useEffect(() => {
-    function updateStatus() {
-      setIsOffline(!navigator.onLine);
-    }
-
-    updateStatus();
-    window.addEventListener("online", updateStatus);
-    window.addEventListener("offline", updateStatus);
-
-    return () => {
-      window.removeEventListener("online", updateStatus);
-      window.removeEventListener("offline", updateStatus);
-    };
-  }, []);
-
-  if (!isOffline) {
+  if (isOnline) {
     return null;
   }
 

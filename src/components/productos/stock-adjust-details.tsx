@@ -26,6 +26,10 @@ import {
 } from "@/app/(dashboard)/stock/actions";
 import { DeleteConfirmDialog } from "@/components/common/delete-confirm-dialog";
 import { CatalogSelectWithCreate } from "@/components/productos/catalog-select-with-create";
+import {
+  OFFLINE_ACTION_MESSAGE,
+  isBrowserOffline,
+} from "@/components/pwa/use-online-status";
 import { Button } from "@/components/ui/button";
 import { normalizeProductCode } from "@/lib/product-code";
 import type { ProductListItem } from "./product-types";
@@ -44,6 +48,21 @@ const initialState: ProductActionState = {
   ok: false,
   message: "",
 };
+
+async function deactivateProductOnlineAction(
+  previousState: ProductActionState,
+  formData: FormData
+) {
+  if (isBrowserOffline()) {
+    return {
+      ...previousState,
+      ok: false,
+      message: OFFLINE_ACTION_MESSAGE,
+    };
+  }
+
+  return deactivateProductAction(previousState, formData);
+}
 
 type CommercialFormHandle = {
   getFormData: () => FormData | null;
@@ -114,6 +133,11 @@ export function StockAdjustDetails({
 
   async function saveChanges() {
     if (savingRef.current) {
+      return;
+    }
+
+    if (isBrowserOffline()) {
+      setSaveState({ ok: false, message: OFFLINE_ACTION_MESSAGE });
       return;
     }
 
@@ -379,7 +403,7 @@ function DangerZone({
   const router = useRouter();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [state, formAction, pending] = useActionState(
-    deactivateProductAction,
+    deactivateProductOnlineAction,
     initialState
   );
 

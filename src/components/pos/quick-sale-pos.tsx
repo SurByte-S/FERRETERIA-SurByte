@@ -26,6 +26,10 @@ import type {
   QuoteProduct,
   ProductSaleUnit,
 } from "@/components/presupuestos/quote-types";
+import {
+  OFFLINE_ACTION_MESSAGE,
+  isBrowserOffline,
+} from "@/components/pwa/use-online-status";
 import { Button } from "@/components/ui/button";
 import { formatStockQuantity } from "@/lib/format";
 
@@ -888,6 +892,11 @@ export function QuickSalePos({
   }
 
   function saveQuote() {
+    if (isBrowserOffline()) {
+      setMessage(OFFLINE_ACTION_MESSAGE);
+      return;
+    }
+
     if (initialQuoteId) {
       updateQuote();
       return;
@@ -898,6 +907,11 @@ export function QuickSalePos({
 
   function updateQuote() {
     if (!initialQuoteId) {
+      return;
+    }
+
+    if (isBrowserOffline()) {
+      setMessage(OFFLINE_ACTION_MESSAGE);
       return;
     }
 
@@ -919,6 +933,11 @@ export function QuickSalePos({
   }
 
   function saveQuoteAsNew() {
+    if (isBrowserOffline()) {
+      setMessage(OFFLINE_ACTION_MESSAGE);
+      return;
+    }
+
     setMessage("");
     startTransition(async () => {
       const result = await saveQuoteAction({
@@ -936,6 +955,11 @@ export function QuickSalePos({
   }
 
   function finalizeSale({ openReceipt }: { openReceipt: boolean }) {
+    if (isBrowserOffline()) {
+      setMessage(OFFLINE_ACTION_MESSAGE);
+      return;
+    }
+
     if (isCashRegisterClosed) {
       setMessage(CASH_REGISTER_CLOSED_MESSAGE);
       return;

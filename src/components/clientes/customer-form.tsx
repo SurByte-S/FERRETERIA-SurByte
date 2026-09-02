@@ -8,6 +8,10 @@ import {
   createCustomerAction,
   updateCustomerAction,
 } from "@/app/(dashboard)/clientes/actions";
+import {
+  OFFLINE_ACTION_MESSAGE,
+  isBrowserOffline,
+} from "@/components/pwa/use-online-status";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -33,6 +37,11 @@ export function CustomerForm({ customer }: { customer?: CustomerFormValue }) {
   const isEditing = Boolean(customer?.id);
 
   function submit(formData: FormData) {
+    if (isBrowserOffline()) {
+      setMessage(OFFLINE_ACTION_MESSAGE);
+      return;
+    }
+
     setMessage("");
     startTransition(async () => {
       const result =
