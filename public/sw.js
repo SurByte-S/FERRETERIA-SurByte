@@ -1,4 +1,5 @@
-const STATIC_CACHE = "ferreteria-guemes-static-v1";
+const STATIC_CACHE = "ferreteria-guemes-static-v2";
+const OFFLINE_URL = "/offline";
 const SAFE_STATIC_PATHS = [
   "/icons/",
   "/brand/",
@@ -17,7 +18,29 @@ const SAFE_STATIC_EXTENSIONS = [
   ".ico",
 ];
 
-self.addEventListener("install", () => {
+const OFFLINE_FALLBACK_HTML = `<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sin conexion</title>
+  </head>
+  <body>
+    <main style="font-family: system-ui, sans-serif; margin: 2rem; line-height: 1.5;">
+      <h1>Sin conexion</h1>
+      <p>No hay internet. Podes volver a intentar cuando se restablezca la conexion.</p>
+      <p><a href="/inicio">Reintentar</a></p>
+    </main>
+  </body>
+</html>`;
+
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    caches
+      .open(STATIC_CACHE)
+      .then((cache) => cache.add(OFFLINE_URL))
+      .catch(() => null)
+  );
   self.skipWaiting();
 });
 
@@ -65,7 +88,20 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (request.mode === "navigate") {
-    event.respondWith(fetch(request));
+    event.respondWith(
+      fetch(request).catch(async () => {
+        const cachedOfflinePage = await caches.match(OFFLINE_URL);
+
+        return (
+          cachedOfflinePage ??
+          new Response(OFFLINE_FALLBACK_HTML, {
+            headers: { "Content-Type": "text/html; charset=utf-8" },
+            status: 503,
+            statusText: "Service Unavailable",
+          })
+        );
+      })
+    );
     return;
   }
 

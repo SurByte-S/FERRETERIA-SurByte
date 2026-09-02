@@ -3,6 +3,7 @@ import { LogOut } from "lucide-react";
 
 import { logoutAction } from "@/app/(dashboard)/actions";
 import { BrandLogo } from "@/components/brand/brand-logo";
+import { OfflineStatusBanner } from "@/components/pwa/offline-status-banner";
 import { ClassicShortcutsBar } from "@/components/shell/classic-shortcuts-bar";
 import { Button } from "@/components/ui/button";
 import { ferreteriaGuemesBrand } from "@/lib/brand/ferreteria-guemes";
@@ -99,6 +100,8 @@ export function DashboardShell({
               </div>
             </div>
           </header>
+
+          <OfflineStatusBanner />
 
           <ClassicShortcutsBar tenantRole={tenantRole} />
 
