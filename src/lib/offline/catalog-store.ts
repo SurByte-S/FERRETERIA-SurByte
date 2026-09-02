@@ -41,6 +41,9 @@ type SaveOfflineCatalogInput = {
   generatedAt?: string | null;
 };
 
+const DEFAULT_SEARCH_LIMIT = 100;
+const MAX_SEARCH_LIMIT = 200;
+
 function assertIndexedDbAvailable() {
   if (typeof indexedDB === "undefined") {
     throw new Error("El navegador no permite guardar el catalogo offline.");
@@ -60,6 +63,37 @@ function transactionDone(transaction: IDBTransaction) {
     transaction.onerror = () => reject(transaction.error);
     transaction.onabort = () => reject(transaction.error);
   });
+}
+
+function normalizeSearchValue(value: string | null | undefined) {
+  return (value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+function clampSearchLimit(limit: number | undefined) {
+  if (!Number.isInteger(limit) || !limit || limit <= 0) {
+    return DEFAULT_SEARCH_LIMIT;
+  }
+
+  return Math.min(limit, MAX_SEARCH_LIMIT);
+}
+
+function matchesOfflineProduct(product: OfflineCatalogProduct, query: string) {
+  if (!query) {
+    return true;
+  }
+
+  return [
+    product.name,
+    product.sku,
+    product.custom_code,
+    product.barcode,
+    product.brand,
+    product.category,
+  ].some((value) => normalizeSearchValue(value).includes(query));
 }
 
 function openOfflineCatalogDb() {
@@ -165,6 +199,53 @@ export async function countOfflineProducts(tenantId: string) {
     await transactionDone(transaction);
 
     return count;
+  } finally {
+    db.close();
+  }
+}
+
+export async function searchOfflineProducts(
+  tenantId: string,
+  query: string,
+  limit?: number
+) {
+  const db = await openOfflineCatalogDb();
+  const searchQuery = normalizeSearchValue(query);
+  const maxResults = clampSearchLimit(limit);
+  const products: OfflineCatalogProduct[] = [];
+
+  try {
+    const transaction = db.transaction(PRODUCTS_STORE, "readonly");
+    const tenantProductsIndex = transaction
+      .objectStore(PRODUCTS_STORE)
+      .index("tenant_id");
+
+    await new Promise<void>((resolve, reject) => {
+      const cursorRequest = tenantProductsIndex.openCursor(tenantId);
+
+      cursorRequest.onsuccess = () => {
+        const cursor = cursorRequest.result;
+
+        if (!cursor || products.length >= maxResults) {
+          resolve();
+          return;
+        }
+
+        const product = cursor.value as OfflineCatalogProduct;
+
+        if (product.active !== false && matchesOfflineProduct(product, searchQuery)) {
+          products.push(product);
+        }
+
+        cursor.continue();
+      };
+
+      cursorRequest.onerror = () => reject(cursorRequest.error);
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error);
+    });
+
+    return products;
   } finally {
     db.close();
   }
