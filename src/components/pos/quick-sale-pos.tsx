@@ -19,6 +19,7 @@ import {
   searchProductsForPosAction,
   updateQuoteAction,
 } from "@/app/(dashboard)/presupuestos/nuevo/actions";
+import { OfflinePosCatalogResults } from "@/components/pos/offline-pos-catalog-results";
 import type {
   QuoteCustomer,
   QuoteCustomerOption,
@@ -29,9 +30,15 @@ import type {
 import {
   OFFLINE_ACTION_MESSAGE,
   isBrowserOffline,
+  useOnlineStatus,
 } from "@/components/pwa/use-online-status";
 import { Button } from "@/components/ui/button";
 import { formatStockQuantity } from "@/lib/format";
+import {
+  lookupOfflineProductByCode,
+  searchOfflineProducts,
+  type OfflineCatalogProduct,
+} from "@/lib/offline/catalog-store";
 
 const EMPTY_SEARCH_MESSAGE = "Busca un producto para empezar.";
 const SEARCH_PLACEHOLDER = "Buscar por codigo o nombre";
@@ -253,6 +260,7 @@ export function QuickSalePos({
   initialMode = "sale",
   initialQuoteId,
   initialSku,
+  tenantId,
 }: {
   cashStatus?: CashStatus;
   customers: QuoteCustomerOption[];
@@ -263,8 +271,10 @@ export function QuickSalePos({
   initialMode?: SaleMode;
   initialQuoteId?: string;
   initialSku?: string;
+  tenantId: string;
 }) {
   const router = useRouter();
+  const isOnline = useOnlineStatus();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchRef = useRef(initialSku ?? "");
   const latestSearchRequestRef = useRef(0);
@@ -284,6 +294,14 @@ export function QuickSalePos({
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
   const [searchStatus, setSearchStatus] = useState<SearchStatus>("idle");
+  const [offlineResults, setOfflineResults] = useState<OfflineCatalogProduct[]>(
+    []
+  );
+  const [offlineSearchStatus, setOfflineSearchStatus] =
+    useState<SearchStatus>("idle");
+  const [offlineSearchMessage, setOfflineSearchMessage] = useState<
+    string | null
+  >(null);
   const [lines, setLines] = useState<QuoteLine[]>(initialLines);
   const linesRef = useRef<QuoteLine[]>([]);
   const [message, setMessage] = useState(initialLoadMessage ?? EMPTY_SEARCH_MESSAGE);
@@ -337,6 +355,7 @@ export function QuickSalePos({
     hasOutOfStockLines ||
     Boolean(groupedStockIssue) ||
     isCashRegisterClosed;
+  const isOffline = !isOnline;
 
   useEffect(() => {
     linesRef.current = lines;
@@ -360,7 +379,43 @@ export function QuickSalePos({
     }) => {
       const requestId = latestSearchRequestRef.current + 1;
       latestSearchRequestRef.current = requestId;
+
+      if (!isOnline || isBrowserOffline()) {
+        setResults([]);
+        setResultsTotal(0);
+        setSearchStatus("idle");
+        setOfflineSearchStatus("loading");
+        setOfflineSearchMessage(
+          "Sin conexion. Productos mostrados solo para consulta."
+        );
+
+        void searchOfflineProducts(tenantId, term, 50)
+          .then((products) => {
+            if (latestSearchRequestRef.current !== requestId) {
+              return;
+            }
+
+            setOfflineResults(products);
+            setOfflineSearchStatus(products.length > 0 ? "results" : "empty");
+          })
+          .catch(() => {
+            if (latestSearchRequestRef.current !== requestId) {
+              return;
+            }
+
+            setOfflineResults([]);
+            setOfflineSearchStatus("error");
+            setOfflineSearchMessage(
+              "No se pudo leer el catalogo guardado en este equipo."
+            );
+          });
+        return;
+      }
+
       setSearchStatus("loading");
+      setOfflineResults([]);
+      setOfflineSearchStatus("idle");
+      setOfflineSearchMessage(null);
 
       if (showMessage) {
         setMessage("Buscando productos...");
@@ -397,7 +452,7 @@ export function QuickSalePos({
         );
       });
     },
-    [isQuoteMode, startTransition]
+    [isOnline, isQuoteMode, startTransition, tenantId]
   );
 
   const addProduct = useCallback((product: QuoteProduct, saleUnit?: ProductSaleUnit) => {
@@ -514,6 +569,24 @@ export function QuickSalePos({
         setSearchStatus("loading");
 
         try {
+          if (!isOnline || isBrowserOffline()) {
+            const product = await lookupOfflineProductByCode(tenantId, code);
+            const matchingProducts = product ? [product] : [];
+
+            setResults([]);
+            setResultsTotal(0);
+            setSearchStatus("idle");
+            setOfflineResults(matchingProducts);
+            setOfflineSearchStatus(
+              matchingProducts.length > 0 ? "results" : "empty"
+            );
+            setOfflineSearchMessage(
+              "Sin conexion. Producto mostrado solo para consulta."
+            );
+            setMessage("Sin conexion. Producto mostrado solo para consulta.");
+            continue;
+          }
+
           const result = await lookupQuoteProductByCodeAction(code, isQuoteMode);
 
           if (result.ok && result.product) {
@@ -553,7 +626,7 @@ export function QuickSalePos({
       barcodeBufferRef.current = "";
       barcodeLastKeyAtRef.current = 0;
     }
-  }, [addProduct, isQuoteMode]);
+  }, [addProduct, isOnline, isQuoteMode, tenantId]);
 
   const lookupAndShowProductByCode = useCallback(
     (rawCode: string) => {
@@ -649,6 +722,21 @@ export function QuickSalePos({
     }
 
     startTransition(async () => {
+      if (!isOnline || isBrowserOffline()) {
+        const products = await searchOfflineProducts(tenantId, initialSku, 20);
+
+        setResults([]);
+        setResultsTotal(0);
+        setSearchStatus("idle");
+        setOfflineResults(products);
+        setOfflineSearchStatus(products.length > 0 ? "results" : "empty");
+        setOfflineSearchMessage(
+          "Sin conexion. Productos mostrados solo para consulta."
+        );
+        setMessage("Sin conexion. Productos mostrados solo para consulta.");
+        return;
+      }
+
       const result = await lookupQuoteProductByCodeAction(initialSku, isQuoteMode);
 
       if (result.ok && result.product) {
@@ -657,7 +745,7 @@ export function QuickSalePos({
         setMessage(result.message);
       }
     });
-  }, [addProduct, initialSku, isQuoteMode]);
+  }, [addProduct, initialSku, isOnline, isQuoteMode, startTransition, tenantId]);
 
   useEffect(() => {
     const term = search.trim();
@@ -702,7 +790,7 @@ export function QuickSalePos({
     setPage(1);
   }
 
-  function runSearch() {
+  async function runSearch() {
     const term = search.trim();
     const nextPage = 1;
     setPage(nextPage);
@@ -722,6 +810,44 @@ export function QuickSalePos({
     latestSearchRequestRef.current = requestId;
     setMessage("Buscando productos...");
     setSearchStatus("loading");
+
+    if (!isOnline || isBrowserOffline()) {
+      setResults([]);
+      setResultsTotal(0);
+      setSearchStatus("idle");
+      setOfflineSearchStatus("loading");
+      setOfflineSearchMessage(
+        "Sin conexion. Productos mostrados solo para consulta."
+      );
+
+      try {
+        const exactProduct = await lookupOfflineProductByCode(tenantId, term);
+        const products = exactProduct
+          ? [exactProduct]
+          : await searchOfflineProducts(tenantId, term, 20);
+
+        if (latestSearchRequestRef.current !== requestId) {
+          return;
+        }
+
+        setOfflineResults(products);
+        setOfflineSearchStatus(products.length > 0 ? "results" : "empty");
+        setMessage("Sin conexion. Productos mostrados solo para consulta.");
+      } catch {
+        if (latestSearchRequestRef.current !== requestId) {
+          return;
+        }
+
+        setOfflineResults([]);
+        setOfflineSearchStatus("error");
+        setOfflineSearchMessage(
+          "No se pudo leer el catalogo guardado en este equipo."
+        );
+        setMessage("No se pudo leer el catalogo guardado en este equipo.");
+      }
+      return;
+    }
+
     startTransition(async () => {
       const exact = await lookupQuoteProductByCodeAction(term, isQuoteMode);
 
@@ -1095,8 +1221,10 @@ export function QuickSalePos({
           <div className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)]">
             <div className="flex min-h-[3.25rem] flex-wrap items-center justify-between gap-2 border-b-2 border-primary/30 bg-card px-3 py-2 text-foreground">
               <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
-                <h2 className="text-xl font-black">Productos encontrados</h2>
-                {resultCounter ? (
+                <h2 className="text-xl font-black">
+                  {isOffline ? "Catalogo offline" : "Productos encontrados"}
+                </h2>
+                {!isOffline && resultCounter ? (
                   <p className="text-sm font-bold text-primary">
                     {resultCounter}
                   </p>
@@ -1122,7 +1250,14 @@ export function QuickSalePos({
             </div>
 
             <div className="min-h-0 overflow-y-auto bg-secondary px-3 pb-3 pt-2">
-              {results.length > 0 ? (
+              {isOffline ? (
+                <OfflinePosCatalogResults
+                  message={offlineSearchMessage}
+                  query={search}
+                  results={offlineResults}
+                  status={offlineSearchStatus}
+                />
+              ) : results.length > 0 ? (
                 <div className="grid gap-2">
                   {results.map((product) => (
                     <ProductRow

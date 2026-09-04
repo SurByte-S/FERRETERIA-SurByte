@@ -96,6 +96,16 @@ function matchesOfflineProduct(product: OfflineCatalogProduct, query: string) {
   ].some((value) => normalizeSearchValue(value).includes(query));
 }
 
+function matchesOfflineCode(product: OfflineCatalogProduct, code: string) {
+  if (!code) {
+    return false;
+  }
+
+  return [product.custom_code, product.sku, product.barcode].some(
+    (value) => normalizeSearchValue(value) === code
+  );
+}
+
 function openOfflineCatalogDb() {
   assertIndexedDbAvailable();
 
@@ -249,4 +259,62 @@ export async function searchOfflineProducts(
   } finally {
     db.close();
   }
+}
+
+export async function lookupOfflineProductByCode(
+  tenantId: string,
+  code: string
+) {
+  const db = await openOfflineCatalogDb();
+  const searchCode = normalizeSearchValue(code);
+
+  if (!searchCode) {
+    db.close();
+    return null;
+  }
+
+  try {
+    const transaction = db.transaction(PRODUCTS_STORE, "readonly");
+    const tenantProductsIndex = transaction
+      .objectStore(PRODUCTS_STORE)
+      .index("tenant_id");
+
+    const exactProduct = await new Promise<OfflineCatalogProduct | null>(
+      (resolve, reject) => {
+        const cursorRequest = tenantProductsIndex.openCursor(tenantId);
+
+        cursorRequest.onsuccess = () => {
+          const cursor = cursorRequest.result;
+
+          if (!cursor) {
+            resolve(null);
+            return;
+          }
+
+          const product = cursor.value as OfflineCatalogProduct;
+
+          if (product.active !== false && matchesOfflineCode(product, searchCode)) {
+            resolve(product);
+            return;
+          }
+
+          cursor.continue();
+        };
+
+        cursorRequest.onerror = () => reject(cursorRequest.error);
+        transaction.onerror = () => reject(transaction.error);
+        transaction.onabort = () => reject(transaction.error);
+      }
+    );
+
+    if (exactProduct) {
+      return exactProduct;
+    }
+  } finally {
+    db.close();
+  }
+
+  const fallbackProducts = await searchOfflineProducts(tenantId, code, 20);
+
+  return fallbackProducts[0] ?? null;
 }
