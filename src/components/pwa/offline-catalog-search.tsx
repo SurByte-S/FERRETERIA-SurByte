@@ -8,7 +8,9 @@ import { Button } from "@/components/ui/button";
 import { formatStockQuantity } from "@/lib/format";
 import {
   getOfflineCatalogMeta,
+  lookupOfflineProductByCode,
   searchOfflineProducts,
+  type OfflineCatalogLookupResult,
   type OfflineCatalogMeta,
   type OfflineCatalogProduct,
 } from "@/lib/offline/catalog-store";
@@ -56,13 +58,37 @@ function formatStock(value: number | null, unit: string | null) {
   return `${formatStockQuantity(value)} ${unit ?? ""}`.trim();
 }
 
+function toLookupResult(
+  product: OfflineCatalogProduct
+): OfflineCatalogLookupResult {
+  return {
+    product,
+    matchType: "product",
+  };
+}
+
+function uniqueResults(results: OfflineCatalogLookupResult[]) {
+  const seen = new Set<string>();
+
+  return results.filter((result) => {
+    const key = `${result.product.id}:${result.saleUnit?.id ?? "product"}`;
+
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
+}
+
 export function OfflineCatalogSearch({
   tenantId,
   tenantName,
 }: OfflineCatalogSearchProps) {
   const [meta, setMeta] = useState<OfflineCatalogMeta | null>(null);
   const [query, setQuery] = useState("");
-  const [products, setProducts] = useState<OfflineCatalogProduct[]>([]);
+  const [results, setResults] = useState<OfflineCatalogLookupResult[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -73,10 +99,10 @@ export function OfflineCatalogSearch({
       return null;
     }
 
-    return products.length === 1
+    return results.length === 1
       ? "1 producto encontrado"
-      : `${products.length} productos encontrados`;
-  }, [hasCatalog, products.length]);
+      : `${results.length} productos encontrados`;
+  }, [hasCatalog, results.length]);
 
   useEffect(() => {
     let isMounted = true;
@@ -92,7 +118,7 @@ export function OfflineCatalogSearch({
         setMeta(storedMeta);
 
         if (!storedMeta) {
-          setProducts([]);
+          setResults([]);
           setMessage(null);
           return;
         }
@@ -100,7 +126,7 @@ export function OfflineCatalogSearch({
         const initialProducts = await searchOfflineProducts(tenantId, "", 100);
 
         if (isMounted) {
-          setProducts(initialProducts);
+          setResults(initialProducts.map(toLookupResult));
           setMessage(null);
         }
       } catch {
@@ -134,9 +160,16 @@ export function OfflineCatalogSearch({
           trimmedQuery,
           100
         );
+        const exactResult = trimmedQuery
+          ? await lookupOfflineProductByCode(tenantId, trimmedQuery)
+          : null;
+        const nextResults = uniqueResults([
+          ...(exactResult ? [exactResult] : []),
+          ...nextProducts.map(toLookupResult),
+        ]);
 
         if (isMounted) {
-          setProducts(nextProducts);
+          setResults(nextResults);
           setMessage(null);
         }
       } catch {
@@ -175,6 +208,9 @@ export function OfflineCatalogSearch({
                 <span>Negocio: {meta.tenant_name || tenantName}</span>
                 <span>Actualizado: {formatSavedAt(meta.saved_at)}</span>
                 <span>Productos: {meta.product_count}</span>
+                {typeof meta.sale_unit_count === "number" ? (
+                  <span>Presentaciones: {meta.sale_unit_count}</span>
+                ) : null}
               </div>
             ) : null}
           </div>
@@ -237,7 +273,7 @@ export function OfflineCatalogSearch({
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {products.length === 0 ? (
+                {results.length === 0 ? (
                   <tr>
                     <td
                       colSpan={7}
@@ -247,8 +283,15 @@ export function OfflineCatalogSearch({
                     </td>
                   </tr>
                 ) : (
-                  products.map((product) => (
-                    <tr key={product.id}>
+                  results.map((result) => {
+                    const product = result.product;
+                    const saleUnit = result.saleUnit;
+                    const displayBarcode = saleUnit?.barcode ?? product.barcode;
+                    const displayPrice =
+                      saleUnit?.sale_price ?? product.sale_price;
+
+                    return (
+                    <tr key={`${product.id}:${saleUnit?.id ?? "product"}`}>
                       <td className="px-3 py-3 font-mono font-bold text-primary">
                         {displayValue(product.custom_code)}
                       </td>
@@ -259,14 +302,19 @@ export function OfflineCatalogSearch({
                         <p className="truncate font-bold text-foreground">
                           {product.name}
                         </p>
-                        {product.barcode ? (
+                        {saleUnit ? (
+                          <p className="mt-0.5 truncate text-xs font-bold text-primary">
+                            Coincidencia por presentacion: {saleUnit.name}
+                          </p>
+                        ) : null}
+                        {displayBarcode ? (
                           <p className="mt-0.5 truncate text-xs font-semibold text-muted-foreground">
-                            Barras: {product.barcode}
+                            Barras: {displayBarcode}
                           </p>
                         ) : null}
                       </td>
                       <td className="px-3 py-3 text-right font-bold text-primary">
-                        {formatMoney(product.sale_price)}
+                        {formatMoney(displayPrice)}
                       </td>
                       <td className="px-3 py-3 text-right font-semibold">
                         {formatStock(product.stock_quantity, product.unit)}
@@ -278,7 +326,8 @@ export function OfflineCatalogSearch({
                         {displayValue(product.category)}
                       </td>
                     </tr>
-                  ))
+                    );
+                  })
                 )}
               </tbody>
             </table>

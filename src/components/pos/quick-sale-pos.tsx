@@ -37,6 +37,7 @@ import { formatStockQuantity } from "@/lib/format";
 import {
   lookupOfflineProductByCode,
   searchOfflineProducts,
+  type OfflineCatalogLookupResult,
   type OfflineCatalogProduct,
 } from "@/lib/offline/catalog-store";
 
@@ -58,6 +59,15 @@ const PAYMENT_METHODS = [
   "Credito",
   "Cuenta corriente",
 ];
+
+function toOfflineCatalogLookupResult(
+  product: OfflineCatalogProduct
+): OfflineCatalogLookupResult {
+  return {
+    product,
+    matchType: "product",
+  };
+}
 
 type SaleMode = "sale" | "quote";
 
@@ -294,9 +304,9 @@ export function QuickSalePos({
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
   const [searchStatus, setSearchStatus] = useState<SearchStatus>("idle");
-  const [offlineResults, setOfflineResults] = useState<OfflineCatalogProduct[]>(
-    []
-  );
+  const [offlineResults, setOfflineResults] = useState<
+    OfflineCatalogLookupResult[]
+  >([]);
   const [offlineSearchStatus, setOfflineSearchStatus] =
     useState<SearchStatus>("idle");
   const [offlineSearchMessage, setOfflineSearchMessage] = useState<
@@ -395,7 +405,7 @@ export function QuickSalePos({
               return;
             }
 
-            setOfflineResults(products);
+            setOfflineResults(products.map(toOfflineCatalogLookupResult));
             setOfflineSearchStatus(products.length > 0 ? "results" : "empty");
           })
           .catch(() => {
@@ -728,7 +738,7 @@ export function QuickSalePos({
         setResults([]);
         setResultsTotal(0);
         setSearchStatus("idle");
-        setOfflineResults(products);
+        setOfflineResults(products.map(toOfflineCatalogLookupResult));
         setOfflineSearchStatus(products.length > 0 ? "results" : "empty");
         setOfflineSearchMessage(
           "Sin conexion. Productos mostrados solo para consulta."
@@ -824,7 +834,9 @@ export function QuickSalePos({
         const exactProduct = await lookupOfflineProductByCode(tenantId, term);
         const products = exactProduct
           ? [exactProduct]
-          : await searchOfflineProducts(tenantId, term, 20);
+          : (await searchOfflineProducts(tenantId, term, 20)).map(
+              toOfflineCatalogLookupResult
+            );
 
         if (latestSearchRequestRef.current !== requestId) {
           return;

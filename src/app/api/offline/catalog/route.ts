@@ -27,6 +27,19 @@ type CatalogProductRow = {
   suppliers: { name: string | null } | { name: string | null }[] | null;
 };
 
+type CatalogSaleUnitRow = {
+  id: string;
+  tenant_id: string;
+  product_id: string;
+  name: string;
+  quantity_in_base_unit: number | null;
+  sale_price: number | null;
+  barcode: string | null;
+  is_default: boolean | null;
+  active: boolean | null;
+  updated_at: string | null;
+};
+
 function parsePositiveInteger(value: string | null, fallback: number) {
   if (!value) {
     return fallback;
@@ -97,6 +110,14 @@ export async function GET(request: Request) {
     }
 
     const rows = (data ?? []) as unknown as CatalogProductRow[];
+    const productIds = rows.map((row) => row.id);
+    const saleUnits =
+      productIds.length > 0
+        ? await loadSaleUnits({
+            productIds,
+            tenantId: tenant.id,
+          })
+        : [];
     const products = rows.map((row) => ({
       id: row.id,
       tenant_id: row.tenant_id,
@@ -119,6 +140,7 @@ export async function GET(request: Request) {
 
     return noStoreJson({
       products,
+      saleUnits,
       nextOffset: hasMore ? offset + pageSize : null,
       hasMore,
       tenant: {
@@ -140,4 +162,41 @@ export async function GET(request: Request) {
       { status: 500 }
     );
   }
+}
+
+async function loadSaleUnits({
+  productIds,
+  tenantId,
+}: {
+  productIds: string[];
+  tenantId: string;
+}) {
+  const supabase = getSupabaseServerClient("/api/offline/catalog-sale-units");
+  const { data, error } = await supabase
+    .from("product_sale_units")
+    .select(
+      "id,tenant_id,product_id,name,quantity_in_base_unit,sale_price,barcode,is_default,active,updated_at"
+    )
+    .eq("tenant_id", tenantId)
+    .eq("active", true)
+    .in("product_id", productIds)
+    .order("is_default", { ascending: false })
+    .order("name", { ascending: true });
+
+  if (error) {
+    throw new Error("OFFLINE_SALE_UNITS_LOAD_FAILED");
+  }
+
+  return ((data ?? []) as unknown as CatalogSaleUnitRow[]).map((row) => ({
+    id: row.id,
+    tenant_id: row.tenant_id,
+    product_id: row.product_id,
+    name: row.name,
+    quantity_in_base_unit: row.quantity_in_base_unit,
+    sale_price: row.sale_price,
+    barcode: row.barcode,
+    is_default: Boolean(row.is_default),
+    active: row.active !== false,
+    updated_at: row.updated_at,
+  }));
 }

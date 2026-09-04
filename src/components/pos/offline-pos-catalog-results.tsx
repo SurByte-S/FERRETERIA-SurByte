@@ -1,14 +1,16 @@
 "use client";
 
 import { formatStockQuantity } from "@/lib/format";
-import type { OfflineCatalogProduct } from "@/lib/offline/catalog-store";
+import type {
+  OfflineCatalogLookupResult,
+} from "@/lib/offline/catalog-store";
 
 type OfflineSearchStatus = "idle" | "loading" | "results" | "empty" | "error";
 
 type OfflinePosCatalogResultsProps = {
   message?: string | null;
   query: string;
-  results: OfflineCatalogProduct[];
+  results: OfflineCatalogLookupResult[];
   status: OfflineSearchStatus;
 };
 
@@ -131,8 +133,14 @@ export function OfflinePosCatalogResults({
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {results.map((product) => (
-                  <tr key={product.id}>
+                {results.map((result) => {
+                  const product = result.product;
+                  const saleUnit = result.saleUnit;
+                  const displayBarcode = saleUnit?.barcode ?? product.barcode;
+                  const displayPrice = saleUnit?.sale_price ?? product.sale_price;
+
+                  return (
+                  <tr key={`${product.id}:${saleUnit?.id ?? "product"}`}>
                     <td className="px-3 py-2 font-mono font-bold text-primary">
                       {displayValue(product.custom_code)}
                     </td>
@@ -140,15 +148,20 @@ export function OfflinePosCatalogResults({
                       {displayValue(product.sku)}
                     </td>
                     <td className="px-3 py-2 font-mono font-semibold">
-                      {displayValue(product.barcode)}
+                      {displayValue(displayBarcode)}
                     </td>
                     <td className="max-w-[260px] px-3 py-2">
                       <p className="truncate font-bold text-foreground">
                         {product.name}
                       </p>
+                      {saleUnit ? (
+                        <p className="mt-0.5 truncate text-xs font-bold text-primary">
+                          Coincidencia por presentacion: {saleUnit.name}
+                        </p>
+                      ) : null}
                     </td>
                     <td className="px-3 py-2 text-right font-bold text-primary">
-                      {formatMoney(product.sale_price)}
+                      {formatMoney(displayPrice)}
                     </td>
                     <td className="px-3 py-2 text-right font-semibold">
                       {formatStock(product.stock_quantity, product.unit)}
@@ -160,7 +173,8 @@ export function OfflinePosCatalogResults({
                       {displayValue(product.category)}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

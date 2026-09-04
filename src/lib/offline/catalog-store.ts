@@ -1,8 +1,9 @@
 "use client";
 
 const DB_NAME = "ferreteria-offline";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const PRODUCTS_STORE = "offline_products";
+const SALE_UNITS_STORE = "offline_sale_units";
 const META_STORE = "offline_meta";
 
 export type OfflineCatalogProduct = {
@@ -28,8 +29,28 @@ export type OfflineCatalogMeta = {
   tenant_id: string;
   tenant_name: string;
   product_count: number;
-  generated_at: string | null;
+  sale_unit_count?: number;
+  generated_at?: string | null;
   saved_at: string;
+};
+
+export type OfflineSaleUnit = {
+  id: string;
+  tenant_id: string;
+  product_id: string;
+  name: string;
+  quantity_in_base_unit: number | null;
+  sale_price: number | null;
+  barcode: string | null;
+  is_default: boolean;
+  active: boolean;
+  updated_at: string | null;
+};
+
+export type OfflineCatalogLookupResult = {
+  product: OfflineCatalogProduct;
+  saleUnit?: OfflineSaleUnit;
+  matchType: "product" | "sale_unit";
 };
 
 type SaveOfflineCatalogInput = {
@@ -38,6 +59,7 @@ type SaveOfflineCatalogInput = {
     name: string;
   };
   products: OfflineCatalogProduct[];
+  saleUnits?: OfflineSaleUnit[];
   generatedAt?: string | null;
 };
 
@@ -106,6 +128,14 @@ function matchesOfflineCode(product: OfflineCatalogProduct, code: string) {
   );
 }
 
+function matchesOfflineSaleUnitCode(saleUnit: OfflineSaleUnit, code: string) {
+  if (!code) {
+    return false;
+  }
+
+  return normalizeSearchValue(saleUnit.barcode) === code;
+}
+
 function openOfflineCatalogDb() {
   assertIndexedDbAvailable();
 
@@ -132,6 +162,21 @@ function openOfflineCatalogDb() {
       if (!db.objectStoreNames.contains(META_STORE)) {
         db.createObjectStore(META_STORE, { keyPath: "tenant_id" });
       }
+
+      if (!db.objectStoreNames.contains(SALE_UNITS_STORE)) {
+        const saleUnitsStore = db.createObjectStore(SALE_UNITS_STORE, {
+          keyPath: "id",
+        });
+
+        saleUnitsStore.createIndex("tenant_id", "tenant_id", {
+          unique: false,
+        });
+        saleUnitsStore.createIndex("product_id", "product_id", {
+          unique: false,
+        });
+        saleUnitsStore.createIndex("barcode", "barcode", { unique: false });
+        saleUnitsStore.createIndex("name", "name", { unique: false });
+      }
     };
 
     request.onsuccess = () => resolve(request.result);
@@ -141,20 +186,28 @@ function openOfflineCatalogDb() {
 
 export async function saveOfflineCatalog(input: SaveOfflineCatalogInput) {
   const db = await openOfflineCatalogDb();
+  const saleUnits = input.saleUnits ?? [];
 
   try {
     const transaction = db.transaction(
-      [PRODUCTS_STORE, META_STORE],
+      [PRODUCTS_STORE, SALE_UNITS_STORE, META_STORE],
       "readwrite"
     );
     const productsStore = transaction.objectStore(PRODUCTS_STORE);
+    const saleUnitsStore = transaction.objectStore(SALE_UNITS_STORE);
     const tenantProductsIndex = productsStore.index("tenant_id");
-    const existingKeys = await requestToPromise(
-      tenantProductsIndex.getAllKeys(input.tenant.id)
-    );
+    const tenantSaleUnitsIndex = saleUnitsStore.index("tenant_id");
+    const [existingProductKeys, existingSaleUnitKeys] = await Promise.all([
+      requestToPromise(tenantProductsIndex.getAllKeys(input.tenant.id)),
+      requestToPromise(tenantSaleUnitsIndex.getAllKeys(input.tenant.id)),
+    ]);
 
-    existingKeys.forEach((key) => {
+    existingProductKeys.forEach((key) => {
       productsStore.delete(key);
+    });
+
+    existingSaleUnitKeys.forEach((key) => {
+      saleUnitsStore.delete(key);
     });
 
     input.products.forEach((product) => {
@@ -164,10 +217,18 @@ export async function saveOfflineCatalog(input: SaveOfflineCatalogInput) {
       });
     });
 
+    saleUnits.forEach((saleUnit) => {
+      saleUnitsStore.put({
+        ...saleUnit,
+        tenant_id: input.tenant.id,
+      });
+    });
+
     const meta: OfflineCatalogMeta = {
       tenant_id: input.tenant.id,
       tenant_name: input.tenant.name,
       product_count: input.products.length,
+      sale_unit_count: saleUnits.length,
       generated_at: input.generatedAt ?? null,
       saved_at: new Date().toISOString(),
     };
@@ -205,6 +266,25 @@ export async function countOfflineProducts(tenantId: string) {
     const transaction = db.transaction(PRODUCTS_STORE, "readonly");
     const count = await requestToPromise(
       transaction.objectStore(PRODUCTS_STORE).index("tenant_id").count(tenantId)
+    );
+    await transactionDone(transaction);
+
+    return count;
+  } finally {
+    db.close();
+  }
+}
+
+export async function countOfflineSaleUnits(tenantId: string) {
+  const db = await openOfflineCatalogDb();
+
+  try {
+    const transaction = db.transaction(SALE_UNITS_STORE, "readonly");
+    const count = await requestToPromise(
+      transaction
+        .objectStore(SALE_UNITS_STORE)
+        .index("tenant_id")
+        .count(tenantId)
     );
     await transactionDone(transaction);
 
@@ -274,12 +354,19 @@ export async function lookupOfflineProductByCode(
   }
 
   try {
-    const transaction = db.transaction(PRODUCTS_STORE, "readonly");
+    const transaction = db.transaction(
+      [PRODUCTS_STORE, SALE_UNITS_STORE],
+      "readonly"
+    );
+    const productsStore = transaction.objectStore(PRODUCTS_STORE);
     const tenantProductsIndex = transaction
       .objectStore(PRODUCTS_STORE)
       .index("tenant_id");
+    const tenantSaleUnitsIndex = transaction
+      .objectStore(SALE_UNITS_STORE)
+      .index("tenant_id");
 
-    const exactProduct = await new Promise<OfflineCatalogProduct | null>(
+    const exactProduct = await new Promise<OfflineCatalogLookupResult | null>(
       (resolve, reject) => {
         const cursorRequest = tenantProductsIndex.openCursor(tenantId);
 
@@ -294,7 +381,10 @@ export async function lookupOfflineProductByCode(
           const product = cursor.value as OfflineCatalogProduct;
 
           if (product.active !== false && matchesOfflineCode(product, searchCode)) {
-            resolve(product);
+            resolve({
+              product,
+              matchType: "product",
+            });
             return;
           }
 
@@ -310,11 +400,69 @@ export async function lookupOfflineProductByCode(
     if (exactProduct) {
       return exactProduct;
     }
+
+    const saleUnitProduct = await new Promise<OfflineCatalogLookupResult | null>(
+      (resolve, reject) => {
+        const cursorRequest = tenantSaleUnitsIndex.openCursor(tenantId);
+
+        cursorRequest.onsuccess = () => {
+          const cursor = cursorRequest.result;
+
+          if (!cursor) {
+            resolve(null);
+            return;
+          }
+
+          const saleUnit = cursor.value as OfflineSaleUnit;
+
+          if (
+            saleUnit.active !== false &&
+            matchesOfflineSaleUnitCode(saleUnit, searchCode)
+          ) {
+            const productRequest = productsStore.get(saleUnit.product_id);
+
+            productRequest.onsuccess = () => {
+              const product =
+                (productRequest.result as OfflineCatalogProduct | undefined) ??
+                null;
+
+              resolve(
+                product && product.tenant_id === tenantId && product.active !== false
+                  ? {
+                      product,
+                      saleUnit,
+                      matchType: "sale_unit",
+                    }
+                  : null
+              );
+            };
+            productRequest.onerror = () => reject(productRequest.error);
+            return;
+          }
+
+          cursor.continue();
+        };
+
+        cursorRequest.onerror = () => reject(cursorRequest.error);
+        transaction.onerror = () => reject(transaction.error);
+        transaction.onabort = () => reject(transaction.error);
+      }
+    );
+
+    if (saleUnitProduct) {
+      return saleUnitProduct;
+    }
   } finally {
     db.close();
   }
 
   const fallbackProducts = await searchOfflineProducts(tenantId, code, 20);
+  const fallbackProduct = fallbackProducts[0];
 
-  return fallbackProducts[0] ?? null;
+  return fallbackProduct
+    ? {
+        product: fallbackProduct,
+        matchType: "product" as const,
+      }
+    : null;
 }
