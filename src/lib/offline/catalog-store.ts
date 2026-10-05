@@ -60,6 +60,12 @@ function productMatchesQuery(product: OfflineCatalogProduct, query: string) {
   ].some((value) => normalizeSearchValue(value).includes(query));
 }
 
+function productMatchesCode(product: OfflineCatalogProduct, code: string) {
+  return [product.custom_code, product.sku, product.barcode].some(
+    (value) => normalizeSearchValue(value) === code
+  );
+}
+
 function assertIndexedDbAvailable() {
   if (typeof indexedDB === "undefined") {
     throw new Error("El navegador no permite guardar el catalogo offline.");
@@ -204,6 +210,68 @@ export async function searchOfflineProducts(
   } finally {
     db.close();
   }
+}
+
+export async function lookupOfflineProductByCode(
+  tenantId: string,
+  code: string
+) {
+  const normalizedCode = normalizeSearchValue(code);
+
+  if (!normalizedCode) {
+    return null;
+  }
+
+  const db = await openOfflineCatalogDb();
+
+  try {
+    const transaction = db.transaction(PRODUCTS_STORE, "readonly");
+    const tenantProductsIndex = transaction
+      .objectStore(PRODUCTS_STORE)
+      .index("tenant_id");
+    const exactMatch = await new Promise<OfflineCatalogProduct | null>(
+      (resolve, reject) => {
+        const request = tenantProductsIndex.openCursor(
+          IDBKeyRange.only(tenantId)
+        );
+
+        request.onsuccess = () => {
+          const cursor = request.result;
+
+          if (!cursor) {
+            resolve(null);
+            return;
+          }
+
+          const product = cursor.value as OfflineCatalogProduct;
+
+          if (
+            product.active !== false &&
+            productMatchesCode(product, normalizedCode)
+          ) {
+            resolve(product);
+            return;
+          }
+
+          cursor.continue();
+        };
+
+        request.onerror = () => reject(request.error);
+      }
+    );
+
+    await transactionDone(transaction);
+
+    if (exactMatch) {
+      return exactMatch;
+    }
+  } finally {
+    db.close();
+  }
+
+  const fallbackProducts = await searchOfflineProducts(tenantId, code, 20);
+
+  return fallbackProducts.find((product) => product.active !== false) ?? null;
 }
 
 export async function getOfflineCatalogMeta(tenantId: string) {

@@ -124,6 +124,8 @@ export default async function InicioPage({
       initialMode={shouldStartInQuoteMode ? "quote" : "sale"}
       initialQuoteId={quoteForEditing?.quoteId}
       initialSku={sku}
+      tenantId={tenant.id}
+      tenantName={tenant.name}
     />
   );
 }
