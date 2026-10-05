@@ -49,6 +49,11 @@ type UpdateOfflineQueueItemExtra = {
   last_error?: string | null;
 };
 
+const DISCARDABLE_STATUSES = new Set<OfflineQueueItemStatus>([
+  "pending",
+  "failed",
+]);
+
 function assertIndexedDbAvailable() {
   if (typeof indexedDB === "undefined") {
     throw new Error("El navegador no permite guardar operaciones offline.");
@@ -216,6 +221,92 @@ export async function deleteOfflineQueueItem(id: string, tenantId: string) {
   } finally {
     db.close();
   }
+}
+
+export async function discardOfflineQueueItem(id: string, tenantId: string) {
+  const db = await openOfflineQueueDb();
+
+  try {
+    const transaction = db.transaction(QUEUE_STORE, "readwrite");
+    const store = transaction.objectStore(QUEUE_STORE);
+    const current = (await requestToPromise(store.get(id))) as
+      | OfflineQueueItem
+      | undefined;
+
+    if (!current || current.tenant_id !== tenantId) {
+      throw new Error("No se encontro la operacion offline para este negocio.");
+    }
+
+    if (!DISCARDABLE_STATUSES.has(current.status)) {
+      throw new Error("Esta operacion offline no se puede descartar.");
+    }
+
+    const nextItem: OfflineQueueItem = {
+      ...current,
+      status: "discarded",
+      updated_at: new Date().toISOString(),
+      last_error: current.last_error,
+    };
+
+    store.put(nextItem);
+    await transactionDone(transaction);
+
+    return nextItem;
+  } finally {
+    db.close();
+  }
+}
+
+async function clearOfflineQueueItemsByStatus(
+  tenantId: string,
+  status: OfflineQueueItemStatus
+) {
+  const db = await openOfflineQueueDb();
+
+  try {
+    const transaction = db.transaction(QUEUE_STORE, "readwrite");
+    const store = transaction.objectStore(QUEUE_STORE);
+    const tenantIndex = store.index("tenant_id");
+    let deletedCount = 0;
+
+    await new Promise<void>((resolve, reject) => {
+      const request = tenantIndex.openCursor(IDBKeyRange.only(tenantId));
+
+      request.onsuccess = () => {
+        const cursor = request.result;
+
+        if (!cursor) {
+          resolve();
+          return;
+        }
+
+        const item = cursor.value as OfflineQueueItem;
+
+        if (item.tenant_id === tenantId && item.status === status) {
+          cursor.delete();
+          deletedCount += 1;
+        }
+
+        cursor.continue();
+      };
+
+      request.onerror = () => reject(request.error);
+    });
+
+    await transactionDone(transaction);
+
+    return deletedCount;
+  } finally {
+    db.close();
+  }
+}
+
+export async function clearDiscardedOfflineQueueItems(tenantId: string) {
+  return clearOfflineQueueItemsByStatus(tenantId, "discarded");
+}
+
+export async function clearSyncedOfflineQueueItems(tenantId: string) {
+  return clearOfflineQueueItemsByStatus(tenantId, "synced");
 }
 
 export async function countPendingOfflineQueueItems(tenantId: string) {

@@ -5,6 +5,9 @@ import { RefreshCw, RotateCw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
+  clearDiscardedOfflineQueueItems,
+  clearSyncedOfflineQueueItems,
+  discardOfflineQueueItem,
   listOfflineQueueItems,
   type OfflineQueueItem,
   type OfflineQueueItemStatus,
@@ -53,6 +56,7 @@ export function OfflineSyncPanel({
 }: OfflineSyncPanelProps) {
   const [items, setItems] = useState<OfflineQueueItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isMutating, setIsMutating] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
   const loadItems = useCallback(async () => {
@@ -113,6 +117,82 @@ export function OfflineSyncPanel({
     );
   }, [items]);
 
+  const hasDiscardedItems = items.some((item) => item.status === "discarded");
+  const hasSyncedItems = items.some((item) => item.status === "synced");
+
+  async function discardItem(item: OfflineQueueItem) {
+    const confirmed = window.confirm(
+      "Esta operacion pendiente se descartara de este equipo. No se enviara al sistema."
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setIsMutating(true);
+    setMessage(null);
+
+    try {
+      await discardOfflineQueueItem(item.id, tenantId);
+      await loadItems();
+      setMessage("Operacion descartada.");
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "No se pudo descartar la operacion."
+      );
+    } finally {
+      setIsMutating(false);
+    }
+  }
+
+  async function clearDiscardedItems() {
+    const confirmed = window.confirm(
+      "Se eliminaran definitivamente las operaciones descartadas de este equipo."
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setIsMutating(true);
+    setMessage(null);
+
+    try {
+      const deletedCount = await clearDiscardedOfflineQueueItems(tenantId);
+      await loadItems();
+      setMessage(`Operaciones descartadas eliminadas: ${deletedCount}.`);
+    } catch {
+      setMessage("No se pudieron limpiar las operaciones descartadas.");
+    } finally {
+      setIsMutating(false);
+    }
+  }
+
+  async function clearSyncedItems() {
+    const confirmed = window.confirm(
+      "Se eliminaran definitivamente las operaciones ya sincronizadas de este equipo."
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setIsMutating(true);
+    setMessage(null);
+
+    try {
+      const deletedCount = await clearSyncedOfflineQueueItems(tenantId);
+      await loadItems();
+      setMessage(`Operaciones sincronizadas eliminadas: ${deletedCount}.`);
+    } catch {
+      setMessage("No se pudieron limpiar las operaciones sincronizadas.");
+    } finally {
+      setIsMutating(false);
+    }
+  }
+
   return (
     <section className="grid gap-4">
       <div className="rounded-lg border border-border bg-card p-4 text-card-foreground shadow-sm">
@@ -134,7 +214,7 @@ export function OfflineSyncPanel({
             type="button"
             variant="outline"
             onClick={() => void loadItems()}
-            disabled={isLoading}
+            disabled={isLoading || isMutating}
             className="h-10 w-full justify-center gap-2 px-4 text-sm font-semibold md:w-auto"
           >
             {isLoading ? (
@@ -154,6 +234,35 @@ export function OfflineSyncPanel({
             Fallidas: {summary.failed}
           </span>
         </div>
+
+        <div className="mt-3 flex flex-wrap gap-2">
+          {hasDiscardedItems ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void clearDiscardedItems()}
+              disabled={isLoading || isMutating}
+              className="h-9 px-3 text-sm font-semibold"
+            >
+              Limpiar descartadas
+            </Button>
+          ) : null}
+          {hasSyncedItems ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void clearSyncedItems()}
+              disabled={isLoading || isMutating}
+              className="h-9 px-3 text-sm font-semibold"
+            >
+              Limpiar sincronizadas
+            </Button>
+          ) : null}
+        </div>
+
+        <p className="mt-3 text-sm font-semibold text-muted-foreground">
+          Reintento disponible en proxima version.
+        </p>
 
         {message ? (
           <p className="mt-3 text-sm font-bold text-foreground">{message}</p>
@@ -187,28 +296,51 @@ export function OfflineSyncPanel({
                   <th className="px-3 py-3">Fecha</th>
                   <th className="px-3 py-3">Intentos</th>
                   <th className="px-3 py-3">Ultimo error</th>
+                  <th className="px-3 py-3">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {items.map((item) => (
-                  <tr key={item.id} className="align-top">
-                    <td className="px-3 py-3 font-bold">
-                      {typeLabels[item.type]}
-                    </td>
-                    <td className="px-3 py-3 font-semibold">
-                      {statusLabels[item.status]}
-                    </td>
-                    <td className="px-3 py-3 font-semibold">
-                      {formatDate(item.created_at)}
-                    </td>
-                    <td className="px-3 py-3 font-semibold">
-                      {item.attempt_count}
-                    </td>
-                    <td className="max-w-xl px-3 py-3 font-semibold text-muted-foreground">
-                      {displayValue(item.last_error)}
-                    </td>
-                  </tr>
-                ))}
+                {items.map((item) => {
+                  const canDiscard =
+                    item.status === "pending" || item.status === "failed";
+
+                  return (
+                    <tr key={item.id} className="align-top">
+                      <td className="px-3 py-3 font-bold">
+                        {typeLabels[item.type]}
+                      </td>
+                      <td className="px-3 py-3 font-semibold">
+                        {statusLabels[item.status]}
+                      </td>
+                      <td className="px-3 py-3 font-semibold">
+                        {formatDate(item.created_at)}
+                      </td>
+                      <td className="px-3 py-3 font-semibold">
+                        {item.attempt_count}
+                      </td>
+                      <td className="max-w-xl px-3 py-3 font-semibold text-muted-foreground">
+                        {displayValue(item.last_error)}
+                      </td>
+                      <td className="px-3 py-3">
+                        {canDiscard ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => void discardItem(item)}
+                            disabled={isLoading || isMutating}
+                            className="h-8 px-3 text-sm font-semibold"
+                          >
+                            Descartar
+                          </Button>
+                        ) : (
+                          <span className="text-sm font-semibold text-muted-foreground">
+                            -
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
