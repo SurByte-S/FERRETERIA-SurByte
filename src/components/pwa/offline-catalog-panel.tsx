@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Database, RefreshCw } from "lucide-react";
+import Link from "next/link";
 
 import {
   OFFLINE_ACTION_MESSAGE,
@@ -180,20 +181,29 @@ export function OfflineCatalogPanel({
             <p className="mt-2 text-sm font-bold text-primary">{progress}</p>
           ) : null}
         </div>
-        <Button
-          type="button"
-          onClick={updateCatalog}
-          disabled={isSaving}
-          className="h-12 w-full justify-center gap-2 px-5 text-base font-semibold md:w-auto"
-        >
-          <RefreshCw
-            className={isSaving ? "size-5 animate-spin" : "size-5"}
-            aria-hidden="true"
-          />
-          {isSaving
-            ? "Actualizando catalogo"
-            : "Actualizar catalogo para usar sin internet"}
-        </Button>
+        <div className="grid gap-2 md:justify-items-end">
+          <Button
+            type="button"
+            onClick={updateCatalog}
+            disabled={isSaving}
+            className="h-12 w-full justify-center gap-2 px-5 text-base font-semibold md:w-auto"
+          >
+            <RefreshCw
+              className={isSaving ? "size-5 animate-spin" : "size-5"}
+              aria-hidden="true"
+            />
+            {isSaving
+              ? "Actualizando catalogo"
+              : "Actualizar catalogo para usar sin internet"}
+          </Button>
+          <Button
+            asChild
+            variant="outline"
+            className="h-10 w-full justify-center px-4 text-sm font-semibold md:w-auto"
+          >
+            <Link href="/stock/offline">Ver catalogo guardado</Link>
+          </Button>
+        </div>
       </div>
     </section>
   );

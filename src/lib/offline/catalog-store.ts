@@ -41,6 +41,25 @@ type SaveOfflineCatalogInput = {
   generatedAt?: string | null;
 };
 
+function normalizeSearchValue(value: string | null | undefined) {
+  return (value ?? "").trim().toLowerCase();
+}
+
+function productMatchesQuery(product: OfflineCatalogProduct, query: string) {
+  if (!query) {
+    return true;
+  }
+
+  return [
+    product.name,
+    product.sku,
+    product.custom_code,
+    product.barcode,
+    product.brand,
+    product.category,
+  ].some((value) => normalizeSearchValue(value).includes(query));
+}
+
 function assertIndexedDbAvailable() {
   if (typeof indexedDB === "undefined") {
     throw new Error("El navegador no permite guardar el catalogo offline.");
@@ -133,6 +152,55 @@ export async function saveOfflineCatalog(input: SaveOfflineCatalogInput) {
     await transactionDone(transaction);
 
     return meta;
+  } finally {
+    db.close();
+  }
+}
+
+export async function searchOfflineProducts(
+  tenantId: string,
+  query: string,
+  limit = 100
+) {
+  const db = await openOfflineCatalogDb();
+  const normalizedQuery = normalizeSearchValue(query);
+  const safeLimit = Math.min(Math.max(Math.trunc(limit), 1), 200);
+
+  try {
+    const transaction = db.transaction(PRODUCTS_STORE, "readonly");
+    const tenantProductsIndex = transaction
+      .objectStore(PRODUCTS_STORE)
+      .index("tenant_id");
+    const results: OfflineCatalogProduct[] = [];
+
+    await new Promise<void>((resolve, reject) => {
+      const request = tenantProductsIndex.openCursor(
+        IDBKeyRange.only(tenantId)
+      );
+
+      request.onsuccess = () => {
+        const cursor = request.result;
+
+        if (!cursor || results.length >= safeLimit) {
+          resolve();
+          return;
+        }
+
+        const product = cursor.value as OfflineCatalogProduct;
+
+        if (productMatchesQuery(product, normalizedQuery)) {
+          results.push(product);
+        }
+
+        cursor.continue();
+      };
+
+      request.onerror = () => reject(request.error);
+    });
+
+    await transactionDone(transaction);
+
+    return results;
   } finally {
     db.close();
   }
