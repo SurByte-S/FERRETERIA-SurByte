@@ -11,10 +11,12 @@ import {
 import { Button } from "@/components/ui/button";
 import {
   countOfflineProducts,
+  countOfflineSaleUnits,
   getOfflineCatalogMeta,
   saveOfflineCatalog,
   type OfflineCatalogMeta,
   type OfflineCatalogProduct,
+  type OfflineSaleUnit,
 } from "@/lib/offline/catalog-store";
 
 type OfflineCatalogPanelProps = {
@@ -24,6 +26,7 @@ type OfflineCatalogPanelProps = {
 
 type OfflineCatalogResponse = {
   products: OfflineCatalogProduct[];
+  saleUnits?: OfflineSaleUnit[];
   nextOffset: number | null;
   hasMore: boolean;
   tenant: {
@@ -58,10 +61,12 @@ export function OfflineCatalogPanel({
 
     async function loadMeta() {
       try {
-        const [storedMeta, storedCount] = await Promise.all([
-          getOfflineCatalogMeta(tenantId),
-          countOfflineProducts(tenantId),
-        ]);
+        const [storedMeta, storedProductCount, storedSaleUnitCount] =
+          await Promise.all([
+            getOfflineCatalogMeta(tenantId),
+            countOfflineProducts(tenantId),
+            countOfflineSaleUnits(tenantId),
+          ]);
 
         if (!isMounted) {
           return;
@@ -70,7 +75,8 @@ export function OfflineCatalogPanel({
         if (storedMeta) {
           setMeta({
             ...storedMeta,
-            product_count: storedCount,
+            product_count: storedProductCount,
+            sale_unit_count: storedSaleUnitCount,
           });
         }
       } catch {
@@ -99,6 +105,7 @@ export function OfflineCatalogPanel({
 
     try {
       const products: OfflineCatalogProduct[] = [];
+      const saleUnits: OfflineSaleUnit[] = [];
       let offset = 0;
       let generatedAt: string | null = null;
       let hasMore = true;
@@ -120,8 +127,11 @@ export function OfflineCatalogPanel({
         }
 
         products.push(...payload.products);
+        saleUnits.push(...(payload.saleUnits ?? []));
         generatedAt = payload.generatedAt;
-        setProgress(`Descargando productos... ${products.length}`);
+        setProgress(
+          `Descargando productos... ${products.length}. Presentaciones... ${saleUnits.length}`
+        );
         hasMore = payload.hasMore && payload.nextOffset !== null;
         offset = payload.nextOffset ?? offset;
       }
@@ -134,6 +144,7 @@ export function OfflineCatalogPanel({
           name: tenantName,
         },
         products,
+        saleUnits,
         generatedAt,
       });
 
@@ -166,6 +177,9 @@ export function OfflineCatalogPanel({
               <>
                 <span>Ultima actualizacion: {formatSavedAt(meta.saved_at)}</span>
                 <span>Productos guardados: {meta.product_count}</span>
+                {typeof meta.sale_unit_count === "number" ? (
+                  <span>Presentaciones guardadas: {meta.sale_unit_count}</span>
+                ) : null}
               </>
             ) : (
               <span>Todavia no hay catalogo guardado en este equipo.</span>

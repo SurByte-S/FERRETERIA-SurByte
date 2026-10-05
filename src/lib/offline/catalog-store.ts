@@ -1,8 +1,9 @@
 "use client";
 
 const DB_NAME = "ferreteria-offline";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const PRODUCTS_STORE = "offline_products";
+const SALE_UNITS_STORE = "offline_sale_units";
 const META_STORE = "offline_meta";
 
 export type OfflineCatalogProduct = {
@@ -28,8 +29,28 @@ export type OfflineCatalogMeta = {
   tenant_id: string;
   tenant_name: string;
   product_count: number;
-  generated_at: string | null;
+  sale_unit_count?: number;
+  generated_at?: string | null;
   saved_at: string;
+};
+
+export type OfflineSaleUnit = {
+  id: string;
+  tenant_id: string;
+  product_id: string;
+  name: string;
+  quantity_in_base_unit: number | null;
+  sale_price: number | null;
+  barcode: string | null;
+  is_default: boolean;
+  active: boolean;
+  updated_at: string | null;
+};
+
+export type OfflineCatalogLookupResult = {
+  product: OfflineCatalogProduct;
+  saleUnit?: OfflineSaleUnit;
+  matchType: "product" | "sale_unit";
 };
 
 type SaveOfflineCatalogInput = {
@@ -38,6 +59,7 @@ type SaveOfflineCatalogInput = {
     name: string;
   };
   products: OfflineCatalogProduct[];
+  saleUnits?: OfflineSaleUnit[];
   generatedAt?: string | null;
 };
 
@@ -60,10 +82,24 @@ function productMatchesQuery(product: OfflineCatalogProduct, query: string) {
   ].some((value) => normalizeSearchValue(value).includes(query));
 }
 
+function saleUnitMatchesQuery(saleUnit: OfflineSaleUnit, query: string) {
+  if (!query) {
+    return true;
+  }
+
+  return [saleUnit.name, saleUnit.barcode].some((value) =>
+    normalizeSearchValue(value).includes(query)
+  );
+}
+
 function productMatchesCode(product: OfflineCatalogProduct, code: string) {
   return [product.custom_code, product.sku, product.barcode].some(
     (value) => normalizeSearchValue(value) === code
   );
+}
+
+function saleUnitMatchesCode(saleUnit: OfflineSaleUnit, code: string) {
+  return normalizeSearchValue(saleUnit.barcode) === code;
 }
 
 function assertIndexedDbAvailable() {
@@ -113,6 +149,21 @@ function openOfflineCatalogDb() {
       if (!db.objectStoreNames.contains(META_STORE)) {
         db.createObjectStore(META_STORE, { keyPath: "tenant_id" });
       }
+
+      if (!db.objectStoreNames.contains(SALE_UNITS_STORE)) {
+        const saleUnitsStore = db.createObjectStore(SALE_UNITS_STORE, {
+          keyPath: "id",
+        });
+
+        saleUnitsStore.createIndex("tenant_id", "tenant_id", {
+          unique: false,
+        });
+        saleUnitsStore.createIndex("product_id", "product_id", {
+          unique: false,
+        });
+        saleUnitsStore.createIndex("barcode", "barcode", { unique: false });
+        saleUnitsStore.createIndex("name", "name", { unique: false });
+      }
     };
 
     request.onsuccess = () => resolve(request.result);
@@ -125,17 +176,26 @@ export async function saveOfflineCatalog(input: SaveOfflineCatalogInput) {
 
   try {
     const transaction = db.transaction(
-      [PRODUCTS_STORE, META_STORE],
+      [PRODUCTS_STORE, SALE_UNITS_STORE, META_STORE],
       "readwrite"
     );
     const productsStore = transaction.objectStore(PRODUCTS_STORE);
+    const saleUnitsStore = transaction.objectStore(SALE_UNITS_STORE);
     const tenantProductsIndex = productsStore.index("tenant_id");
+    const tenantSaleUnitsIndex = saleUnitsStore.index("tenant_id");
     const existingKeys = await requestToPromise(
       tenantProductsIndex.getAllKeys(input.tenant.id)
+    );
+    const existingSaleUnitKeys = await requestToPromise(
+      tenantSaleUnitsIndex.getAllKeys(input.tenant.id)
     );
 
     existingKeys.forEach((key) => {
       productsStore.delete(key);
+    });
+
+    existingSaleUnitKeys.forEach((key) => {
+      saleUnitsStore.delete(key);
     });
 
     input.products.forEach((product) => {
@@ -145,10 +205,20 @@ export async function saveOfflineCatalog(input: SaveOfflineCatalogInput) {
       });
     });
 
+    const saleUnits = input.saleUnits ?? [];
+
+    saleUnits.forEach((saleUnit) => {
+      saleUnitsStore.put({
+        ...saleUnit,
+        tenant_id: input.tenant.id,
+      });
+    });
+
     const meta: OfflineCatalogMeta = {
       tenant_id: input.tenant.id,
       tenant_name: input.tenant.name,
       product_count: input.products.length,
+      sale_unit_count: saleUnits.length,
       generated_at: input.generatedAt ?? null,
       saved_at: new Date().toISOString(),
     };
@@ -173,11 +243,19 @@ export async function searchOfflineProducts(
   const safeLimit = Math.min(Math.max(Math.trunc(limit), 1), 200);
 
   try {
-    const transaction = db.transaction(PRODUCTS_STORE, "readonly");
+    const transaction = db.transaction(
+      [PRODUCTS_STORE, SALE_UNITS_STORE],
+      "readonly"
+    );
     const tenantProductsIndex = transaction
       .objectStore(PRODUCTS_STORE)
       .index("tenant_id");
+    const productsStore = transaction.objectStore(PRODUCTS_STORE);
+    const tenantSaleUnitsIndex = transaction
+      .objectStore(SALE_UNITS_STORE)
+      .index("tenant_id");
     const results: OfflineCatalogProduct[] = [];
+    const productIds = new Set<string>();
 
     await new Promise<void>((resolve, reject) => {
       const request = tenantProductsIndex.openCursor(
@@ -196,6 +274,7 @@ export async function searchOfflineProducts(
 
         if (productMatchesQuery(product, normalizedQuery)) {
           results.push(product);
+          productIds.add(product.id);
         }
 
         cursor.continue();
@@ -203,6 +282,56 @@ export async function searchOfflineProducts(
 
       request.onerror = () => reject(request.error);
     });
+
+    if (results.length < safeLimit && normalizedQuery) {
+      await new Promise<void>((resolve, reject) => {
+        const request = tenantSaleUnitsIndex.openCursor(
+          IDBKeyRange.only(tenantId)
+        );
+
+        request.onsuccess = () => {
+          const cursor = request.result;
+
+          if (!cursor || results.length >= safeLimit) {
+            resolve();
+            return;
+          }
+
+          const saleUnit = cursor.value as OfflineSaleUnit;
+
+          if (
+            saleUnit.active !== false &&
+            !productIds.has(saleUnit.product_id) &&
+            saleUnitMatchesQuery(saleUnit, normalizedQuery)
+          ) {
+            const productRequest = productsStore.get(saleUnit.product_id);
+
+            productRequest.onsuccess = () => {
+              const product = productRequest.result as
+                | OfflineCatalogProduct
+                | undefined;
+
+              if (
+                product &&
+                product.tenant_id === tenantId &&
+                product.active !== false
+              ) {
+                results.push(product);
+                productIds.add(product.id);
+              }
+
+              cursor.continue();
+            };
+            productRequest.onerror = () => reject(productRequest.error);
+            return;
+          }
+
+          cursor.continue();
+        };
+
+        request.onerror = () => reject(request.error);
+      });
+    }
 
     await transactionDone(transaction);
 
@@ -215,7 +344,7 @@ export async function searchOfflineProducts(
 export async function lookupOfflineProductByCode(
   tenantId: string,
   code: string
-) {
+): Promise<OfflineCatalogLookupResult | null> {
   const normalizedCode = normalizeSearchValue(code);
 
   if (!normalizedCode) {
@@ -225,11 +354,11 @@ export async function lookupOfflineProductByCode(
   const db = await openOfflineCatalogDb();
 
   try {
-    const transaction = db.transaction(PRODUCTS_STORE, "readonly");
-    const tenantProductsIndex = transaction
+    const productTransaction = db.transaction(PRODUCTS_STORE, "readonly");
+    const tenantProductsIndex = productTransaction
       .objectStore(PRODUCTS_STORE)
       .index("tenant_id");
-    const exactMatch = await new Promise<OfflineCatalogProduct | null>(
+    const exactProduct = await new Promise<OfflineCatalogProduct | null>(
       (resolve, reject) => {
         const request = tenantProductsIndex.openCursor(
           IDBKeyRange.only(tenantId)
@@ -260,18 +389,91 @@ export async function lookupOfflineProductByCode(
       }
     );
 
-    await transactionDone(transaction);
+    await transactionDone(productTransaction);
 
-    if (exactMatch) {
-      return exactMatch;
+    if (exactProduct) {
+      return {
+        product: exactProduct,
+        matchType: "product",
+      };
+    }
+
+    const saleUnitTransaction = db.transaction(
+      [PRODUCTS_STORE, SALE_UNITS_STORE],
+      "readonly"
+    );
+    const productsStore = saleUnitTransaction.objectStore(PRODUCTS_STORE);
+    const tenantSaleUnitsIndex = saleUnitTransaction
+      .objectStore(SALE_UNITS_STORE)
+      .index("tenant_id");
+    const exactSaleUnit = await new Promise<{
+      product: OfflineCatalogProduct;
+      saleUnit: OfflineSaleUnit;
+    } | null>((resolve, reject) => {
+      const request = tenantSaleUnitsIndex.openCursor(IDBKeyRange.only(tenantId));
+
+      request.onsuccess = () => {
+        const cursor = request.result;
+
+        if (!cursor) {
+          resolve(null);
+          return;
+        }
+
+        const saleUnit = cursor.value as OfflineSaleUnit;
+
+        if (saleUnit.active !== false && saleUnitMatchesCode(saleUnit, normalizedCode)) {
+          const productRequest = productsStore.get(saleUnit.product_id);
+
+          productRequest.onsuccess = () => {
+            const product = productRequest.result as
+              | OfflineCatalogProduct
+              | undefined;
+
+            if (
+              product &&
+              product.tenant_id === tenantId &&
+              product.active !== false
+            ) {
+              resolve({ product, saleUnit });
+              return;
+            }
+
+            cursor.continue();
+          };
+          productRequest.onerror = () => reject(productRequest.error);
+          return;
+        }
+
+        cursor.continue();
+      };
+
+      request.onerror = () => reject(request.error);
+    });
+
+    await transactionDone(saleUnitTransaction);
+
+    if (exactSaleUnit) {
+      return {
+        product: exactSaleUnit.product,
+        saleUnit: exactSaleUnit.saleUnit,
+        matchType: "sale_unit",
+      };
     }
   } finally {
     db.close();
   }
 
   const fallbackProducts = await searchOfflineProducts(tenantId, code, 20);
+  const fallbackProduct =
+    fallbackProducts.find((product) => product.active !== false) ?? null;
 
-  return fallbackProducts.find((product) => product.active !== false) ?? null;
+  return fallbackProduct
+    ? {
+        product: fallbackProduct,
+        matchType: "product",
+      }
+    : null;
 }
 
 export async function getOfflineCatalogMeta(tenantId: string) {
@@ -297,6 +499,22 @@ export async function countOfflineProducts(tenantId: string) {
     const transaction = db.transaction(PRODUCTS_STORE, "readonly");
     const count = await requestToPromise(
       transaction.objectStore(PRODUCTS_STORE).index("tenant_id").count(tenantId)
+    );
+    await transactionDone(transaction);
+
+    return count;
+  } finally {
+    db.close();
+  }
+}
+
+export async function countOfflineSaleUnits(tenantId: string) {
+  const db = await openOfflineCatalogDb();
+
+  try {
+    const transaction = db.transaction(SALE_UNITS_STORE, "readonly");
+    const count = await requestToPromise(
+      transaction.objectStore(SALE_UNITS_STORE).index("tenant_id").count(tenantId)
     );
     await transactionDone(transaction);
 

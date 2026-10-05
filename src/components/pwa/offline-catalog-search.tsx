@@ -6,7 +6,9 @@ import { AlertTriangle, Database, Search } from "lucide-react";
 import { formatStockQuantity } from "@/lib/format";
 import {
   getOfflineCatalogMeta,
+  lookupOfflineProductByCode,
   searchOfflineProducts,
+  type OfflineCatalogLookupResult,
   type OfflineCatalogMeta,
   type OfflineCatalogProduct,
 } from "@/lib/offline/catalog-store";
@@ -29,7 +31,7 @@ function formatSavedAt(value: string) {
 
 function formatMoney(value: number | null) {
   if (value === null) {
-    return "—";
+    return "-";
   }
 
   return new Intl.NumberFormat("es-AR", {
@@ -42,7 +44,7 @@ function formatMoney(value: number | null) {
 function displayValue(value: string | null | undefined) {
   const cleanValue = value?.trim();
 
-  return cleanValue ? cleanValue : "—";
+  return cleanValue ? cleanValue : "-";
 }
 
 export function OfflineCatalogSearch({
@@ -52,6 +54,8 @@ export function OfflineCatalogSearch({
   const [meta, setMeta] = useState<OfflineCatalogMeta | null>(null);
   const [query, setQuery] = useState("");
   const [products, setProducts] = useState<OfflineCatalogProduct[]>([]);
+  const [exactLookup, setExactLookup] =
+    useState<OfflineCatalogLookupResult | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -63,21 +67,32 @@ export function OfflineCatalogSearch({
       setMessage(null);
 
       try {
-        const [storedMeta, storedProducts] = await Promise.all([
+        const [storedMeta, storedProducts, storedLookup] = await Promise.all([
           getOfflineCatalogMeta(tenantId),
           searchOfflineProducts(tenantId, query, 100),
+          query.trim()
+            ? lookupOfflineProductByCode(tenantId, query)
+            : Promise.resolve(null),
         ]);
 
         if (!isMounted) {
           return;
         }
 
+        const nextProducts =
+          storedLookup &&
+          !storedProducts.some((product) => product.id === storedLookup.product.id)
+            ? [storedLookup.product, ...storedProducts]
+            : storedProducts;
+
         setMeta(storedMeta);
-        setProducts(storedProducts);
+        setProducts(nextProducts);
+        setExactLookup(storedLookup);
       } catch {
         if (isMounted) {
           setMeta(null);
           setProducts([]);
+          setExactLookup(null);
           setMessage("No se pudo leer el catalogo guardado en este equipo.");
         }
       } finally {
@@ -134,6 +149,9 @@ export function OfflineCatalogSearch({
               <>
                 <span>Ultima actualizacion: {formatSavedAt(meta.saved_at)}</span>
                 <span>Productos guardados: {meta.product_count}</span>
+                {typeof meta.sale_unit_count === "number" ? (
+                  <span>Presentaciones guardadas: {meta.sale_unit_count}</span>
+                ) : null}
               </>
             ) : (
               <span>Todavia no hay catalogo guardado en este equipo.</span>
@@ -177,7 +195,14 @@ export function OfflineCatalogSearch({
 
           <div className="rounded-lg border border-border bg-card text-card-foreground shadow-sm">
             <div className="flex items-center justify-between gap-3 border-b border-border p-3">
-              <p className="text-sm font-bold">{resultLabel}</p>
+              <div className="grid gap-1">
+                <p className="text-sm font-bold">{resultLabel}</p>
+                {exactLookup?.matchType === "sale_unit" ? (
+                  <p className="text-sm font-bold text-primary">
+                    Coincidencia por presentacion: {exactLookup.saleUnit?.name}
+                  </p>
+                ) : null}
+              </div>
               {message ? (
                 <p className="text-sm font-bold text-foreground">{message}</p>
               ) : null}
@@ -210,15 +235,41 @@ export function OfflineCatalogSearch({
                             {product.name}
                           </p>
                           <p className="mt-1 text-xs font-medium text-muted-foreground">
-                            Barra: {displayValue(product.barcode)}
+                            Barra:{" "}
+                            {displayValue(
+                              exactLookup?.matchType === "sale_unit" &&
+                                exactLookup.product.id === product.id
+                                ? exactLookup.saleUnit?.barcode
+                                : product.barcode
+                            )}
                           </p>
+                          {exactLookup?.matchType === "sale_unit" &&
+                          exactLookup.product.id === product.id ? (
+                            <p className="mt-1 text-xs font-bold text-primary">
+                              Coincidencia por presentacion:{" "}
+                              {exactLookup.saleUnit?.name}
+                            </p>
+                          ) : null}
                         </td>
                         <td className="px-3 py-3 font-semibold">
-                          {formatMoney(product.sale_price)}
+                          {formatMoney(
+                            exactLookup?.matchType === "sale_unit" &&
+                              exactLookup.product.id === product.id &&
+                              exactLookup.saleUnit?.sale_price !== null
+                              ? exactLookup.saleUnit?.sale_price ?? null
+                              : product.sale_price
+                          )}
+                          {exactLookup?.matchType === "sale_unit" &&
+                          exactLookup.product.id === product.id &&
+                          exactLookup.saleUnit?.sale_price !== null ? (
+                            <p className="mt-1 text-xs font-medium text-muted-foreground">
+                              Precio base: {formatMoney(product.sale_price)}
+                            </p>
+                          ) : null}
                         </td>
                         <td className="px-3 py-3 font-semibold">
                           {product.stock_quantity === null
-                            ? "—"
+                            ? "-"
                             : formatStockQuantity(product.stock_quantity)}
                         </td>
                         <td className="px-3 py-3">{displayValue(product.brand)}</td>

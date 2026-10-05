@@ -38,6 +38,7 @@ import {
   getOfflineCatalogMeta,
   lookupOfflineProductByCode,
   searchOfflineProducts,
+  type OfflineCatalogLookupResult,
   type OfflineCatalogProduct,
 } from "@/lib/offline/catalog-store";
 
@@ -295,7 +296,7 @@ export function QuickSalePos({
   const [resultsTotal, setResultsTotal] = useState(0);
   const [offlineResults, setOfflineResults] = useState<OfflineCatalogProduct[]>([]);
   const [offlineExactMatch, setOfflineExactMatch] =
-    useState<OfflineCatalogProduct | null>(null);
+    useState<OfflineCatalogLookupResult | null>(null);
   const [offlineQuery, setOfflineQuery] = useState("");
   const [offlineHasError, setOfflineHasError] = useState(false);
   const [offlineSearchStatus, setOfflineSearchStatus] =
@@ -604,7 +605,7 @@ export function QuickSalePos({
             await ensureOfflineCatalog();
             const exact = await lookupOfflineProductByCode(tenantId, code);
             const offlineItems = exact
-              ? [exact]
+              ? [exact.product]
               : await searchOfflineProducts(tenantId, code, 20);
 
             setOfflineExactMatch(exact);
@@ -766,7 +767,7 @@ export function QuickSalePos({
           await ensureOfflineCatalog();
           const exact = await lookupOfflineProductByCode(tenantId, initialSku);
           const offlineItems = exact
-            ? [exact]
+            ? [exact.product]
             : await searchOfflineProducts(tenantId, initialSku, 20);
 
           setResults([]);
@@ -884,7 +885,7 @@ export function QuickSalePos({
           await ensureOfflineCatalog();
           const exact = await lookupOfflineProductByCode(tenantId, term);
           const offlineItems = exact
-            ? [exact]
+            ? [exact.product]
             : await searchOfflineProducts(tenantId, term, 20);
 
           if (latestSearchRequestRef.current !== requestId) {

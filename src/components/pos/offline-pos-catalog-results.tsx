@@ -3,10 +3,13 @@
 import { AlertTriangle, Database } from "lucide-react";
 
 import { formatStockQuantity } from "@/lib/format";
-import type { OfflineCatalogProduct } from "@/lib/offline/catalog-store";
+import type {
+  OfflineCatalogLookupResult,
+  OfflineCatalogProduct,
+} from "@/lib/offline/catalog-store";
 
 type OfflinePosCatalogResultsProps = {
-  exactMatch?: OfflineCatalogProduct | null;
+  exactMatch?: OfflineCatalogLookupResult | null;
   hasError?: boolean;
   isLoading?: boolean;
   query: string;
@@ -63,7 +66,9 @@ export function OfflinePosCatalogResults({
             ) : null}
             {exactMatch ? (
               <p className="mt-2 rounded-md border border-primary/20 bg-secondary px-2 py-1 text-sm font-black text-primary">
-                Coincidencia exacta por codigo guardado.
+                {exactMatch.matchType === "sale_unit"
+                  ? `Coincidencia por presentacion: ${exactMatch.saleUnit?.name}`
+                  : "Coincidencia exacta por codigo guardado."}
               </p>
             ) : null}
           </div>
@@ -125,13 +130,38 @@ export function OfflinePosCatalogResults({
                     {displayValue(product.sku)}
                   </td>
                   <td className="px-3 py-3 font-semibold">
-                    {displayValue(product.barcode)}
+                    {displayValue(
+                      exactMatch?.matchType === "sale_unit" &&
+                        exactMatch.product.id === product.id
+                        ? exactMatch.saleUnit?.barcode
+                        : product.barcode
+                    )}
                   </td>
                   <td className="min-w-64 px-3 py-3">
                     <p className="font-black text-foreground">{product.name}</p>
+                    {exactMatch?.matchType === "sale_unit" &&
+                    exactMatch.product.id === product.id ? (
+                      <p className="mt-1 text-xs font-black text-primary">
+                        Coincidencia por presentacion:{" "}
+                        {exactMatch.saleUnit?.name}
+                      </p>
+                    ) : null}
                   </td>
                   <td className="px-3 py-3 font-semibold">
-                    {formatMoney(product.sale_price)}
+                    {formatMoney(
+                      exactMatch?.matchType === "sale_unit" &&
+                        exactMatch.product.id === product.id &&
+                        exactMatch.saleUnit?.sale_price !== null
+                        ? exactMatch.saleUnit?.sale_price ?? null
+                        : product.sale_price
+                    )}
+                    {exactMatch?.matchType === "sale_unit" &&
+                    exactMatch.product.id === product.id &&
+                    exactMatch.saleUnit?.sale_price !== null ? (
+                      <p className="mt-1 text-xs font-medium text-muted-foreground">
+                        Precio base: {formatMoney(product.sale_price)}
+                      </p>
+                    ) : null}
                   </td>
                   <td className="px-3 py-3 font-semibold">
                     {product.stock_quantity === null

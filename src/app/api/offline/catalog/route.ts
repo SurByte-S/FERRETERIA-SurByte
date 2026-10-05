@@ -27,6 +27,19 @@ type CatalogProductRow = {
   suppliers: { name: string | null } | { name: string | null }[] | null;
 };
 
+type CatalogSaleUnitRow = {
+  id: string;
+  tenant_id: string;
+  product_id: string;
+  name: string;
+  quantity_in_base_unit: number | null;
+  sale_price: number | null;
+  barcode: string | null;
+  is_default: boolean | null;
+  active: boolean | null;
+  updated_at: string | null;
+};
+
 function parsePositiveInteger(value: string | null, fallback: number) {
   if (!value) {
     return fallback;
@@ -115,10 +128,49 @@ export async function GET(request: Request) {
       brand: firstRelationName(row.brands),
       supplier: firstRelationName(row.suppliers),
     }));
+    const productIds = products.map((product) => product.id);
+    let saleUnits: CatalogSaleUnitRow[] = [];
+
+    if (productIds.length > 0) {
+      const saleUnitsResult = await supabase
+        .from("product_sale_units")
+        .select(
+          "id,tenant_id,product_id,name,quantity_in_base_unit,sale_price,barcode,is_default,active,updated_at"
+        )
+        .eq("tenant_id", tenant.id)
+        .eq("active", true)
+        .in("product_id", productIds)
+        .order("is_default", { ascending: false })
+        .order("name", { ascending: true });
+
+      if (saleUnitsResult.error) {
+        return noStoreJson(
+          { ok: false, message: "No se pudo preparar el catalogo offline." },
+          { status: 500 }
+        );
+      }
+
+      saleUnits = ((saleUnitsResult.data ?? []) as unknown as CatalogSaleUnitRow[])
+        .filter((saleUnit) => productIds.includes(saleUnit.product_id))
+        .map((saleUnit) => ({
+          id: saleUnit.id,
+          tenant_id: saleUnit.tenant_id,
+          product_id: saleUnit.product_id,
+          name: saleUnit.name,
+          quantity_in_base_unit: saleUnit.quantity_in_base_unit,
+          sale_price: saleUnit.sale_price,
+          barcode: saleUnit.barcode,
+          is_default: Boolean(saleUnit.is_default),
+          active: saleUnit.active !== false,
+          updated_at: saleUnit.updated_at,
+        }));
+    }
+
     const hasMore = rows.length === pageSize;
 
     return noStoreJson({
       products,
+      saleUnits,
       nextOffset: hasMore ? offset + pageSize : null,
       hasMore,
       tenant: {
