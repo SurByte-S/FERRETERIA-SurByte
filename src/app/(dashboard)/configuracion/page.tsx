@@ -5,6 +5,7 @@ import {
   Download,
   Factory,
   FileClock,
+  RefreshCw,
   Palette,
   Tags,
 } from "lucide-react";
@@ -69,6 +70,13 @@ const configurationSections = [
     href: "/configuracion/exportaciones",
     actionLabel: "Entrar",
     icon: Download,
+  },
+  {
+    title: "Sincronizacion sin internet",
+    description: "Operaciones guardadas en este equipo cuando no hay conexion.",
+    href: "/configuracion/sincronizacion",
+    actionLabel: "Ver pendientes",
+    icon: RefreshCw,
   },
 ] as const;
 
