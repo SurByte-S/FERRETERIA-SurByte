@@ -35,6 +35,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { formatStockQuantity } from "@/lib/format";
 import {
+  addOfflineQuoteCreateItem,
+  type OfflineQuoteCreatePayload,
+} from "@/lib/offline/offline-quote-create";
+import {
   getOfflineCatalogMeta,
   lookupOfflineProductByCode,
   searchOfflineProducts,
@@ -43,6 +47,10 @@ import {
 } from "@/lib/offline/catalog-store";
 
 const EMPTY_SEARCH_MESSAGE = "Busca un producto para empezar.";
+const OFFLINE_QUOTE_SAVED_MESSAGE =
+  "Presupuesto guardado en este equipo. Pendiente de sincronizacion.";
+const ONLINE_QUOTE_UNCERTAIN_MESSAGE =
+  "Ya se intento guardar este ticket online. Revisa Presupuestos cuando vuelva la conexion antes de crear un pendiente local.";
 const SEARCH_PLACEHOLDER = "Buscar por codigo o nombre";
 const CASH_REGISTER_CLOSED_MESSAGE = "Para vender necesitas abrir la caja.";
 const EPSILON = 0.000001;
@@ -263,6 +271,7 @@ export function QuickSalePos({
   initialQuoteId,
   initialSku,
   tenantId,
+  userId,
 }: {
   cashStatus?: CashStatus;
   customers: QuoteCustomerOption[];
@@ -274,6 +283,7 @@ export function QuickSalePos({
   initialQuoteId?: string;
   initialSku?: string;
   tenantId: string;
+  userId: string;
   tenantName?: string;
 }) {
   const router = useRouter();
@@ -310,11 +320,39 @@ export function QuickSalePos({
   const [paymentMethod, setPaymentMethod] = useState(PAYMENT_METHODS[0]);
   const [paidAmount, setPaidAmount] = useState("");
   const [isPending, startTransition] = useTransition();
+  const offlineQuoteSavesRef = useRef(new Map<string, { id: string; saved: boolean }>());
+  const offlineQuoteSaveBusyRef = useRef(false);
+  const onlineQuoteAttemptedRef = useRef(false);
+  const [isSavingOfflineQuote, setIsSavingOfflineQuote] = useState(false);
+  const [savedOfflineQuoteKeys, setSavedOfflineQuoteKeys] = useState<Set<string>>(new Set());
 
   const total = useMemo(
     () => lines.reduce((sum, line) => sum + line.quantity * line.price, 0),
     [lines]
   );
+  const offlineQuotePayload = useMemo<OfflineQuoteCreatePayload>(() => ({
+    customer: {
+      ...normalizeQuoteCustomerForSave(customer),
+      id: customer.id?.trim() || null,
+    },
+    lines: lines.map((line) => ({
+      id: line.id,
+      sku: line.sku,
+      displayCode: line.displayCode,
+      name: line.name,
+      description: line.description,
+      unit: line.unit,
+      quantity: line.quantity,
+      price: line.price,
+      selectedSaleUnitId: line.selectedSaleUnitId || null,
+      selectedSaleUnitName: line.selectedSaleUnitName,
+      quantityInBaseUnit: line.quantityInBaseUnit,
+    })),
+    total,
+    notes: "Presupuesto creado desde mostrador",
+  }), [customer, lines, total]);
+  const offlineQuoteKey = JSON.stringify(offlineQuotePayload);
+  const isCurrentQuoteSavedLocally = savedOfflineQuoteKeys.has(offlineQuoteKey);
   const hasOutOfStockLines = useMemo(
     () => lines.some((line) => !line.availableForSale),
     [lines]
@@ -1088,11 +1126,6 @@ export function QuickSalePos({
   }
 
   function saveQuote() {
-    if (isBrowserOffline()) {
-      setMessage(OFFLINE_ACTION_MESSAGE);
-      return;
-    }
-
     if (initialQuoteId) {
       updateQuote();
       return;
@@ -1128,25 +1161,99 @@ export function QuickSalePos({
     });
   }
 
-  function saveQuoteAsNew() {
-    if (isBrowserOffline()) {
+  async function saveOfflineQuote() {
+    if (offlineQuoteSaveBusyRef.current) {
+      return;
+    }
+
+    if (!isQuoteMode || initialQuoteId || !isBrowserOffline()) {
       setMessage(OFFLINE_ACTION_MESSAGE);
       return;
     }
 
-    setMessage("");
-    startTransition(async () => {
-      const result = await saveQuoteAction({
-        customer: normalizeQuoteCustomerForSave(customer),
-        lines,
-      });
+    if (!tenantId || !userId || lines.length === 0) {
+      setMessage("No se pudo guardar: se necesita un usuario autenticado, un negocio y productos validos.");
+      return;
+    }
 
-      if (result.ok && result.quoteId) {
-        router.push(`/presupuestos/${result.quoteId}`);
+    if (onlineQuoteAttemptedRef.current) {
+      setMessage(ONLINE_QUOTE_UNCERTAIN_MESSAGE);
+      return;
+    }
+
+    offlineQuoteSaveBusyRef.current = true;
+    setIsSavingOfflineQuote(true);
+    setMessage("");
+
+    try {
+      let intent = offlineQuoteSavesRef.current.get(offlineQuoteKey);
+
+      if (!intent) {
+        intent = { id: crypto.randomUUID(), saved: false };
+        offlineQuoteSavesRef.current.set(offlineQuoteKey, intent);
+      }
+
+      if (intent.saved) {
+        setMessage(OFFLINE_QUOTE_SAVED_MESSAGE);
         return;
       }
 
-      setMessage(result.message);
+      await addOfflineQuoteCreateItem({
+        id: intent.id,
+        tenant_id: tenantId,
+        user_id: userId,
+        payload: offlineQuotePayload,
+      });
+      intent.saved = true;
+      setSavedOfflineQuoteKeys((current) => new Set(current).add(offlineQuoteKey));
+      setMessage(OFFLINE_QUOTE_SAVED_MESSAGE);
+    } catch (error) {
+      setMessage(
+        error instanceof Error && error.name === "ConstraintError"
+          ? "No se guardo otra copia: el identificador local ya existe. Revisa los pendientes de este equipo."
+          : "No se pudo guardar el presupuesto en este equipo. El ticket se conserva; podes volver a intentarlo."
+      );
+    } finally {
+      offlineQuoteSaveBusyRef.current = false;
+      setIsSavingOfflineQuote(false);
+    }
+  }
+
+  function saveQuoteAsNew() {
+    if (offlineQuoteSaveBusyRef.current) {
+      return;
+    }
+
+    if (offlineQuoteSavesRef.current.get(offlineQuoteKey)?.saved) {
+      setMessage(OFFLINE_QUOTE_SAVED_MESSAGE);
+      return;
+    }
+
+    if (isBrowserOffline()) {
+      void saveOfflineQuote();
+      return;
+    }
+
+    setMessage("");
+    // The existing action cannot distinguish all failures from a committed
+    // quote whose response was lost. Never turn that attempt into a local copy.
+    onlineQuoteAttemptedRef.current = true;
+    startTransition(async () => {
+      try {
+        const result = await saveQuoteAction({
+          customer: normalizeQuoteCustomerForSave(customer),
+          lines,
+        });
+
+        if (result.ok && result.quoteId) {
+          router.push(`/presupuestos/${result.quoteId}`);
+          return;
+        }
+
+        setMessage(result.message);
+      } catch {
+        setMessage(ONLINE_QUOTE_UNCERTAIN_MESSAGE);
+      }
     });
   }
 
@@ -1546,15 +1653,22 @@ export function QuickSalePos({
 
                 {isQuoteMode ? (
                   <div className="grid gap-2">
+                    {!isOnline && !isEditingQuote ? (
+                      <p className="text-sm font-semibold text-muted-foreground">
+                        El presupuesto se guardara solamente en este equipo. Se enviara al sistema cuando se implemente y ejecute la sincronizacion.
+                      </p>
+                    ) : null}
                     <Button
                       type="button"
                       onClick={saveQuote}
-                      disabled={isPending || lines.length === 0}
+                      disabled={isPending || isSavingOfflineQuote || isCurrentQuoteSavedLocally || lines.length === 0}
                       className="h-12 w-full px-4 text-base font-black"
                     >
                       {isEditingQuote
                         ? "Actualizar presupuesto"
-                        : "Guardar presupuesto"}
+                        : !isOnline
+                          ? "Guardar presupuesto pendiente"
+                          : "Guardar presupuesto"}
                     </Button>
                     {isEditingQuote ? (
                       <div className="grid gap-2 sm:grid-cols-2">
