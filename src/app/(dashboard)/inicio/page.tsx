@@ -118,6 +118,7 @@ export default async function InicioPage({
         `${tenant.id}:${user.id}:${quoteForEditing?.quoteId ?? (shouldStartInQuoteMode ? "quote" : "sale")}`
       }
       cashStatus={cashStatus}
+      canViewOfflineQuotes={["owner", "admin", "seller"].includes(tenant.role)}
       customers={customers}
       editingQuoteNumber={quoteForEditing?.editingQuoteNumber}
       initialCustomer={quoteForEditing?.initialCustomer}

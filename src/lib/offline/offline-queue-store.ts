@@ -192,6 +192,88 @@ export async function listOfflineQueueItems(
   }
 }
 
+const ACTIVE_QUOTE_STATUSES = new Set<OfflineQueueItemStatus>([
+  "pending",
+  "failed",
+  "syncing",
+]);
+
+// Scan only this tenant's index. Count all matching records and retain at most
+// limit newest items, without loading the entire tenant queue into memory.
+async function readOfflineQuoteCreateItems(
+  tenantId: string,
+  userId: string,
+  limit: number
+) {
+  assertQueueScope(tenantId, userId);
+  const db = await openOfflineQueueDb();
+
+  try {
+    const transaction = db.transaction(QUEUE_STORE, "readonly");
+    const index = transaction.objectStore(QUEUE_STORE).index("tenant_id");
+
+    return await new Promise<{ items: OfflineQueueItem[]; total: number; hasMore: boolean }>(
+      (resolve, reject) => {
+        const items: OfflineQueueItem[] = [];
+        let total = 0;
+        const request = index.openCursor(IDBKeyRange.only(tenantId));
+
+        transaction.onabort = () => reject(
+          transaction.error ?? new Error("No se pudieron leer los presupuestos locales.")
+        );
+        transaction.oncomplete = () => resolve({ items, total, hasMore: total > items.length });
+        request.onsuccess = () => {
+          const cursor = request.result;
+
+          if (!cursor) {
+            return;
+          }
+
+          const item = cursor.value as OfflineQueueItem;
+
+          if (belongsToScope(item, tenantId, userId) &&
+              item.type === "quote_create" && ACTIVE_QUOTE_STATUSES.has(item.status)) {
+            total += 1;
+
+            if (limit > 0) {
+              const date = typeof item.created_at === "string" ? item.created_at : "";
+              const position = items.findIndex((current) =>
+                date > (typeof current.created_at === "string" ? current.created_at : "")
+              );
+              const insertionIndex = position < 0 ? items.length : position;
+
+              if (insertionIndex < limit) {
+                items.splice(insertionIndex, 0, item);
+
+                if (items.length > limit) {
+                  items.pop();
+                }
+              }
+            }
+          }
+
+          cursor.continue();
+        };
+      }
+    );
+  } finally {
+    db.close();
+  }
+}
+
+export async function listOfflineQuoteCreateItems(
+  tenantId: string,
+  userId: string,
+  options: { limit?: number } = {}
+) {
+  return readOfflineQuoteCreateItems(tenantId, userId, safeLimit(options.limit));
+}
+
+export async function countOfflineQuoteCreateItems(tenantId: string, userId: string) {
+  const result = await readOfflineQuoteCreateItems(tenantId, userId, 0);
+  return result.total;
+}
+
 export async function updateOfflineQueueItemStatus(
   id: string,
   tenantId: string,

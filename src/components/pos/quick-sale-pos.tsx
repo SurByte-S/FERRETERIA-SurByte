@@ -27,6 +27,7 @@ import type {
   ProductSaleUnit,
 } from "@/components/presupuestos/quote-types";
 import { OfflinePosCatalogResults } from "@/components/pos/offline-pos-catalog-results";
+import { OfflineQuotesPanel } from "@/components/pwa/offline-quotes-panel";
 import {
   OFFLINE_ACTION_MESSAGE,
   isBrowserOffline,
@@ -261,6 +262,7 @@ function findGroupedStockIssue(lines: QuoteLine[]) {
 }
 
 export function QuickSalePos({
+  canViewOfflineQuotes,
   cashStatus,
   customers,
   editingQuoteNumber,
@@ -273,6 +275,7 @@ export function QuickSalePos({
   tenantId,
   userId,
 }: {
+  canViewOfflineQuotes: boolean;
   cashStatus?: CashStatus;
   customers: QuoteCustomerOption[];
   editingQuoteNumber?: number | string;
@@ -325,6 +328,7 @@ export function QuickSalePos({
   const onlineQuoteAttemptedRef = useRef(false);
   const [isSavingOfflineQuote, setIsSavingOfflineQuote] = useState(false);
   const [savedOfflineQuoteKeys, setSavedOfflineQuoteKeys] = useState<Set<string>>(new Set());
+  const [offlineQuotesRefreshKey, setOfflineQuotesRefreshKey] = useState(0);
 
   const total = useMemo(
     () => lines.reduce((sum, line) => sum + line.quantity * line.price, 0),
@@ -1205,6 +1209,7 @@ export function QuickSalePos({
         payload: offlineQuotePayload,
       });
       intent.saved = true;
+      setOfflineQuotesRefreshKey((current) => current + 1);
       setSavedOfflineQuoteKeys((current) => new Set(current).add(offlineQuoteKey));
       setMessage(OFFLINE_QUOTE_SAVED_MESSAGE);
     } catch (error) {
@@ -1369,6 +1374,12 @@ export function QuickSalePos({
               <option value="sale">Venta</option>
               <option value="quote">Presupuesto</option>
             </select>
+            <OfflineQuotesPanel
+              tenantId={tenantId}
+              userId={userId}
+              canView={canViewOfflineQuotes}
+              refreshKey={offlineQuotesRefreshKey}
+            />
             {!isQuoteMode && cashStatus ? (
               <CashBadge cashStatus={cashStatus} />
             ) : null}
