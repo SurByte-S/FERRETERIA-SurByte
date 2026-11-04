@@ -17,6 +17,7 @@ import {
 type OfflineSyncPanelProps = {
   tenantId: string;
   tenantName: string;
+  userId: string;
 };
 
 const typeLabels: Record<OfflineQueueItemType, string> = {
@@ -53,6 +54,7 @@ function displayValue(value: string | null | undefined) {
 export function OfflineSyncPanel({
   tenantId,
   tenantName,
+  userId,
 }: OfflineSyncPanelProps) {
   const [items, setItems] = useState<OfflineQueueItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -64,7 +66,7 @@ export function OfflineSyncPanel({
     setMessage(null);
 
     try {
-      const nextItems = await listOfflineQueueItems(tenantId);
+      const nextItems = await listOfflineQueueItems(tenantId, userId);
       setItems(nextItems);
     } catch {
       setItems([]);
@@ -72,12 +74,12 @@ export function OfflineSyncPanel({
     } finally {
       setIsLoading(false);
     }
-  }, [tenantId]);
+  }, [tenantId, userId]);
 
   useEffect(() => {
     let isMounted = true;
 
-    listOfflineQueueItems(tenantId)
+    listOfflineQueueItems(tenantId, userId)
       .then((nextItems) => {
         if (isMounted) {
           setItems(nextItems);
@@ -98,7 +100,7 @@ export function OfflineSyncPanel({
     return () => {
       isMounted = false;
     };
-  }, [tenantId]);
+  }, [tenantId, userId]);
 
   const summary = useMemo(() => {
     return items.reduce(
@@ -133,7 +135,7 @@ export function OfflineSyncPanel({
     setMessage(null);
 
     try {
-      await discardOfflineQueueItem(item.id, tenantId);
+      await discardOfflineQueueItem(item.id, tenantId, userId);
       await loadItems();
       setMessage("Operacion descartada.");
     } catch (error) {
@@ -160,7 +162,7 @@ export function OfflineSyncPanel({
     setMessage(null);
 
     try {
-      const deletedCount = await clearDiscardedOfflineQueueItems(tenantId);
+      const deletedCount = await clearDiscardedOfflineQueueItems(tenantId, userId);
       await loadItems();
       setMessage(`Operaciones descartadas eliminadas: ${deletedCount}.`);
     } catch {
@@ -183,7 +185,7 @@ export function OfflineSyncPanel({
     setMessage(null);
 
     try {
-      const deletedCount = await clearSyncedOfflineQueueItems(tenantId);
+      const deletedCount = await clearSyncedOfflineQueueItems(tenantId, userId);
       await loadItems();
       setMessage(`Operaciones sincronizadas eliminadas: ${deletedCount}.`);
     } catch {

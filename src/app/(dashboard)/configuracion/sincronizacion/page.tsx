@@ -1,5 +1,6 @@
 import { OfflineSyncPanel } from "@/components/pwa/offline-sync-panel";
 import { PageHeader } from "@/components/shell/page-header";
+import { requireUser } from "@/lib/auth/session";
 
 import { requireConfigurationTenant } from "../access";
 
@@ -7,6 +8,7 @@ export default async function ConfiguracionSincronizacionPage() {
   const tenant = await requireConfigurationTenant(
     "/configuracion/sincronizacion"
   );
+  const user = await requireUser("/configuracion/sincronizacion");
 
   return (
     <>
@@ -24,7 +26,12 @@ export default async function ConfiguracionSincronizacionPage() {
         </p>
       </div>
 
-      <OfflineSyncPanel tenantId={tenant.id} tenantName={tenant.name} />
+      <OfflineSyncPanel
+        key={`${tenant.id}:${user.id}`}
+        tenantId={tenant.id}
+        tenantName={tenant.name}
+        userId={user.id}
+      />
     </>
   );
 }

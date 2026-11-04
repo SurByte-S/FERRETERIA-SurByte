@@ -31,8 +31,9 @@ export type OfflineQueueItem = {
 };
 
 type AddOfflineQueueItemInput = {
+  id?: string;
   tenant_id: string;
-  user_id?: string | null;
+  user_id: string;
   type: OfflineQueueItemType;
   payload: unknown;
   status?: OfflineQueueItemStatus;
@@ -54,6 +55,22 @@ const DISCARDABLE_STATUSES = new Set<OfflineQueueItemStatus>([
   "failed",
 ]);
 
+function assertQueueScope(tenantId: string, userId: string) {
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+  if (
+    typeof tenantId !== "string" || !uuid.test(tenantId) ||
+    typeof userId !== "string" || !uuid.test(userId)
+  ) {
+    throw new Error("Se requiere un negocio y un usuario validos para acceder a la cola offline.");
+  }
+}
+
+function belongsToScope(item: OfflineQueueItem, tenantId: string, userId: string) {
+  // Legacy records without an owner remain stored, but never belong to this scope.
+  return item.tenant_id === tenantId && item.user_id === userId;
+}
+
 function assertIndexedDbAvailable() {
   if (typeof indexedDB === "undefined") {
     throw new Error("El navegador no permite guardar operaciones offline.");
@@ -70,8 +87,11 @@ function requestToPromise<T>(request: IDBRequest<T>) {
 function transactionDone(transaction: IDBTransaction) {
   return new Promise<void>((resolve, reject) => {
     transaction.oncomplete = () => resolve();
-    transaction.onerror = () => reject(transaction.error);
-    transaction.onabort = () => reject(transaction.error);
+    // A request error bubbles before transaction.error is set. Wait for abort
+    // so duplicate insertions reject with ConstraintError rather than null.
+    transaction.onabort = () => reject(
+      transaction.error ?? new Error("No se pudo completar la operacion offline.")
+    );
   });
 }
 
@@ -110,12 +130,20 @@ function safeLimit(value: number | undefined) {
 }
 
 export async function addOfflineQueueItem(input: AddOfflineQueueItemInput) {
+  assertQueueScope(input.tenant_id, input.user_id);
+  const id = input.id ?? crypto.randomUUID();
+
+  if (typeof id !== "string" ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+    throw new Error("El identificador local de la operacion no es valido.");
+  }
+
   const db = await openOfflineQueueDb();
   const now = new Date().toISOString();
   const item: OfflineQueueItem = {
-    id: crypto.randomUUID(),
+    id: id.toLowerCase(),
     tenant_id: input.tenant_id,
-    user_id: input.user_id ?? null,
+    user_id: input.user_id,
     type: input.type,
     status: input.status ?? "pending",
     payload: input.payload,
@@ -127,7 +155,8 @@ export async function addOfflineQueueItem(input: AddOfflineQueueItemInput) {
 
   try {
     const transaction = db.transaction(QUEUE_STORE, "readwrite");
-    transaction.objectStore(QUEUE_STORE).put(item);
+    // add rejects duplicate IDs atomically, including concurrent insertions.
+    transaction.objectStore(QUEUE_STORE).add(item);
     await transactionDone(transaction);
 
     return item;
@@ -138,8 +167,10 @@ export async function addOfflineQueueItem(input: AddOfflineQueueItemInput) {
 
 export async function listOfflineQueueItems(
   tenantId: string,
+  userId: string,
   options: ListOfflineQueueItemsOptions = {}
 ) {
+  assertQueueScope(tenantId, userId);
   const db = await openOfflineQueueDb();
   const limit = safeLimit(options.limit);
 
@@ -152,6 +183,7 @@ export async function listOfflineQueueItems(
     await transactionDone(transaction);
 
     return items
+      .filter((item) => belongsToScope(item, tenantId, userId))
       .filter((item) => !options.status || item.status === options.status)
       .sort((first, second) => second.created_at.localeCompare(first.created_at))
       .slice(0, limit);
@@ -163,9 +195,11 @@ export async function listOfflineQueueItems(
 export async function updateOfflineQueueItemStatus(
   id: string,
   tenantId: string,
+  userId: string,
   status: OfflineQueueItemStatus,
   extra: UpdateOfflineQueueItemExtra = {}
 ) {
+  assertQueueScope(tenantId, userId);
   const db = await openOfflineQueueDb();
 
   try {
@@ -175,8 +209,8 @@ export async function updateOfflineQueueItemStatus(
       | OfflineQueueItem
       | undefined;
 
-    if (!current || current.tenant_id !== tenantId) {
-      throw new Error("No se encontro la operacion offline para este negocio.");
+    if (!current || !belongsToScope(current, tenantId, userId)) {
+      throw new Error("No se encontro la operacion offline para este negocio y usuario.");
     }
 
     const nextItem: OfflineQueueItem = {
@@ -202,7 +236,8 @@ export async function updateOfflineQueueItemStatus(
   }
 }
 
-export async function deleteOfflineQueueItem(id: string, tenantId: string) {
+export async function deleteOfflineQueueItem(id: string, tenantId: string, userId: string) {
+  assertQueueScope(tenantId, userId);
   const db = await openOfflineQueueDb();
 
   try {
@@ -212,8 +247,8 @@ export async function deleteOfflineQueueItem(id: string, tenantId: string) {
       | OfflineQueueItem
       | undefined;
 
-    if (!current || current.tenant_id !== tenantId) {
-      throw new Error("No se encontro la operacion offline para este negocio.");
+    if (!current || !belongsToScope(current, tenantId, userId)) {
+      throw new Error("No se encontro la operacion offline para este negocio y usuario.");
     }
 
     store.delete(id);
@@ -223,7 +258,8 @@ export async function deleteOfflineQueueItem(id: string, tenantId: string) {
   }
 }
 
-export async function discardOfflineQueueItem(id: string, tenantId: string) {
+export async function discardOfflineQueueItem(id: string, tenantId: string, userId: string) {
+  assertQueueScope(tenantId, userId);
   const db = await openOfflineQueueDb();
 
   try {
@@ -233,8 +269,8 @@ export async function discardOfflineQueueItem(id: string, tenantId: string) {
       | OfflineQueueItem
       | undefined;
 
-    if (!current || current.tenant_id !== tenantId) {
-      throw new Error("No se encontro la operacion offline para este negocio.");
+    if (!current || !belongsToScope(current, tenantId, userId)) {
+      throw new Error("No se encontro la operacion offline para este negocio y usuario.");
     }
 
     if (!DISCARDABLE_STATUSES.has(current.status)) {
@@ -259,8 +295,10 @@ export async function discardOfflineQueueItem(id: string, tenantId: string) {
 
 async function clearOfflineQueueItemsByStatus(
   tenantId: string,
+  userId: string,
   status: OfflineQueueItemStatus
 ) {
+  assertQueueScope(tenantId, userId);
   const db = await openOfflineQueueDb();
 
   try {
@@ -282,7 +320,7 @@ async function clearOfflineQueueItemsByStatus(
 
         const item = cursor.value as OfflineQueueItem;
 
-        if (item.tenant_id === tenantId && item.status === status) {
+        if (belongsToScope(item, tenantId, userId) && item.status === status) {
           cursor.delete();
           deletedCount += 1;
         }
@@ -301,16 +339,16 @@ async function clearOfflineQueueItemsByStatus(
   }
 }
 
-export async function clearDiscardedOfflineQueueItems(tenantId: string) {
-  return clearOfflineQueueItemsByStatus(tenantId, "discarded");
+export async function clearDiscardedOfflineQueueItems(tenantId: string, userId: string) {
+  return clearOfflineQueueItemsByStatus(tenantId, userId, "discarded");
 }
 
-export async function clearSyncedOfflineQueueItems(tenantId: string) {
-  return clearOfflineQueueItemsByStatus(tenantId, "synced");
+export async function clearSyncedOfflineQueueItems(tenantId: string, userId: string) {
+  return clearOfflineQueueItemsByStatus(tenantId, userId, "synced");
 }
 
-export async function countPendingOfflineQueueItems(tenantId: string) {
-  const items = await listOfflineQueueItems(tenantId, { limit: 500 });
+export async function countPendingOfflineQueueItems(tenantId: string, userId: string) {
+  const items = await listOfflineQueueItems(tenantId, userId, { limit: 500 });
   const countedStatuses = new Set<OfflineQueueItemStatus>([
     "pending",
     "syncing",
