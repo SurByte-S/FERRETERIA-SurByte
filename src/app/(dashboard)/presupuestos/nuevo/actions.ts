@@ -1321,6 +1321,40 @@ export async function getQuoteProductBySkuAction(
   return result.product ?? null;
 }
 
+export async function getCurrentQuoteProductNamesAction(productIds: string[]): Promise<{
+  ok: boolean;
+  products: { id: string; name: string }[];
+}> {
+  if (!Array.isArray(productIds)) {
+    return { ok: false, products: [] };
+  }
+
+  const ids = [...new Set(productIds)];
+
+  if (ids.length === 0 || ids.some((id) => typeof id !== "string" || !isUuid(id))) {
+    return { ok: false, products: [] };
+  }
+
+  try {
+    const tenant = await requireTenantRole(["owner", "admin", "seller"]);
+    const supabase = getSupabaseServerClient();
+    const { data, error } = await supabase
+      .from("products")
+      .select("id,name")
+      .eq("tenant_id", tenant.id)
+      .eq("active", true)
+      .in("id", ids);
+
+    if (error || !data || data.length !== ids.length) {
+      return { ok: false, products: [] };
+    }
+
+    return { ok: true, products: data as { id: string; name: string }[] };
+  } catch {
+    return { ok: false, products: [] };
+  }
+}
+
 export async function saveQuoteAction({
   customer,
   lines,
@@ -1341,7 +1375,7 @@ export async function saveQuoteAction({
     const [tenant, user] = await Promise.all([requireTenant(), requireUser()]);
     const supabase = getSupabaseServerClient();
     await syncSelectedSaleUnitPrices({ lines: cleanLines, tenantId: tenant.id });
-    const { data, error } = await supabase.rpc("create_quote_with_items", {
+    const { data, error } = await supabase.rpc("create_quote_with_current_product_names", {
       input_tenant_id: tenant.id,
       input_created_by: user.id,
       input_customer_id: customer.id?.trim() || null,

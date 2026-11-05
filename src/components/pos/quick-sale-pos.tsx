@@ -13,6 +13,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import {
+  getCurrentQuoteProductNamesAction,
   lookupQuoteProductByCodeAction,
   saveQuoteAction,
   saveQuoteAndConvertToSaleAction,
@@ -1240,14 +1241,38 @@ export function QuickSalePos({
     }
 
     setMessage("");
-    // The existing action cannot distinguish all failures from a committed
-    // quote whose response was lost. Never turn that attempt into a local copy.
-    onlineQuoteAttemptedRef.current = true;
     startTransition(async () => {
       try {
+        let linesForSave = lines;
+
+        if (!initialQuoteId) {
+          const currentNames = await getCurrentQuoteProductNamesAction(lines.map((line) => line.id));
+
+          if (!currentNames.ok) {
+            setMessage("No se pudieron verificar los nombres actuales. El ticket se conserva; volve a intentar.");
+            return;
+          }
+
+          const names = new Map(currentNames.products.map((product) => [product.id, product.name]));
+          linesForSave = lines.map((line) => ({ ...line, name: names.get(line.id) ?? line.name }));
+          // Refresh names only. Preserve quantities/prices and any edits made
+          // while the read was in flight; descriptions remain separate data.
+          setLines((current) => current.map((line) => (
+            names.has(line.id) ? { ...line, name: names.get(line.id)! } : line
+          )));
+        }
+
+        if (isBrowserOffline()) {
+          setMessage(OFFLINE_ACTION_MESSAGE);
+          return;
+        }
+
+        // Only the creation attempt can have an uncertain committed result.
+        // A failed name lookup must not lock an otherwise safe local save.
+        onlineQuoteAttemptedRef.current = true;
         const result = await saveQuoteAction({
           customer: normalizeQuoteCustomerForSave(customer),
-          lines,
+          lines: linesForSave,
         });
 
         if (result.ok && result.quoteId) {
@@ -1257,7 +1282,9 @@ export function QuickSalePos({
 
         setMessage(result.message);
       } catch {
-        setMessage(ONLINE_QUOTE_UNCERTAIN_MESSAGE);
+        setMessage(onlineQuoteAttemptedRef.current
+          ? ONLINE_QUOTE_UNCERTAIN_MESSAGE
+          : "No se pudieron verificar los nombres actuales. El ticket se conserva; volve a intentar.");
       }
     });
   }
@@ -1495,6 +1522,7 @@ export function QuickSalePos({
                     <TicketLine
                       key={lineKey}
                       line={line}
+                      showCommercialName={isQuoteMode && !isEditingQuote}
                       onQuantityChange={(value) => updateLineQuantity(lineKey, value)}
                       onRemove={() => removeLine(lineKey)}
                     />
@@ -1958,10 +1986,12 @@ function ProductRow({
 
 function TicketLine({
   line,
+  showCommercialName,
   onQuantityChange,
   onRemove,
 }: {
   line: QuoteLine;
+  showCommercialName: boolean;
   onQuantityChange: (value: string) => boolean;
   onRemove: () => void;
 }) {
@@ -1971,6 +2001,7 @@ function TicketLine({
     ? quantityDraft
     : formatQuantityInput(line.quantity);
   const lineTotal = line.quantity * line.price;
+  const displayName = showCommercialName ? line.name : line.description;
 
   function changeQuantityBy(delta: number) {
     const nextQuantity = Math.max(1, line.quantity + delta);
@@ -2001,12 +2032,16 @@ function TicketLine({
             Quitar
           </Button>
         </div>
-        <p
-          className="min-w-0 truncate text-sm font-black leading-tight"
-          title={line.description}
-        >
-          {line.description}
-        </p>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-black leading-tight" title={displayName}>
+            {displayName}
+          </p>
+          {showCommercialName && line.description.trim() && line.description.trim() !== line.name.trim() ? (
+            <p className="mt-1 truncate text-xs text-muted-foreground" title={line.description}>
+              Descripcion: {line.description}
+            </p>
+          ) : null}
+        </div>
         <label className="flex items-center gap-2 md:justify-end">
           <span className="text-sm font-bold text-muted-foreground">
             Cantidad
@@ -2041,7 +2076,7 @@ function TicketLine({
               type="text"
               inputMode="decimal"
               className="h-10 w-20 rounded-md border border-input bg-background px-2 text-center text-sm font-black"
-              aria-label={`Cantidad de ${line.description}`}
+              aria-label={`Cantidad de ${displayName}`}
             />
             <span className="grid gap-1">
               <Button
