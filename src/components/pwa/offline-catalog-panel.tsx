@@ -128,7 +128,9 @@ export function OfflineCatalogPanel({
         products.push(...payload.products);
         saleUnits.push(...(payload.saleUnits ?? []));
         generatedAt = payload.generatedAt;
-        setProgress(`Descargando productos... ${products.length}`);
+        setProgress(
+          `Descargando productos... ${products.length}. Presentaciones... ${saleUnits.length}`
+        );
         hasMore = payload.hasMore && payload.nextOffset !== null;
         offset = payload.nextOffset ?? offset;
       }

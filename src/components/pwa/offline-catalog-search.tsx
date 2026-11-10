@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Search } from "lucide-react";
 import Link from "next/link";
 
@@ -71,7 +71,7 @@ function uniqueResults(results: OfflineCatalogLookupResult[]) {
   const seen = new Set<string>();
 
   return results.filter((result) => {
-    const key = `${result.product.id}:${result.saleUnit?.id ?? "product"}`;
+    const key = result.product.id;
 
     if (seen.has(key)) {
       return false;
@@ -79,111 +79,85 @@ function uniqueResults(results: OfflineCatalogLookupResult[]) {
 
     seen.add(key);
     return true;
-  });
+  }).slice(0, 100);
 }
 
 export function OfflineCatalogSearch({
   tenantId,
   tenantName,
 }: OfflineCatalogSearchProps) {
-  const [meta, setMeta] = useState<OfflineCatalogMeta | null>(null);
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<OfflineCatalogLookupResult[]>([]);
-  const [message, setMessage] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  const hasCatalog = Boolean(meta);
+  const [search, setSearch] = useState({ value: "", revision: 0 });
+  const [snapshot, setSnapshot] = useState<{
+    tenantId: string;
+    revision: number;
+    meta: OfflineCatalogMeta | null;
+    results: OfflineCatalogLookupResult[];
+    message: string | null;
+  } | null>(null);
+  const query = search.value;
   const trimmedQuery = query.trim();
-  const resultLabel = useMemo(() => {
-    if (!hasCatalog) {
-      return null;
-    }
-
-    return results.length === 1
-      ? "1 producto encontrado"
-      : `${results.length} productos encontrados`;
-  }, [hasCatalog, results.length]);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    async function loadInitialCatalog() {
-      try {
-        const storedMeta = await getOfflineCatalogMeta(tenantId);
-
-        if (!isMounted) {
-          return;
-        }
-
-        setMeta(storedMeta);
-
-        if (!storedMeta) {
-          setResults([]);
-          setMessage(null);
-          return;
-        }
-
-        const initialProducts = await searchOfflineProducts(tenantId, "", 100);
-
-        if (isMounted) {
-          setResults(initialProducts.map(toLookupResult));
-          setMessage(null);
-        }
-      } catch {
-        if (isMounted) {
-          setMessage("No se pudo leer el catalogo guardado en este equipo.");
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
-    }
-
-    loadInitialCatalog();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [tenantId]);
+  const isLoading = snapshot?.tenantId !== tenantId ||
+    snapshot.revision !== search.revision;
+  const meta = snapshot?.tenantId === tenantId ? snapshot.meta : null;
+  const hasCatalog = Boolean(meta);
+  // Hide the previous snapshot immediately, including during the debounce.
+  const results = isLoading ? [] : snapshot.results;
+  const message = isLoading ? null : snapshot.message;
+  const resultLabel = results.length === 1
+    ? "1 producto encontrado"
+    : `${results.length} productos encontrados`;
 
   useEffect(() => {
-    if (!hasCatalog) {
-      return;
-    }
-
-    let isMounted = true;
+    let cancelled = false;
     const timeoutId = window.setTimeout(async () => {
-      try {
-        const nextProducts = await searchOfflineProducts(
-          tenantId,
-          trimmedQuery,
-          100
-        );
-        const exactResult = trimmedQuery
-          ? await lookupOfflineProductByCode(tenantId, trimmedQuery)
-          : null;
-        const nextResults = uniqueResults([
-          ...(exactResult ? [exactResult] : []),
-          ...nextProducts.map(toLookupResult),
-        ]);
+      let storedMeta: OfflineCatalogMeta | null = null;
 
-        if (isMounted) {
-          setResults(nextResults);
-          setMessage(null);
+      try {
+        storedMeta = await getOfflineCatalogMeta(tenantId);
+        if (cancelled) return;
+
+        let nextResults: OfflineCatalogLookupResult[] = [];
+        if (storedMeta) {
+          const [products, exactResult] = await Promise.all([
+            searchOfflineProducts(tenantId, trimmedQuery, 100),
+            trimmedQuery
+              ? lookupOfflineProductByCode(tenantId, trimmedQuery)
+              : Promise.resolve(null),
+          ]);
+          // Keep the matched presentation instead of a second base-product row.
+          nextResults = uniqueResults([
+            ...(exactResult ? [exactResult] : []),
+            ...products.map(toLookupResult),
+          ]);
+        }
+
+        if (!cancelled) {
+          setSnapshot({
+            tenantId,
+            revision: search.revision,
+            meta: storedMeta,
+            results: nextResults,
+            message: null,
+          });
         }
       } catch {
-        if (isMounted) {
-          setMessage("No se pudo buscar en el catalogo guardado.");
+        if (!cancelled) {
+          setSnapshot({
+            tenantId,
+            revision: search.revision,
+            meta: storedMeta,
+            results: [],
+            message: "No se pudo buscar en el catalogo guardado. Volve a intentar la busqueda.",
+          });
         }
       }
-    }, 180);
+    }, trimmedQuery ? 180 : 0);
 
     return () => {
-      isMounted = false;
+      cancelled = true;
       window.clearTimeout(timeoutId);
     };
-  }, [hasCatalog, tenantId, trimmedQuery]);
+  }, [tenantId, trimmedQuery, search.revision]);
 
   return (
     <section className="grid gap-4">
@@ -221,17 +195,26 @@ export function OfflineCatalogSearch({
               <Search className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
               <input
                 value={query}
-                onChange={(event) => setQuery(event.target.value)}
+                onChange={(event) => setSearch((current) => ({
+                  value: event.target.value,
+                  revision: current.revision + 1,
+                }))}
                 placeholder="Buscar producto, codigo o codigo de barras"
                 className="h-12 w-full rounded-lg border border-input bg-background pl-11 pr-3 text-base font-semibold outline-none focus:border-primary focus:ring-2 focus:ring-ring/25"
-                disabled={!hasCatalog}
+                disabled={!hasCatalog && !message}
               />
             </div>
           </label>
         </div>
       </div>
 
-      {!hasCatalog && !isLoading ? (
+      {isLoading ? (
+        <p role="status" className="text-sm font-bold text-muted-foreground">
+          Buscando en catalogo guardado...
+        </p>
+      ) : null}
+
+      {!hasCatalog && !isLoading && !message ? (
         <div className="rounded-lg border border-border bg-card p-4 text-card-foreground shadow-sm">
           <p className="text-base font-bold">
             Todavia no hay catalogo guardado en este equipo.
@@ -244,12 +227,12 @@ export function OfflineCatalogSearch({
       ) : null}
 
       {message ? (
-        <div className="rounded-lg border border-border bg-card p-3 text-sm font-bold text-foreground shadow-sm">
+        <div role="alert" className="rounded-lg border border-border bg-card p-3 text-sm font-bold text-foreground shadow-sm">
           {message}
         </div>
       ) : null}
 
-      {hasCatalog ? (
+      {hasCatalog && !isLoading && !message ? (
         <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
             <p className="text-sm font-bold text-muted-foreground">
@@ -315,6 +298,11 @@ export function OfflineCatalogSearch({
                       </td>
                       <td className="px-3 py-3 text-right font-bold text-primary">
                         {formatMoney(displayPrice)}
+                        {saleUnit && saleUnit.sale_price !== null ? (
+                          <p className="mt-1 text-xs font-medium text-muted-foreground">
+                            Precio base: {formatMoney(product.sale_price)}
+                          </p>
+                        ) : null}
                       </td>
                       <td className="px-3 py-3 text-right font-semibold">
                         {formatStock(product.stock_quantity, product.unit)}

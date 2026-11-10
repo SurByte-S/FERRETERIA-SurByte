@@ -162,6 +162,11 @@ export function OfflinePosCatalogResults({
                     </td>
                     <td className="px-3 py-2 text-right font-bold text-primary">
                       {formatMoney(displayPrice)}
+                      {saleUnit && saleUnit.sale_price !== null ? (
+                        <p className="mt-1 text-xs font-medium text-muted-foreground">
+                          Precio base: {formatMoney(product.sale_price)}
+                        </p>
+                      ) : null}
                     </td>
                     <td className="px-3 py-2 text-right font-semibold">
                       {formatStock(product.stock_quantity, product.unit)}
