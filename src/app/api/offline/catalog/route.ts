@@ -110,14 +110,6 @@ export async function GET(request: Request) {
     }
 
     const rows = (data ?? []) as unknown as CatalogProductRow[];
-    const productIds = rows.map((row) => row.id);
-    const saleUnits =
-      productIds.length > 0
-        ? await loadSaleUnits({
-            productIds,
-            tenantId: tenant.id,
-          })
-        : [];
     const products = rows.map((row) => ({
       id: row.id,
       tenant_id: row.tenant_id,
@@ -136,6 +128,44 @@ export async function GET(request: Request) {
       brand: firstRelationName(row.brands),
       supplier: firstRelationName(row.suppliers),
     }));
+    const productIds = products.map((product) => product.id);
+    let saleUnits: CatalogSaleUnitRow[] = [];
+
+    if (productIds.length > 0) {
+      const saleUnitsResult = await supabase
+        .from("product_sale_units")
+        .select(
+          "id,tenant_id,product_id,name,quantity_in_base_unit,sale_price,barcode,is_default,active,updated_at"
+        )
+        .eq("tenant_id", tenant.id)
+        .eq("active", true)
+        .in("product_id", productIds)
+        .order("is_default", { ascending: false })
+        .order("name", { ascending: true });
+
+      if (saleUnitsResult.error) {
+        return noStoreJson(
+          { ok: false, message: "No se pudo preparar el catalogo offline." },
+          { status: 500 }
+        );
+      }
+
+      saleUnits = ((saleUnitsResult.data ?? []) as unknown as CatalogSaleUnitRow[])
+        .filter((saleUnit) => productIds.includes(saleUnit.product_id))
+        .map((saleUnit) => ({
+          id: saleUnit.id,
+          tenant_id: saleUnit.tenant_id,
+          product_id: saleUnit.product_id,
+          name: saleUnit.name,
+          quantity_in_base_unit: saleUnit.quantity_in_base_unit,
+          sale_price: saleUnit.sale_price,
+          barcode: saleUnit.barcode,
+          is_default: Boolean(saleUnit.is_default),
+          active: saleUnit.active !== false,
+          updated_at: saleUnit.updated_at,
+        }));
+    }
+
     const hasMore = rows.length === pageSize;
 
     return noStoreJson({
@@ -162,41 +192,4 @@ export async function GET(request: Request) {
       { status: 500 }
     );
   }
-}
-
-async function loadSaleUnits({
-  productIds,
-  tenantId,
-}: {
-  productIds: string[];
-  tenantId: string;
-}) {
-  const supabase = getSupabaseServerClient("/api/offline/catalog-sale-units");
-  const { data, error } = await supabase
-    .from("product_sale_units")
-    .select(
-      "id,tenant_id,product_id,name,quantity_in_base_unit,sale_price,barcode,is_default,active,updated_at"
-    )
-    .eq("tenant_id", tenantId)
-    .eq("active", true)
-    .in("product_id", productIds)
-    .order("is_default", { ascending: false })
-    .order("name", { ascending: true });
-
-  if (error) {
-    throw new Error("OFFLINE_SALE_UNITS_LOAD_FAILED");
-  }
-
-  return ((data ?? []) as unknown as CatalogSaleUnitRow[]).map((row) => ({
-    id: row.id,
-    tenant_id: row.tenant_id,
-    product_id: row.product_id,
-    name: row.name,
-    quantity_in_base_unit: row.quantity_in_base_unit,
-    sale_price: row.sale_price,
-    barcode: row.barcode,
-    is_default: Boolean(row.is_default),
-    active: row.active !== false,
-    updated_at: row.updated_at,
-  }));
 }

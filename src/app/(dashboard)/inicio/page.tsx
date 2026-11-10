@@ -9,6 +9,7 @@ import { logServerWarn } from "@/lib/server-log";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { hasRealProductBarcode, normalizeProductCode } from "@/lib/product-code";
 import { requireTenant } from "@/lib/tenant";
+import { requireUser } from "@/lib/auth/session";
 
 type CashSessionRow = {
   id: string;
@@ -96,6 +97,7 @@ export default async function InicioPage({
 }) {
   const { mode, quoteId, sku } = await searchParams;
   const tenant = await requireTenant("/inicio");
+  const user = await requireUser("/inicio");
   const supabase = getSupabaseServerClient("/inicio");
   const shouldStartInQuoteMode = mode === "quote" || Boolean(quoteId);
   const [cashStatus, customers, quoteForEditing] = await Promise.all([
@@ -113,9 +115,10 @@ export default async function InicioPage({
   return (
     <QuickSalePos
       key={
-        quoteForEditing?.quoteId ?? (shouldStartInQuoteMode ? "quote" : "sale")
+        `${tenant.id}:${user.id}:${quoteForEditing?.quoteId ?? (shouldStartInQuoteMode ? "quote" : "sale")}`
       }
       cashStatus={cashStatus}
+      canViewOfflineQuotes={["owner", "admin", "seller"].includes(tenant.role)}
       customers={customers}
       editingQuoteNumber={quoteForEditing?.editingQuoteNumber}
       initialCustomer={quoteForEditing?.initialCustomer}
@@ -125,6 +128,8 @@ export default async function InicioPage({
       initialQuoteId={quoteForEditing?.quoteId}
       initialSku={sku}
       tenantId={tenant.id}
+      userId={user.id}
+      tenantName={tenant.name}
     />
   );
 }
