@@ -1592,7 +1592,7 @@ export async function saveQuoteAndConvertToSaleAction({
     }
 
     const { data: quoteData, error: quoteError } = await supabase.rpc(
-      "create_quote_with_items",
+      "create_quote_with_current_product_names",
       {
         input_tenant_id: tenant.id,
         input_created_by: user.id,

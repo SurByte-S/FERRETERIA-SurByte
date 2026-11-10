@@ -1343,9 +1343,30 @@ export function QuickSalePos({
 
     setMessage("");
     startTransition(async () => {
+      const currentNames = await getCurrentQuoteProductNamesAction(
+        lines.map((line) => line.id)
+      ).catch(() => ({ ok: false, products: [] }));
+
+      if (!currentNames.ok) {
+        setMessage("No se pudieron verificar los nombres actuales. El ticket se conserva; volve a intentar.");
+        return;
+      }
+
+      const names = new Map(currentNames.products.map((product) => [product.id, product.name]));
+      const linesForSave = lines.map((line) => ({ ...line, name: names.get(line.id) ?? line.name }));
+      // Refresh names only; preserve ticket edits made while the read was in flight.
+      setLines((current) => current.map((line) => (
+        names.has(line.id) ? { ...line, name: names.get(line.id)! } : line
+      )));
+
+      if (isBrowserOffline()) {
+        setMessage(OFFLINE_ACTION_MESSAGE);
+        return;
+      }
+
       const result = await saveQuoteAndConvertToSaleAction({
         customer,
-        lines,
+        lines: linesForSave,
         paymentMethod,
         paidAmount: amount,
       });
@@ -1524,7 +1545,7 @@ export function QuickSalePos({
                     <TicketLine
                       key={lineKey}
                       line={line}
-                      showCommercialName={isQuoteMode && !isEditingQuote}
+                      showCommercialName={!isQuoteMode || !isEditingQuote}
                       onQuantityChange={(value) => updateLineQuantity(lineKey, value)}
                       onRemove={() => removeLine(lineKey)}
                     />
