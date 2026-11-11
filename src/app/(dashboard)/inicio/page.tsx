@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { QuickSalePos } from "@/components/pos/quick-sale-pos";
 import type {
   ProductSaleUnit,
@@ -42,6 +44,8 @@ type QuoteRow = {
 };
 
 type QuoteItemRow = {
+  id: string;
+  sort_order: number | null;
   product_id: string | null;
   product_sale_unit_id: string | null;
   sale_unit_name: string | null;
@@ -81,6 +85,7 @@ type ProductSaleUnitRow = {
 };
 
 type QuoteEditLoad = {
+  editingBlocked?: boolean;
   editingQuoteNumber?: number;
   initialCustomer?: QuoteCustomer;
   initialLines: QuoteLine[];
@@ -111,6 +116,19 @@ export default async function InicioPage({
         })
       : Promise.resolve<QuoteEditLoad | null>(null),
   ]);
+
+  if (quoteForEditing?.editingBlocked) {
+    return (
+      <section className="space-y-4 rounded-xl border p-6">
+        <h1 className="text-xl font-semibold">No se puede editar este presupuesto</h1>
+        <p role="alert">{quoteForEditing.message}</p>
+        <p>El presupuesto original no se modificó. Podés consultarlo e imprimirlo desde su detalle.</p>
+        <Link className="inline-block underline" href={`/presupuestos/${quoteForEditing.quoteId}`}>
+          Ver presupuesto original
+        </Link>
+      </section>
+    );
+  }
 
   return (
     <QuickSalePos
@@ -202,14 +220,17 @@ async function loadQuoteForEditing({
   const { data: itemsData, error: itemsError } = await supabase
     .from("quote_items")
     .select(
-      "product_id,product_sale_unit_id,sale_unit_name,quantity,quantity_in_base_unit,unit_price,total,sku,name"
+      "id,sort_order,product_id,product_sale_unit_id,sale_unit_name,quantity,quantity_in_base_unit,unit_price,total,sku,name"
     )
     .eq("tenant_id", tenantId)
     .eq("quote_id", quote.id)
-    .order("name");
+    .order("sort_order", { ascending: true, nullsFirst: false })
+    .order("name")
+    .order("id");
 
   if (itemsError) {
     return {
+      editingBlocked: true,
       editingQuoteNumber: quote.quote_number,
       initialCustomer: mapQuoteCustomer(quote),
       initialLines: [],
@@ -230,6 +251,15 @@ async function loadQuoteForEditing({
     loadProductsById({ productIds, supabase, tenantId }),
     loadSaleUnitsByProductId({ productIds, supabase, tenantId }),
   ]);
+  if (!productsById || !saleUnitsByProductId) {
+    return {
+      editingBlocked: true,
+      initialLines: [],
+      quoteId: quote.id,
+      message: "No se pudieron verificar los productos y presentaciones. Intentá cargar el presupuesto nuevamente.",
+    };
+  }
+
   const warnings: string[] = [];
   const lines = compactQuoteLines({
     items,
@@ -238,8 +268,13 @@ async function loadQuoteForEditing({
     warnings,
   });
 
-  if (lines.length === 0 && items.length > 0) {
-    warnings.push("No se pudieron cargar productos editables del presupuesto.");
+  if (lines === null) {
+    return {
+      editingBlocked: true,
+      initialLines: [],
+      quoteId: quote.id,
+      message: warnings.join(" "),
+    };
   }
 
   const messageParts = [
@@ -283,7 +318,7 @@ async function loadProductsById({
       tenantId,
       error: error.message,
     });
-    return new Map<string, ProductRow>();
+    return null;
   }
 
   return ((data ?? []) as unknown as ProductRow[]).reduce((map, product) => {
@@ -322,7 +357,7 @@ async function loadSaleUnitsByProductId({
       tenantId,
       error: error.message,
     });
-    return new Map<string, ProductSaleUnit[]>();
+    return null;
   }
 
   return ((data ?? []) as unknown as ProductSaleUnitRow[]).reduce(
@@ -351,15 +386,15 @@ function compactQuoteLines({
 
   for (const item of items) {
     if (!item.product_id) {
-      warnings.push(`Se omitio ${item.name}: no tiene producto asociado.`);
-      continue;
+      warnings.push(`${item.name}: no tiene producto asociado; la edición perdería este renglón.`);
+      return null;
     }
 
     const product = productsById.get(item.product_id);
 
     if (!product) {
-      warnings.push(`Se omitio ${item.name}: el producto ya no existe.`);
-      continue;
+      warnings.push(`${item.name}: el producto no está disponible; la edición perdería este renglón.`);
+      return null;
     }
 
     if (product.active === false) {
@@ -377,13 +412,11 @@ function compactQuoteLines({
         salePrice: productSalePrice,
       });
 
-    if (
-      item.product_sale_unit_id &&
-      selectedSaleUnit.id !== item.product_sale_unit_id
-    ) {
+    if (selectedSaleUnit.id !== (item.product_sale_unit_id ?? "")) {
       warnings.push(
-        `${product.name}: la presentacion original no esta disponible; se uso una presentacion activa.`
+        `${product.name}: no se puede conservar la presentación original al editar.`
       );
+      return null;
     }
 
     const line = mapQuoteLine({
@@ -400,10 +433,8 @@ function compactQuoteLines({
     const existing = linesByKey.get(key);
 
     if (existing) {
-      linesByKey.set(key, {
-        ...existing,
-        quantity: existing.quantity + line.quantity,
-      });
+      warnings.push(`${product.name}: hay renglones repetidos de la misma presentación que el editor fusionaría.`);
+      return null;
     } else {
       linesByKey.set(key, line);
     }

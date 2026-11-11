@@ -57,6 +57,8 @@ type TenantBusinessRow = PrintTenantBusinessDetails & {
 };
 
 type QuoteItemRow = {
+  id: string;
+  sort_order: number | null;
   sku: string | null;
   name: string;
   quantity: number;
@@ -137,10 +139,12 @@ export default async function QuoteDetailPage({ params }: QuotePageProps) {
         .maybeSingle(),
       supabase
         .from("quote_items")
-        .select("sku,name,quantity,sale_unit_name,quantity_in_base_unit,unit_price,total,products(stock_quantity)")
+        .select("id,sort_order,sku,name,quantity,sale_unit_name,quantity_in_base_unit,unit_price,total,products(stock_quantity)")
         .eq("tenant_id", tenant.id)
         .eq("quote_id", id)
-        .order("name"),
+        .order("sort_order", { ascending: true, nullsFirst: false })
+        .order("name")
+        .order("id"),
       supabase
         .from("customers")
         .select("id,name")
