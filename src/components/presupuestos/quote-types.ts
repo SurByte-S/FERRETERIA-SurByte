@@ -1,3 +1,5 @@
+export const QUOTE_EDIT_CONTRACT_VERSION = 1;
+
 export type ProductSaleUnit = {
   id: string;
   name: string;
@@ -31,6 +33,7 @@ export type QuoteProduct = {
 };
 
 export type QuoteLine = QuoteProduct & {
+  originalQuoteItemId?: string;
   quantity: number;
   selectedSaleUnitId: string;
   selectedSaleUnitName: string;

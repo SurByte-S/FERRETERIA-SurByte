@@ -27,6 +27,7 @@ import type {
   QuoteProduct,
   ProductSaleUnit,
 } from "@/components/presupuestos/quote-types";
+import { QUOTE_EDIT_CONTRACT_VERSION } from "@/components/presupuestos/quote-types";
 import { OfflinePosCatalogResults } from "@/components/pos/offline-pos-catalog-results";
 import { OfflineQuotesPanel } from "@/components/pwa/offline-quotes-panel";
 import {
@@ -327,6 +328,8 @@ export function QuickSalePos({
   const offlineQuoteSavesRef = useRef(new Map<string, { id: string; saved: boolean }>());
   const offlineQuoteSaveBusyRef = useRef(false);
   const onlineQuoteAttemptedRef = useRef(false);
+  const quoteUpdateBusyRef = useRef(false);
+  const quoteUpdateCommittedRef = useRef(false);
   const [isSavingOfflineQuote, setIsSavingOfflineQuote] = useState(false);
   const [savedOfflineQuoteKeys, setSavedOfflineQuoteKeys] = useState<Set<string>>(new Set());
   const [offlineQuotesRefreshKey, setOfflineQuotesRefreshKey] = useState(0);
@@ -564,6 +567,7 @@ export function QuickSalePos({
               ...currentLines,
               {
                 ...product,
+                originalQuoteItemId: undefined,
                 code: getSaleUnitBarcode(selectedSaleUnit) || product.displayCode,
                 displayCode:
                   getSaleUnitBarcode(selectedSaleUnit) || product.displayCode,
@@ -1140,7 +1144,12 @@ export function QuickSalePos({
   }
 
   function updateQuote() {
-    if (!initialQuoteId) {
+    if (!initialQuoteId || quoteUpdateBusyRef.current) {
+      return;
+    }
+
+    if (quoteUpdateCommittedRef.current) {
+      setMessage("El presupuesto ya se guardó. Volvé a abrirlo para cargar los renglones actualizados.");
       return;
     }
 
@@ -1149,20 +1158,30 @@ export function QuickSalePos({
       return;
     }
 
+    quoteUpdateBusyRef.current = true;
     setMessage("");
     startTransition(async () => {
-      const result = await updateQuoteAction({
-        customer: normalizeQuoteCustomerForSave(customer),
-        lines,
-        quoteId: initialQuoteId,
-      });
+      try {
+        const result = await updateQuoteAction({
+          customer: normalizeQuoteCustomerForSave(customer),
+          lines,
+          quoteId: initialQuoteId,
+          editContractVersion: QUOTE_EDIT_CONTRACT_VERSION,
+        });
 
-      if (result.ok && result.quoteId) {
-        router.push(`/presupuestos/${result.quoteId}`);
-        return;
+        if (result.ok && result.quoteId) {
+          // 038 replaces item IDs. Leave this editor with a full document load.
+          quoteUpdateCommittedRef.current = true;
+          window.location.assign(`/presupuestos/${result.quoteId}`);
+          return;
+        }
+
+        setMessage(result.message);
+      } catch {
+        setMessage("No se pudo confirmar la actualización. El ticket se conserva; revisá el presupuesto antes de volver a guardar.");
+      } finally {
+        quoteUpdateBusyRef.current = false;
       }
-
-      setMessage(result.message);
     });
   }
 
@@ -1545,7 +1564,7 @@ export function QuickSalePos({
                     <TicketLine
                       key={lineKey}
                       line={line}
-                      showCommercialName={!isQuoteMode || !isEditingQuote}
+                      showCommercialName
                       onQuantityChange={(value) => updateLineQuantity(lineKey, value)}
                       onRemove={() => removeLine(lineKey)}
                     />

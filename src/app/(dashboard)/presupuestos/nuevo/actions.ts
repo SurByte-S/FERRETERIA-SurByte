@@ -1,6 +1,7 @@
 ﻿"use server";
 
 import { revalidatePath } from "next/cache";
+import { QUOTE_EDIT_CONTRACT_VERSION } from "@/components/presupuestos/quote-types";
 
 import { requireUser } from "@/lib/auth/session";
 import { getSupabaseServerClient } from "@/lib/supabase";
@@ -1426,11 +1427,22 @@ export async function updateQuoteAction({
   customer,
   lines,
   quoteId,
+  editContractVersion,
 }: {
   customer: QuoteCustomer;
   lines: QuoteLine[];
   quoteId: string;
+  editContractVersion?: number;
 }): Promise<SaveQuoteResult> {
+  // Protocol marker only: authorization and DB ownership checks remain required.
+  if (editContractVersion !== QUOTE_EDIT_CONTRACT_VERSION) {
+    return { ok: false, message: "Este editor está desactualizado. Volvé a abrir el presupuesto antes de editarlo." };
+  }
+  if (typeof quoteId !== "string" || !Array.isArray(lines) ||
+      lines.some((line) => !line || typeof line.id !== "string" || !isUuid(line.id) ||
+        typeof line.quantity !== "number" || !Number.isFinite(line.quantity))) {
+    return { ok: false, message: "Los renglones del presupuesto no son válidos. El ticket se conserva." };
+  }
   const cleanQuoteId = quoteId.trim();
   const cleanLines = lines.filter((line) => line.quantity > 0);
 
@@ -1454,6 +1466,50 @@ export async function updateQuoteAction({
       requireUser(),
     ]);
     const supabase = getSupabaseServerClient();
+    const historicalIds: string[] = [];
+    for (const line of lines) {
+      if (line.originalQuoteItemId !== undefined) {
+        if (typeof line.originalQuoteItemId !== "string" || !isUuid(line.originalQuoteItemId)) {
+          return { ok: false, message: "Hay un identificador de renglón inválido. Volvé a abrir el presupuesto." };
+        }
+        historicalIds.push(line.originalQuoteItemId.toLowerCase());
+      }
+    }
+    if (new Set(historicalIds).size !== historicalIds.length) {
+      return { ok: false, message: "Hay renglones históricos repetidos. No se guardaron cambios." };
+    }
+
+    const { data: quote, error: quoteError } = await supabase
+      .from("quotes")
+      .select("id,status")
+      .eq("tenant_id", tenant.id)
+      .eq("id", cleanQuoteId)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (quoteError || !quote || !["draft", "issued"].includes(quote.status)) {
+      return { ok: false, message: "No se pudo verificar que el presupuesto esté disponible para editar. El ticket se conserva." };
+    }
+
+    if (historicalIds.length > 0) {
+      const { data, error } = await supabase
+        .from("quote_items")
+        .select("id,product_id")
+        .eq("tenant_id", tenant.id)
+        .eq("quote_id", cleanQuoteId)
+        .in("id", historicalIds);
+      if (error) {
+        return { ok: false, message: "No se pudieron verificar los renglones originales. El ticket se conserva." };
+      }
+      const originals = new Map((data ?? []).map((item: { id: string; product_id: string | null }) =>
+        [item.id.toLowerCase(), item.product_id?.toLowerCase()]));
+      if (lines.some((line) => line.originalQuoteItemId !== undefined &&
+          originals.get(line.originalQuoteItemId.toLowerCase()) !== line.id.toLowerCase())) {
+        return { ok: false, message: "Un renglón original ya no corresponde a este presupuesto o fue actualizado. El ticket se conserva; volvé a abrir el presupuesto para continuar." };
+      }
+    }
+
+    // Preflight has no writes. 038 must revalidate under its lock: a concurrent
+    // change can still fail after the separate price synchronization commits.
     await syncSelectedSaleUnitPrices({ lines: cleanLines, tenantId: tenant.id });
     const { data, error } = await supabase.rpc("update_quote_with_items", {
       input_quote_id: cleanQuoteId,
@@ -1465,6 +1521,7 @@ export async function updateQuoteAction({
       input_customer_email: customer.email.trim() || null,
       input_customer_address: customer.address.trim() || null,
       input_items: cleanLines.map((line) => ({
+        ...(line.originalQuoteItemId === undefined ? {} : { quote_item_id: line.originalQuoteItemId }),
         product_id: line.id,
         sku: line.sku,
         sale_unit_id: line.selectedSaleUnitId || null,
@@ -1476,7 +1533,9 @@ export async function updateQuoteAction({
     if (error || !data) {
       return {
         ok: false,
-        message: getSaveQuoteErrorMessage(error?.message),
+        message: error?.message?.includes("QUOTE_ITEM_ID_")
+          ? "Los renglones originales cambiaron o no son válidos. El ticket se conserva; volvé a abrir el presupuesto."
+          : getSaveQuoteErrorMessage(error?.message),
       };
     }
 

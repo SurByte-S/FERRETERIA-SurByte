@@ -462,12 +462,13 @@ function mapQuoteLine({
 
   return {
     id: product.id,
+    originalQuoteItemId: item.id,
     sku,
     customCode: normalizeProductCode(product.custom_code),
     code: normalizeProductCode(selectedSaleUnit.barcode) || displayCode,
     displayCode: normalizeProductCode(selectedSaleUnit.barcode) || displayCode,
     productBarcode,
-    name: product.name,
+    name: item.name,
     description: product.description ?? product.name,
     brand: product.brands?.name ?? "",
     category: product.categories?.name ?? "",
