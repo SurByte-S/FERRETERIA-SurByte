@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 
 import { useOnlineStatus } from "@/components/pwa/use-online-status";
+import { useOfflineSessionReady } from "./offline-session-boundary";
 import { Button } from "@/components/ui/button";
 import {
   countOfflineQuoteCreateItems,
@@ -85,13 +86,12 @@ function QuoteSummary({ item }: { item: OfflineQueueItem }) {
 }
 
 export function OfflineQuotesPanel(props: OfflineQuotesPanelProps) {
-  if (!props.canView) {
+  const sessionReady = useOfflineSessionReady();
+  if (!props.canView || !sessionReady) {
     return null;
   }
 
   // Remount on identity changes so old data/errors never reach the new render.
-  // This does not detect account changes in tabs retaining stale server props:
-  // session invalidation needs a separate security phase before real sync.
   // The POS must already be loaded; this does not enable full offline reloads.
   return <AuthorizedOfflineQuotesPanel key={`${props.tenantId}:${props.userId}`} {...props} />;
 }

@@ -1,5 +1,7 @@
 "use client";
 
+import { captureOfflineSession } from "./offline-session";
+
 const DB_NAME = "ferreteria-offline-queue";
 const DB_VERSION = 1;
 const QUEUE_STORE = "pending_operations";
@@ -64,6 +66,23 @@ function assertQueueScope(tenantId: string, userId: string) {
   ) {
     throw new Error("Se requiere un negocio y un usuario validos para acceder a la cola offline.");
   }
+  return captureOfflineSession(tenantId, userId);
+}
+
+function scopedTransaction(
+  db: IDBDatabase, mode: IDBTransactionMode,
+  session: ReturnType<typeof captureOfflineSession>
+) {
+  session.check();
+  const transaction = db.transaction(QUEUE_STORE, mode);
+  const unsubscribe = session.subscribe(() => {
+    try { session.check(); } catch {
+      try { transaction.abort(); } catch { /* Already committed; never delete a saved record. */ }
+    }
+  });
+  transaction.addEventListener("complete", unsubscribe, { once: true });
+  transaction.addEventListener("abort", unsubscribe, { once: true });
+  return transaction;
 }
 
 function belongsToScope(item: OfflineQueueItem, tenantId: string, userId: string) {
@@ -130,7 +149,7 @@ function safeLimit(value: number | undefined) {
 }
 
 export async function addOfflineQueueItem(input: AddOfflineQueueItemInput) {
-  assertQueueScope(input.tenant_id, input.user_id);
+  const session = assertQueueScope(input.tenant_id, input.user_id);
   const id = input.id ?? crypto.randomUUID();
 
   if (typeof id !== "string" ||
@@ -154,11 +173,11 @@ export async function addOfflineQueueItem(input: AddOfflineQueueItemInput) {
   };
 
   try {
-    const transaction = db.transaction(QUEUE_STORE, "readwrite");
+    const transaction = scopedTransaction(db, "readwrite", session);
     // add rejects duplicate IDs atomically, including concurrent insertions.
     transaction.objectStore(QUEUE_STORE).add(item);
     await transactionDone(transaction);
-
+    session.check();
     return item;
   } finally {
     db.close();
@@ -170,18 +189,18 @@ export async function listOfflineQueueItems(
   userId: string,
   options: ListOfflineQueueItemsOptions = {}
 ) {
-  assertQueueScope(tenantId, userId);
+  const session = assertQueueScope(tenantId, userId);
   const db = await openOfflineQueueDb();
   const limit = safeLimit(options.limit);
 
   try {
-    const transaction = db.transaction(QUEUE_STORE, "readonly");
+    const transaction = scopedTransaction(db, "readonly", session);
     const tenantIndex = transaction.objectStore(QUEUE_STORE).index("tenant_id");
     const items = await requestToPromise(
       tenantIndex.getAll(tenantId)
     ) as OfflineQueueItem[];
     await transactionDone(transaction);
-
+    session.check();
     return items
       .filter((item) => belongsToScope(item, tenantId, userId))
       .filter((item) => !options.status || item.status === options.status)
@@ -205,11 +224,11 @@ async function readOfflineQuoteCreateItems(
   userId: string,
   limit: number
 ) {
-  assertQueueScope(tenantId, userId);
+  const session = assertQueueScope(tenantId, userId);
   const db = await openOfflineQueueDb();
 
   try {
-    const transaction = db.transaction(QUEUE_STORE, "readonly");
+    const transaction = scopedTransaction(db, "readonly", session);
     const index = transaction.objectStore(QUEUE_STORE).index("tenant_id");
 
     return await new Promise<{ items: OfflineQueueItem[]; total: number; hasMore: boolean }>(
@@ -221,7 +240,12 @@ async function readOfflineQuoteCreateItems(
         transaction.onabort = () => reject(
           transaction.error ?? new Error("No se pudieron leer los presupuestos locales.")
         );
-        transaction.oncomplete = () => resolve({ items, total, hasMore: total > items.length });
+        transaction.oncomplete = () => {
+          try {
+            session.check();
+            resolve({ items, total, hasMore: total > items.length });
+          } catch (error) { reject(error); }
+        };
         request.onsuccess = () => {
           const cursor = request.result;
 
@@ -281,11 +305,11 @@ export async function updateOfflineQueueItemStatus(
   status: OfflineQueueItemStatus,
   extra: UpdateOfflineQueueItemExtra = {}
 ) {
-  assertQueueScope(tenantId, userId);
+  const session = assertQueueScope(tenantId, userId);
   const db = await openOfflineQueueDb();
 
   try {
-    const transaction = db.transaction(QUEUE_STORE, "readwrite");
+    const transaction = scopedTransaction(db, "readwrite", session);
     const store = transaction.objectStore(QUEUE_STORE);
     const current = (await requestToPromise(store.get(id))) as
       | OfflineQueueItem
@@ -309,9 +333,10 @@ export async function updateOfflineQueueItemStatus(
           : current.attempt_count,
     };
 
+    session.check();
     store.put(nextItem);
     await transactionDone(transaction);
-
+    session.check();
     return nextItem;
   } finally {
     db.close();
@@ -319,11 +344,11 @@ export async function updateOfflineQueueItemStatus(
 }
 
 export async function deleteOfflineQueueItem(id: string, tenantId: string, userId: string) {
-  assertQueueScope(tenantId, userId);
+  const session = assertQueueScope(tenantId, userId);
   const db = await openOfflineQueueDb();
 
   try {
-    const transaction = db.transaction(QUEUE_STORE, "readwrite");
+    const transaction = scopedTransaction(db, "readwrite", session);
     const store = transaction.objectStore(QUEUE_STORE);
     const current = (await requestToPromise(store.get(id))) as
       | OfflineQueueItem
@@ -333,19 +358,21 @@ export async function deleteOfflineQueueItem(id: string, tenantId: string, userI
       throw new Error("No se encontro la operacion offline para este negocio y usuario.");
     }
 
+    session.check();
     store.delete(id);
     await transactionDone(transaction);
+    session.check();
   } finally {
     db.close();
   }
 }
 
 export async function discardOfflineQueueItem(id: string, tenantId: string, userId: string) {
-  assertQueueScope(tenantId, userId);
+  const session = assertQueueScope(tenantId, userId);
   const db = await openOfflineQueueDb();
 
   try {
-    const transaction = db.transaction(QUEUE_STORE, "readwrite");
+    const transaction = scopedTransaction(db, "readwrite", session);
     const store = transaction.objectStore(QUEUE_STORE);
     const current = (await requestToPromise(store.get(id))) as
       | OfflineQueueItem
@@ -366,9 +393,10 @@ export async function discardOfflineQueueItem(id: string, tenantId: string, user
       last_error: current.last_error,
     };
 
+    session.check();
     store.put(nextItem);
     await transactionDone(transaction);
-
+    session.check();
     return nextItem;
   } finally {
     db.close();
@@ -380,19 +408,25 @@ async function clearOfflineQueueItemsByStatus(
   userId: string,
   status: OfflineQueueItemStatus
 ) {
-  assertQueueScope(tenantId, userId);
+  const session = assertQueueScope(tenantId, userId);
   const db = await openOfflineQueueDb();
 
   try {
-    const transaction = db.transaction(QUEUE_STORE, "readwrite");
+    const transaction = scopedTransaction(db, "readwrite", session);
     const store = transaction.objectStore(QUEUE_STORE);
     const tenantIndex = store.index("tenant_id");
     let deletedCount = 0;
 
     await new Promise<void>((resolve, reject) => {
+      transaction.addEventListener("abort", () => reject(new Error("Operacion local cancelada.")), { once: true });
       const request = tenantIndex.openCursor(IDBKeyRange.only(tenantId));
 
       request.onsuccess = () => {
+        try { session.check(); } catch (error) {
+          try { transaction.abort(); } catch { /* Already finished. */ }
+          reject(error);
+          return;
+        }
         const cursor = request.result;
 
         if (!cursor) {
@@ -414,7 +448,7 @@ async function clearOfflineQueueItemsByStatus(
     });
 
     await transactionDone(transaction);
-
+    session.check();
     return deletedCount;
   } finally {
     db.close();

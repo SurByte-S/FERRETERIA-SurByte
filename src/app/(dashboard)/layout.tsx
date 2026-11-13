@@ -2,7 +2,8 @@ import { connection } from "next/server";
 
 import { DashboardShell } from "@/components/shell/dashboard-shell";
 import { ferreteriaGuemesBrand } from "@/lib/brand/ferreteria-guemes";
-import { requireUser } from "@/lib/auth/session";
+import { getSessionMarker, requireUser } from "@/lib/auth/session";
+import { OfflineSessionBoundary } from "@/components/pwa/offline-session-boundary";
 import { getSupabaseServerClient } from "@/lib/supabase";
 import { requireTenant } from "@/lib/tenant";
 
@@ -53,6 +54,7 @@ export default async function DashboardLayout({
   await connection();
   const user = await requireUser("/dashboard-layout");
   const tenant = await requireTenant("/dashboard-layout");
+  const marker = await getSessionMarker();
   const [tenantBrand, tenantAppearance] = await Promise.all([
     loadTenantBrand({
       fallbackName: tenant.name,
@@ -62,14 +64,19 @@ export default async function DashboardLayout({
   ]);
 
   return (
-    <DashboardShell
-      tenantAppearance={tenantAppearance}
-      tenantBrand={tenantBrand}
-      tenantRole={tenant.role}
-      userEmail={user.email}
+    <OfflineSessionBoundary
+      key={`${user.id}:${tenant.id}:${tenant.role}:${marker ?? "legacy"}`}
+      scope={{ userId: user.id, tenantId: tenant.id, role: tenant.role, marker }}
     >
-      {children}
-    </DashboardShell>
+      <DashboardShell
+        tenantAppearance={tenantAppearance}
+        tenantBrand={tenantBrand}
+        tenantRole={tenant.role}
+        userEmail={user.email}
+      >
+        {children}
+      </DashboardShell>
+    </OfflineSessionBoundary>
   );
 }
 

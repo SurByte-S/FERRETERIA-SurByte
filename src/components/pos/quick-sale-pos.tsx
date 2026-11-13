@@ -30,6 +30,7 @@ import type {
 import { QUOTE_EDIT_CONTRACT_VERSION } from "@/components/presupuestos/quote-types";
 import { OfflinePosCatalogResults } from "@/components/pos/offline-pos-catalog-results";
 import { OfflineQuotesPanel } from "@/components/pwa/offline-quotes-panel";
+import { useOfflineSessionReady } from "@/components/pwa/offline-session-boundary";
 import {
   OFFLINE_ACTION_MESSAGE,
   isBrowserOffline,
@@ -293,6 +294,7 @@ export function QuickSalePos({
 }) {
   const router = useRouter();
   const isOnline = useOnlineStatus();
+  const offlineSessionReady = useOfflineSessionReady();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchRef = useRef(initialSku ?? "");
   const latestSearchRequestRef = useRef(0);
@@ -1186,6 +1188,10 @@ export function QuickSalePos({
   }
 
   async function saveOfflineQuote() {
+    if (!offlineSessionReady) {
+      setMessage("Acceso offline bloqueado. Verifica la sesion con internet antes de continuar.");
+      return;
+    }
     if (offlineQuoteSaveBusyRef.current) {
       return;
     }
@@ -1742,7 +1748,7 @@ export function QuickSalePos({
                     <Button
                       type="button"
                       onClick={saveQuote}
-                      disabled={isPending || isSavingOfflineQuote || isCurrentQuoteSavedLocally || lines.length === 0}
+                      disabled={isPending || isSavingOfflineQuote || isCurrentQuoteSavedLocally || lines.length === 0 || (!isOnline && !offlineSessionReady)}
                       className="h-12 w-full px-4 text-base font-black"
                     >
                       {isEditingQuote

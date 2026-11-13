@@ -8,6 +8,7 @@ import {
   logServerWarn,
 } from "@/lib/server-log";
 import { getSupabaseBrowserEnv } from "@/lib/supabase/env";
+import { SESSION_MARKER_COOKIE } from "./session-marker";
 
 const ACCESS_TOKEN_COOKIE = "ferreteria_sb_access_token";
 const REFRESH_TOKEN_COOKIE = "ferreteria_sb_refresh_token";
@@ -63,6 +64,9 @@ export async function setAuthCookies({
     refreshToken,
     cookieOptions(60 * 60 * 24 * 30)
   );
+  cookieStore.set(SESSION_MARKER_COOKIE, crypto.randomUUID(), {
+    ...cookieOptions(60 * 60 * 24 * 30), httpOnly: false,
+  });
 }
 
 export async function clearAuthCookies() {
@@ -70,6 +74,27 @@ export async function clearAuthCookies() {
 
   cookieStore.delete(ACCESS_TOKEN_COOKIE);
   cookieStore.delete(REFRESH_TOKEN_COOKIE);
+  // Retain a tombstone: even legacy tabs with no marker detect logout.
+  cookieStore.set(SESSION_MARKER_COOKIE, crypto.randomUUID(), {
+    ...cookieOptions(60 * 60 * 24 * 30), httpOnly: false,
+  });
+}
+
+export async function getSessionMarker() {
+  return (await cookies()).get(SESSION_MARKER_COOKIE)?.value ?? null;
+}
+
+// Only used AFTER getCurrentUser verifies the token with Supabase. This decoded
+// timestamp limits offline access; it does not authenticate a request.
+export async function getSessionExpiresAt() {
+  try {
+    const token = (await cookies()).get(ACCESS_TOKEN_COOKIE)?.value;
+    const payload = JSON.parse(Buffer.from(token?.split(".")[1] ?? "", "base64url").toString());
+    return typeof payload.exp === "number" && Number.isFinite(payload.exp)
+      ? payload.exp * 1000 : 0;
+  } catch {
+    return 0;
+  }
 }
 
 export async function getCurrentUser(

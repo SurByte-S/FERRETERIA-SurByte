@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCw, RotateCw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useOfflineSessionReady } from "./offline-session-boundary";
 import {
   clearDiscardedOfflineQueueItems,
   clearSyncedOfflineQueueItems,
@@ -51,7 +52,14 @@ function displayValue(value: string | null | undefined) {
   return cleanValue ? cleanValue : "-";
 }
 
-export function OfflineSyncPanel({
+export function OfflineSyncPanel(props: OfflineSyncPanelProps) {
+  const sessionReady = useOfflineSessionReady();
+  return sessionReady
+    ? <AuthorizedOfflineSyncPanel key={`${props.tenantId}:${props.userId}`} {...props} />
+    : null;
+}
+
+function AuthorizedOfflineSyncPanel({
   tenantId,
   tenantName,
   userId,
