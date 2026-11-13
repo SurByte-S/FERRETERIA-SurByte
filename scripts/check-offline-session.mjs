@@ -23,7 +23,7 @@ function load(file) {
   cache.set(file, exports);
   return exports;
 }
-const { OfflineSession, SessionRejected, attachOfflineSession } = load("src/lib/offline/offline-session.ts");
+const { OfflineSession, SessionRejected, SessionNetworkError, SessionServerError, attachOfflineSession } = load("src/lib/offline/offline-session.ts");
 const queue = load("src/lib/offline/offline-queue-store.ts");
 const { readSessionMarker } = load("src/lib/auth/session-marker.ts");
 const scope = { userId: "11111111-1111-1111-1111-111111111111", tenantId: "22222222-2222-2222-2222-222222222222", role: "seller", marker: "epoch-a" };
@@ -77,15 +77,86 @@ await test("offline use requires previous verification and stops at expiry", asy
   online = false; session.capture(scope.tenantId, scope.userId)();
   now = verified.validUntil; assert.throws(() => session.capture(scope.tenantId, scope.userId));
 });
-await test("reconnection blocks old access until server verification; failures stay blocked", async () => {
+await test("reconnection preserves a valid lease; unclassified failures block it", async () => {
   const session = create(); await session.verify();
   online = false; session.check(); online = true;
-  assert.throws(() => session.capture(scope.tenantId, scope.userId));
+  session.capture(scope.tenantId, scope.userId)();
   verify = async () => { throw new Error("unavailable"); };
   await session.verify(); assert.equal(session.snapshot(), "blocked");
   online = false; assert.throws(() => session.capture(scope.tenantId, scope.userId));
   online = true; verify = async () => verified;
   await session.verify(); session.capture(scope.tenantId, scope.userId)();
+});
+await test("network failure one second after validation retains exactly the old five-minute deadline", async () => {
+  verified = { ...scope, validUntil: now + 300000 };
+  const deadline = verified.validUntil;
+  const session = create(); await session.verify();
+  now += 1000;
+  verify = async () => { online = false; throw new SessionNetworkError(); };
+  await session.verify(); assert.equal(session.snapshot(), "ready");
+  session.capture(scope.tenantId, scope.userId)();
+  now = deadline - 1; assert.equal(session.check(), true);
+  now = deadline; assert.equal(session.check(), false);
+});
+await test("repeated network failures cannot extend the real token deadline", async () => {
+  verified = { ...scope, validUntil: now + 2000 };
+  const session = create(); await session.verify();
+  verify = async () => { throw new SessionNetworkError(); };
+  now += 1000; await session.verify(); assert.equal(session.check(), true);
+  now += 999; await session.verify(); assert.equal(session.check(), true);
+  now += 1; await session.verify(); assert.equal(session.check(), false);
+});
+await test("routine verification leaves panel/ticket status and in-flight access unchanged", async () => {
+  const session = create(); await session.verify();
+  const readCheckpoint = session.capture(scope.tenantId, scope.userId);
+  const transitions = []; session.subscribe(() => transitions.push(session.snapshot()));
+  let finish; verify = () => new Promise((resolve) => { finish = resolve; });
+  const checking = session.verify();
+  assert.equal(session.snapshot(), "ready"); readCheckpoint();
+  finish(verified); await checking; readCheckpoint();
+  assert.deepEqual(transitions, []); // Context does not hide/remount its consumers.
+});
+await test("two overlapping verifications make only one request", async () => {
+  const session = create(); await session.verify();
+  let calls = 0, finish;
+  verify = () => { calls++; return new Promise((resolve) => { finish = resolve; }); };
+  const first = session.verify(); await session.verify(); assert.equal(calls, 1);
+  finish(verified); await first; assert.equal(session.check(), true);
+});
+await test("expiry during verification blocks until a fresh successful result", async () => {
+  const session = create(); await session.verify();
+  const oldRead = session.capture(scope.tenantId, scope.userId);
+  let finish; verify = () => new Promise((resolve) => { finish = resolve; });
+  const checking = session.verify(); now = verified.validUntil;
+  assert.equal(session.check(), false); assert.throws(oldRead);
+  finish({ ...scope, validUntil: now + 10000 }); await checking;
+  assert.equal(session.check(), true); assert.throws(oldRead);
+});
+await test("reconnection after expiry requires success; network failure cannot reopen access", async () => {
+  const session = create(); await session.verify(); online = false;
+  now = verified.validUntil; assert.equal(session.check(), false); online = true;
+  verify = async () => { throw new SessionNetworkError(); };
+  await session.verify(); assert.equal(session.check(), false);
+  verify = async () => ({ ...scope, validUntil: now + 10000 });
+  await session.verify(); assert.equal(session.check(), true);
+});
+await test("no prior validation means no network fallback", async () => {
+  const session = create(); verify = async () => { throw new SessionNetworkError(); };
+  await session.verify(); assert.equal(session.snapshot(), "blocked");
+});
+for (const error of [new SessionServerError(), new Error("unknown")]) {
+  await test(`conservative ${error.constructor.name} block cannot be revived by a later network failure`, async () => {
+    const session = create(); await session.verify();
+    verify = async () => { throw error; }; await session.verify();
+    assert.equal(session.snapshot(), "blocked");
+    verify = async () => { throw new SessionNetworkError(); }; await session.verify();
+    assert.equal(session.snapshot(), "blocked");
+  });
+}
+await test("network failure after an unobserved logout still invalidates", async () => {
+  const session = create(); await session.verify();
+  verify = async () => { marker = "logout"; throw new SessionNetworkError(); };
+  await session.verify(); assert.equal(session.snapshot(), "invalid");
 });
 await test("server rejection invalidates instead of redirecting or retrying indefinitely", async () => {
   const session = create(); await session.verify();
@@ -147,7 +218,7 @@ function mockedModule(path, dependencies, extras = {}) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   });
   vm.runInNewContext(compiled.outputText, {
-    exports, Response, Date, Buffer, ...extras,
+    exports, Response, Date, Buffer, TypeError, DOMException, AbortSignal, ...extras,
     require: (name) => {
       assert.ok(name in dependencies, `Unexpected dependency: ${name}`);
       return dependencies[name];
@@ -177,7 +248,7 @@ await test("login and both centralized logout callers rotate a public marker, re
   assert.equal(await auth.getSessionMarker(), "random-3");
   assert.equal(jar.get("ferreteria_sb_session_marker").options.httpOnly, false);
 });
-for (const scenario of ["valid", "no-user", "no-membership", "multiple", "db-error", "expired"]) {
+for (const scenario of ["valid", "no-user", "no-membership", "multiple", "db-error", "auth-unavailable", "expired"]) {
   await test(`read-only identity endpoint: ${scenario}`, async () => {
     const filters = [];
     const members = scenario === "no-membership" ? [] : [{ tenant_id: scope.tenantId, role: scope.role }];
@@ -189,7 +260,11 @@ for (const scenario of ["valid", "no-user", "no-membership", "multiple", "db-err
     };
     const route = mockedModule("src/app/api/auth/session-context/route.ts", {
       "@/lib/auth/session": {
-        getCurrentUser: async () => scenario === "no-user" ? null : { id: scope.userId },
+        getCurrentUser: async (_source, options) => {
+          assert.equal(options.distinguishVerificationErrors, true);
+          if (scenario === "auth-unavailable") throw new Error("upstream unavailable");
+          return scenario === "no-user" ? null : { id: scope.userId };
+        },
         getSessionExpiresAt: async () => scenario === "expired" ? 0 : Date.now() + 60000,
         getSessionMarker: async () => scope.marker,
       },
@@ -198,11 +273,11 @@ for (const scenario of ["valid", "no-user", "no-membership", "multiple", "db-err
       } }) },
     });
     const response = await route.GET();
-    const expected = { valid: 200, "no-user": 401, "no-membership": 403, multiple: 403, "db-error": 503, expired: 401 };
+    const expected = { valid: 200, "no-user": 401, "no-membership": 403, multiple: 403, "db-error": 503, "auth-unavailable": 503, expired: 401 };
     assert.equal(response.status, expected[scenario]);
     assert.match(response.headers.get("cache-control"), /no-store/);
     assert.equal(response.headers.get("location"), null);
-    if (scenario !== "no-user") assert.deepEqual(filters, [["user_id", scope.userId], ["active", true]]);
+    if (!["no-user", "auth-unavailable"].includes(scenario)) assert.deepEqual(filters, [["user_id", scope.userId], ["active", true]]);
     if (scenario === "valid") {
       const body = await response.json();
       assert.equal(body.userId, scope.userId); assert.equal(body.tenantId, scope.tenantId);
@@ -210,4 +285,71 @@ for (const scenario of ["valid", "no-user", "no-membership", "multiple", "db-err
     }
   });
 }
+for (const scenario of ["offline-fetch", "online-fetch", "offline-timeout", "online-timeout", "unknown", "json", "server", "401", "403"]) {
+  await test(`browser transport classification: ${scenario}`, async () => {
+    const navigator = { onLine: true }; let fail = false;
+    const browserSessionModule = mockedModule("src/lib/offline/offline-session.ts", {
+      "../auth/session-marker": load("src/lib/auth/session-marker.ts"),
+    }, {
+      navigator, document: { cookie: "ferreteria_sb_session_marker=epoch-a" },
+      fetch: async () => {
+        if (!fail) return Response.json({ ...scope, validUntil: Date.now() + 60000 });
+        if (scenario.startsWith("offline")) navigator.onLine = false;
+        if (scenario.endsWith("fetch")) throw new TypeError("fetch failed");
+        if (scenario.endsWith("timeout")) throw new DOMException("timeout", "TimeoutError");
+        if (scenario === "unknown") throw new Error("unknown");
+        if (scenario === "json") return new Response("not JSON");
+        return new Response("", { status: scenario === "server" ? 503 : Number(scenario) });
+      },
+    });
+    const session = browserSessionModule.createBrowserOfflineSession(scope);
+    await session.verify(); assert.equal(session.snapshot(), "ready");
+    fail = true; await session.verify();
+    const expected = scenario.startsWith("offline") ? "ready" : ["401", "403"].includes(scenario) ? "invalid" : "blocked";
+    assert.equal(session.snapshot(), expected);
+  });
+}
+for (const status of [401, 403, 0, 500, undefined]) {
+  await test(`Supabase auth failure ${status}: strict verification versus existing callers`, async () => {
+    const auth = mockedModule("src/lib/auth/session.ts", {
+      "next/headers": { cookies: async () => ({ get: () => ({ value: "test-token" }) }) },
+      "next/navigation": {},
+      "@supabase/supabase-js": { createClient: () => ({ auth: { getUser: async () => ({ data: { user: null }, error: { status, message: "test" } }) } }) },
+      "@/lib/server-log": { logServerWarn: () => {} },
+      "@/lib/supabase/env": { getSupabaseBrowserEnv: () => ({ ok: true }) },
+      "./session-marker": load("src/lib/auth/session-marker.ts"),
+    });
+    assert.equal(await auth.getCurrentUser("existing-caller"), null);
+    const result = auth.getCurrentUser("offline-verifier", { distinguishVerificationErrors: true });
+    if (status === 401 || status === 403) assert.equal(await result, null);
+    else await assert.rejects(result, /unavailable/);
+  });
+}
+await test("offline quote save still preserves its payload and existing records during a routine check", async () => {
+  const session = create(); await session.verify(); const detach = attachOfflineSession(session);
+  const records = [{ id: "existing-record", payload: "unchanged" }];
+  platform.indexedDB = { open: () => {
+    const request = {};
+    const tx = new EventTarget();
+    tx.objectStore = () => ({ add: (item) => {
+      records.push(item);
+      setImmediate(() => { tx.dispatchEvent(new Event("complete")); tx.oncomplete(); });
+    } });
+    request.result = { transaction: () => tx, close: () => {} };
+    queueMicrotask(() => request.onsuccess()); return request;
+  } };
+  let finish; verify = () => new Promise((resolve) => { finish = resolve; });
+  const checking = session.verify(); online = false;
+  const payload = {
+    customer: { id: null, name: "Test", phone: "", email: "", address: "" },
+    lines: [{ id: scope.userId, sku: "TEST", displayCode: "TEST", name: "Test", description: "", unit: "u", quantity: 2, price: 10, selectedSaleUnitId: null, selectedSaleUnitName: "Unidad", quantityInBaseUnit: 1 }],
+    total: 20, notes: "Presupuesto creado desde mostrador",
+  };
+  const { addOfflineQuoteCreateItem } = load("src/lib/offline/offline-quote-create.ts");
+  const saved = await addOfflineQuoteCreateItem({ id: scope.userId, tenant_id: scope.tenantId, user_id: scope.userId, payload });
+  assert.equal(saved.status, "pending"); assert.equal(JSON.stringify(saved.payload), JSON.stringify(payload));
+  assert.equal(records.length, 2); assert.equal(records[0].payload, "unchanged");
+  finish(verified); await checking;
+  marker = "logout"; session.check(); assert.equal(records.length, 2); detach();
+});
 console.log(`${passed} isolated tests passed. No real IndexedDB or Supabase accessed.`);

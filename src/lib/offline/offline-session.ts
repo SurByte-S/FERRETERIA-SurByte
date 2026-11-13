@@ -4,6 +4,8 @@ export type SessionScope = { userId: string; tenantId: string; role: string; mar
 export type SessionStatus = "checking" | "ready" | "blocked" | "invalid";
 type VerifiedScope = SessionScope & { validUntil: number };
 export class SessionRejected extends Error {}
+export class SessionNetworkError extends Error {}
+export class SessionServerError extends Error {}
 type Environment = {
   marker: () => string | null;
   online: () => boolean;
@@ -16,17 +18,15 @@ export class OfflineSession {
   private validUntil = 0;
   private generation = 0;
   private pending = false;
-  private lastOnline: boolean;
   private listeners = new Set<() => void>();
-  constructor(readonly scope: SessionScope, private env: Environment) {
-    this.lastOnline = env.online();
-  }
+  constructor(readonly scope: SessionScope, private env: Environment) {}
   snapshot = () => this.status;
   subscribe = (listener: () => void) => {
     this.listeners.add(listener);
     return () => { this.listeners.delete(listener); };
   };
   private set(status: SessionStatus) {
+    if (this.status === status) return;
     this.status = status;
     for (const listener of this.listeners) listener();
   }
@@ -35,18 +35,15 @@ export class OfflineSession {
     this.generation++;
     this.set("invalid");
   };
+  private block() {
+    if (this.status === "invalid" || this.status === "blocked") return;
+    this.generation++;
+    this.set("blocked");
+  }
   check = () => {
     if (this.env.marker() !== this.scope.marker) this.invalidate();
-    const online = this.env.online();
-    const reconnected = online && !this.lastOnline;
-    this.lastOnline = online;
-    if (reconnected && this.status !== "invalid") {
-      this.generation++;
-      this.set("blocked");
-    }
     if (this.status === "ready" && this.env.now() >= this.validUntil) {
-      this.generation++;
-      this.set("blocked");
+      this.block();
     }
     return this.status === "ready";
   };
@@ -55,11 +52,13 @@ export class OfflineSession {
     if (this.status === "invalid" || this.pending) return;
     if (!this.env.online()) return;
     this.pending = true;
-    const generation = ++this.generation;
-    this.set("checking");
+    // Routine checks must not revoke in-flight reads or unmount open panels.
+    // Only loss of access increments generation. pending serializes requests.
+    if (this.status !== "ready") this.set("checking");
     try {
       const result = await this.env.verify();
-      if (generation !== this.generation) return;
+      this.check();
+      if (this.snapshot() === "invalid") return;
       if (this.env.marker() !== this.scope.marker ||
           result.marker !== this.scope.marker || result.userId !== this.scope.userId ||
           result.tenantId !== this.scope.tenantId || result.role !== this.scope.role) {
@@ -72,10 +71,11 @@ export class OfflineSession {
       this.validUntil = Math.min(result.validUntil, this.env.now() + 5 * 60_000);
       this.set("ready");
     } catch (error) {
-      if (generation === this.generation) {
-        if (error instanceof SessionRejected) this.invalidate();
-        else this.set("blocked");
-      }
+      this.check();
+      if (this.snapshot() === "invalid") return;
+      if (error instanceof SessionRejected) this.invalidate();
+      // Never restore a previously blocked lease, nor extend its deadline.
+      else if (!(error instanceof SessionNetworkError && this.status === "ready")) this.block();
     } finally {
       this.pending = false;
     }
@@ -119,11 +119,24 @@ export function createBrowserOfflineSession(scope: SessionScope) {
     online: () => typeof navigator === "undefined" || navigator.onLine,
     now: Date.now,
     verify: async () => {
-      const response = await fetch("/api/auth/session-context", {
+      const options: RequestInit = {
         cache: "no-store", credentials: "same-origin", redirect: "error",
         signal: AbortSignal.timeout(10_000),
-      });
+      };
+      let response: Response;
+      try {
+        response = await fetch("/api/auth/session-context", options);
+      } catch (error) {
+        // Fetch TypeError alone can also mean CORS/configuration. Only allow
+        // fallback when the browser confirms disconnection. Setup/JSON errors,
+        // online timeouts and ambiguous failures remain conservative blocks.
+        const transportFailure = error instanceof TypeError ||
+          (error instanceof DOMException && ["NetworkError", "TimeoutError"].includes(error.name));
+        if (navigator.onLine === false && transportFailure) throw new SessionNetworkError();
+        throw error;
+      }
       if (response.status === 401 || response.status === 403) throw new SessionRejected();
+      if (response.status >= 500) throw new SessionServerError();
       if (!response.ok) throw new Error("Session verification failed");
       return response.json();
     },

@@ -8,7 +8,7 @@ function json(body: unknown, status = 200) {
 // Read only. No redirects, cookie refresh, SQL writes or automatic login.
 export async function GET() {
   try {
-    const user = await getCurrentUser("/api/auth/session-context");
+    const user = await getCurrentUser("/api/auth/session-context", { distinguishVerificationErrors: true });
     if (!user) return json({ ok: false }, 401);
     const { data, error } = await getSupabaseServerClient("/api/auth/session-context")
       .from("tenant_members").select("tenant_id,role")

@@ -98,7 +98,8 @@ export async function getSessionExpiresAt() {
 }
 
 export async function getCurrentUser(
-  source = "getCurrentUser"
+  source = "getCurrentUser",
+  options: { distinguishVerificationErrors?: boolean } = {}
 ): Promise<AuthUser | null> {
   const cookieStore = await cookies();
   const accessToken = cookieStore.get(ACCESS_TOKEN_COOKIE)?.value;
@@ -112,6 +113,7 @@ export async function getCurrentUser(
 
   if (!supabase) {
     logServerWarn("Auth client unavailable", { source });
+    if (options.distinguishVerificationErrors) throw new Error("Auth verification unavailable");
     return null;
   }
 
@@ -122,6 +124,11 @@ export async function getCurrentUser(
       source,
       error: error?.message,
     });
+    // The offline verifier must distinguish a rejected session from upstream
+    // transport/server failures. Existing callers keep their original behavior.
+    if (options.distinguishVerificationErrors && error?.status !== 401 && error?.status !== 403) {
+      throw new Error("Auth verification unavailable");
+    }
     return null;
   }
 
