@@ -11,6 +11,7 @@ import {
   type OfflineQueueItem,
 } from "@/lib/offline/offline-queue-store";
 import { validateOfflineQuoteCreatePayload } from "@/lib/offline/offline-quote-create";
+import { OfflineQuoteReview } from "./offline-quote-review";
 
 type OfflineQuotesPanelProps = {
   tenantId: string;
@@ -38,7 +39,7 @@ function formatDate(value: string) {
     : "Fecha no disponible";
 }
 
-function QuoteSummary({ item }: { item: OfflineQueueItem }) {
+function QuoteSummary({ item, tenantId, userId }: { item: OfflineQueueItem; tenantId: string; userId: string }) {
   let payload: ReturnType<typeof validateOfflineQuoteCreatePayload> | null = null;
 
   try {
@@ -81,6 +82,7 @@ function QuoteSummary({ item }: { item: OfflineQueueItem }) {
           Solo es un estado registrado. Esta version no ejecuta sincronizacion.
         </p>
       ) : null}
+      {payload && <OfflineQuoteReview item={item} tenantId={tenantId} userId={userId} />}
     </li>
   );
 }
@@ -217,7 +219,7 @@ function AuthorizedOfflineQuotesPanel({
               </p>
             ) : null}
             <ul className="grid gap-3">
-              {snapshot.items.map((item) => <QuoteSummary key={item.id} item={item} />)}
+              {snapshot.items.map((item) => <QuoteSummary key={item.id} item={item} tenantId={tenantId} userId={userId} />)}
             </ul>
           </>
         )}
